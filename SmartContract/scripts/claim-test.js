@@ -2,7 +2,7 @@ require("dotenv").config();
 const { ethers } = require("hardhat");
 
 async function main() {
-  const tokenId = 24;
+  const tokenId = 32;
 
   // Load environment
   const contractAddress = process.env.CONTRACT_ADDRESS;

@@ -7,6 +7,37 @@ const MySBT = require(path.join(__dirname, "..", "..", "SmartContract", "artifac
 const STATUS = ["Issued","Active","Expired","Revoked","Replaced"];
 const JOB = "mysbt-sync";
 
+// Rate limiting configuration
+const BATCH_SIZE = 1000; // Process blocks in smaller batches
+const DELAY_BETWEEN_BATCHES = 1000; // 1 second delay between batches
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000; // 2 seconds
+
+// Helper function to delay execution
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper function to retry failed operations
+async function retryOperation(operation, maxRetries = MAX_RETRIES) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      
+      // Check if it's a rate limit error
+      if (error.code === 'BAD_DATA' && error.value && error.value.some(v => v.code === -32005)) {
+        console.log(`Rate limited, waiting ${RETRY_DELAY * (i + 1)}ms before retry ${i + 1}/${maxRetries}`);
+        await delay(RETRY_DELAY * (i + 1));
+        continue;
+      }
+      
+      // For other errors, wait a bit and retry
+      console.log(`Operation failed, retrying ${i + 1}/${maxRetries}:`, error.message);
+      await delay(1000);
+    }
+  }
+}
+
 const toDate = (secOrMs) => {
   // on-chain là seconds (uint256)
   const n = Number(secOrMs);
@@ -82,61 +113,96 @@ async function runOnce(fromBlock, toBlock) {
   const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
   const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, MySBT.abi, provider);
 
+  // Process events with retry logic
+  const processEvents = async (filter, eventType, processor) => {
+    try {
+      const logs = await retryOperation(() => 
+        contract.queryFilter(filter, fromBlock, toBlock)
+      );
+      
+      for (const log of logs) {
+        await processor(log);
+      }
+      
+      return logs.length;
+    } catch (error) {
+      console.error(`Error processing ${eventType} events:`, error.message);
+      return 0;
+    }
+  };
+
   // Issued
-  const issued = await contract.queryFilter(contract.filters.CertificateIssued(), fromBlock, toBlock);
-  for (const log of issued) {
-    const { tokenId } = log.args;
-    const cert = await contract.certificates(tokenId);
-    await upsertCertificateFromStruct(tokenId.toString(), cert);
-    await insertEvent({
-      tokenId, type: "Issued",
-      issuer: cert.issuer, holder: cert.holder,
-      blockNumber: log.blockNumber, txHash: log.transactionHash
-    });
-  }
+  const issuedCount = await processEvents(
+    contract.filters.CertificateIssued(),
+    "Issued",
+    async (log) => {
+      const { tokenId } = log.args;
+      const cert = await retryOperation(() => contract.certificates(tokenId));
+      await upsertCertificateFromStruct(tokenId.toString(), cert);
+      await insertEvent({
+        tokenId, type: "Issued",
+        issuer: cert.issuer, holder: cert.holder,
+        blockNumber: log.blockNumber, txHash: log.transactionHash
+      });
+    }
+  );
 
   // Claimed
-  const claimed = await contract.queryFilter(contract.filters.CertificateClaimed(), fromBlock, toBlock);
-  for (const log of claimed) {
-    const { tokenId, holder } = log.args;
-    await db.query(`UPDATE certificates SET status='Active', holder=$1, updated_at=NOW() WHERE token_id=$2`,
-                   [holder, tokenId.toString()]);
-    await insertEvent({ tokenId, type: "Claimed", holder, blockNumber: log.blockNumber, txHash: log.transactionHash });
-  }
+  const claimedCount = await processEvents(
+    contract.filters.CertificateClaimed(),
+    "Claimed",
+    async (log) => {
+      const { tokenId, holder } = log.args;
+      await db.query(`UPDATE certificates SET status='Active', holder=$1, updated_at=NOW() WHERE token_id=$2`,
+                     [holder, tokenId.toString()]);
+      await insertEvent({ tokenId, type: "Claimed", holder, blockNumber: log.blockNumber, txHash: log.transactionHash });
+    }
+  );
 
   // Revoked
-  const revoked = await contract.queryFilter(contract.filters.CertificateRevoked(), fromBlock, toBlock);
-  for (const log of revoked) {
-    const { tokenId, issuer, reason } = log.args;
-    await db.query(`UPDATE certificates SET status='Revoked', updated_at=NOW() WHERE token_id=$1`,
-                   [tokenId.toString()]);
-    await insertEvent({ tokenId, type: "Revoked", issuer, reason, blockNumber: log.blockNumber, txHash: log.transactionHash });
-  }
+  const revokedCount = await processEvents(
+    contract.filters.CertificateRevoked(),
+    "Revoked",
+    async (log) => {
+      const { tokenId, issuer, reason } = log.args;
+      await db.query(`UPDATE certificates SET status='Revoked', updated_at=NOW() WHERE token_id=$1`,
+                     [tokenId.toString()]);
+      await insertEvent({ tokenId, type: "Revoked", issuer, reason, blockNumber: log.blockNumber, txHash: log.transactionHash });
+    }
+  );
 
   // Expired
-  const expired = await contract.queryFilter(contract.filters.CertificateExpired(), fromBlock, toBlock);
-  for (const log of expired) {
-    const { tokenId } = log.args;
-    await db.query(`UPDATE certificates SET status='Expired', updated_at=NOW() WHERE token_id=$1`,
-                   [tokenId.toString()]);
-    await insertEvent({ tokenId, type: "Expired", blockNumber: log.blockNumber, txHash: log.transactionHash });
-  }
+  const expiredCount = await processEvents(
+    contract.filters.CertificateExpired(),
+    "Expired",
+    async (log) => {
+      const { tokenId } = log.args;
+      await db.query(`UPDATE certificates SET status='Expired', updated_at=NOW() WHERE token_id=$1`,
+                     [tokenId.toString()]);
+      await insertEvent({ tokenId, type: "Expired", blockNumber: log.blockNumber, txHash: log.transactionHash });
+    }
+  );
 
   // Replaced
-  const replaced = await contract.queryFilter(contract.filters.CertificateReplaced(), fromBlock, toBlock);
-  for (const log of replaced) {
-    const { oldTokenId, newTokenId } = log.args;
-    // old → Replaced
-    await db.query(`UPDATE certificates SET status='Replaced', updated_at=NOW() WHERE token_id=$1`,
-                   [oldTokenId.toString()]);
-    // new → upsert struct
-    const cert = await contract.certificates(newTokenId);
-    await upsertCertificateFromStruct(newTokenId.toString(), cert);
-    await insertEvent({
-      tokenId: oldTokenId, type: "Replaced", relatedToken: newTokenId,
-      blockNumber: log.blockNumber, txHash: log.transactionHash
-    });
-  }
+  const replacedCount = await processEvents(
+    contract.filters.CertificateReplaced(),
+    "Replaced",
+    async (log) => {
+      const { oldTokenId, newTokenId } = log.args;
+      // old → Replaced
+      await db.query(`UPDATE certificates SET status='Replaced', updated_at=NOW() WHERE token_id=$1`,
+                     [oldTokenId.toString()]);
+      // new → upsert struct
+      const cert = await retryOperation(() => contract.certificates(newTokenId));
+      await upsertCertificateFromStruct(newTokenId.toString(), cert);
+      await insertEvent({
+        tokenId: oldTokenId, type: "Replaced", relatedToken: newTokenId,
+        blockNumber: log.blockNumber, txHash: log.transactionHash
+      });
+    }
+  );
+
+  console.log(`Processed events: Issued: ${issuedCount}, Claimed: ${claimedCount}, Revoked: ${revokedCount}, Expired: ${expiredCount}, Replaced: ${replacedCount}`);
 }
 
 async function main() {
@@ -144,11 +210,35 @@ async function main() {
   const latest = await provider.getBlockNumber();
   const from = await getCursor(0);
   const to = latest;
+  
   if (from <= to) {
-    await runOnce(from, to);
-    await setCursor(to);
+    console.log(`Starting sync from block ${from} to ${latest} (${latest - from} blocks)`);
+    
+    // Process blocks in batches to avoid rate limiting
+    for (let currentFrom = from; currentFrom <= to; currentFrom += BATCH_SIZE) {
+      const currentTo = Math.min(currentFrom + BATCH_SIZE - 1, to);
+      
+      console.log(`Processing batch: blocks ${currentFrom} → ${currentTo}`);
+      
+      try {
+        await runOnce(currentFrom, currentTo);
+        await setCursor(currentTo);
+        console.log(`Successfully synced batch ${currentFrom} → ${currentTo}`);
+        
+        // Add delay between batches to respect rate limits
+        if (currentTo < to) {
+          console.log(`Waiting ${DELAY_BETWEEN_BATCHES}ms before next batch...`);
+          await delay(DELAY_BETWEEN_BATCHES);
+        }
+      } catch (error) {
+        console.error(`Error syncing batch ${currentFrom} → ${currentTo}:`, error.message);
+        // Continue with next batch instead of failing completely
+        continue;
+      }
+    }
   }
-  console.log(`Synced blocks ${from} → ${to}`);
+  
+  console.log(`Sync completed. Final block: ${to}`);
 }
 
 if (require.main === module) {
