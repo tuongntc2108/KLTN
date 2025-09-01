@@ -205,6 +205,74 @@ async function runOnce(fromBlock, toBlock) {
   console.log(`Processed events: Issued: ${issuedCount}, Claimed: ${claimedCount}, Revoked: ${revokedCount}, Expired: ${expiredCount}, Replaced: ${replacedCount}`);
 }
 
+// Function để kiểm tra và cập nhật trạng thái hết hạn
+async function checkAndUpdateExpiredCertificates() {
+  try {
+    console.log('🔍 Checking for expired certificates...');
+    
+    // Lấy danh sách chứng chỉ có thể hết hạn
+    const query = `
+      SELECT token_id, expire_date, status 
+      FROM certificates 
+      WHERE status IN ('Issued', 'Active') 
+        AND expire_date < NOW()
+    `;
+    
+    const result = await db.query(query);
+    const expiredCerts = result.rows;
+    
+    if (expiredCerts.length === 0) {
+      console.log('✅ No expired certificates found');
+      return 0;
+    }
+    
+    console.log(`📅 Found ${expiredCerts.length} expired certificates`);
+    
+    let updatedCount = 0;
+    
+    for (const cert of expiredCerts) {
+      try {
+        // Cập nhật trạng thái trong database
+        await db.query(
+          `UPDATE certificates SET status='Expired', updated_at=NOW() WHERE token_id=$1`,
+          [cert.token_id]
+        );
+        
+        // Gọi smart contract để cập nhật trạng thái (nếu cần)
+        try {
+          const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, MySBT.abi, wallet);
+          await contract.updateExpiredStatus(cert.token_id);
+          console.log(`✅ Updated expired status for token ${cert.token_id} on blockchain`);
+        } catch (blockchainError) {
+          console.warn(`⚠️ Failed to update blockchain for token ${cert.token_id}:`, blockchainError.message);
+          // Vẫn cập nhật database ngay cả khi blockchain fail
+        }
+        
+        // Thêm event vào database
+        await insertEvent({
+          tokenId: cert.token_id,
+          type: "Expired",
+          blockNumber: null,
+          txHash: null
+        });
+        
+        updatedCount++;
+        
+      } catch (error) {
+        console.error(`❌ Error updating expired certificate ${cert.token_id}:`, error.message);
+      }
+    }
+    
+    console.log(`✅ Successfully updated ${updatedCount}/${expiredCerts.length} expired certificates`);
+    return updatedCount;
+    
+  } catch (error) {
+    console.error('❌ Error checking expired certificates:', error.message);
+    return 0;
+  }
+}
+
+// Cập nhật function main để gọi check expired certificates
 async function main() {
   const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
   const latest = await provider.getBlockNumber();
@@ -238,7 +306,11 @@ async function main() {
     }
   }
   
-  console.log(`Sync completed. Final block: ${to}`);
+  // Kiểm tra và cập nhật trạng thái hết hạn sau khi sync events
+  console.log('🔄 Checking expired certificates...');
+  const expiredCount = await checkAndUpdateExpiredCertificates();
+  
+  console.log(`Sync completed. Final block: ${to}, Updated expired: ${expiredCount}`);
 }
 
 if (require.main === module) {

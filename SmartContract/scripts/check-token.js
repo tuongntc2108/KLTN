@@ -3,7 +3,7 @@ const { ethers } = require("hardhat");
 async function main() {
   const [deployer] = await ethers.getSigners();
   const contractAddress = process.env.CONTRACT_ADDRESS;
-  const tokenId = 3; // Thay đổi nếu cần
+  const tokenId = 1; // Thay đổi nếu cần
 
   const MySBT = await ethers.getContractAt("MySBT", contractAddress);
 

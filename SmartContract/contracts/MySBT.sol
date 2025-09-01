@@ -98,7 +98,7 @@ contract MySBT is ERC721, AccessControl, Pausable {
     }
     
     modifier tokenExists(uint256 tokenId) {
-        require(_ownerOf(tokenId) != address(0), "Token does not exist");
+        require(certificateExists(tokenId), "Certificate does not exist");
         _;
     }
     
@@ -341,7 +341,7 @@ contract MySBT is ERC721, AccessControl, Pausable {
         override 
         returns (string memory) 
     {
-        require(_ownerOf(tokenId) != address(0), "Token does not exist");
+        require(certificateExists(tokenId), "Certificate does not exist");
         return certificates[tokenId].metadataURI;
     }
     
@@ -389,5 +389,44 @@ contract MySBT is ERC721, AccessControl, Pausable {
     // Get total supply
     function totalSupply() external view returns (uint256) {
         return _nextTokenId - 1;
+    }
+
+    // Function để lấy thông tin certificate (không phụ thuộc vào NFT đã mint)
+    function getCertificate(uint256 tokenId) public view returns (Certificate memory) {
+        require(certificateExists(tokenId), "Certificate does not exist");
+        return certificates[tokenId];
+    }
+    
+    // Function để kiểm tra quyền sở hữu thực tế của NFT
+    function getActualOwner(uint256 tokenId) public view returns (address) {
+        if (!certificateExists(tokenId)) {
+            return address(0);
+        }
+        
+        address nftOwner = super._ownerOf(tokenId);
+        if (nftOwner != address(0)) {
+            return nftOwner; // NFT đã mint
+        } else {
+            return address(0); // Chưa mint, không ai sở hữu
+        }
+    }
+    
+    // Function để kiểm tra quyền claim
+    function getClaimableHolder(uint256 tokenId) public view returns (address) {
+        if (!certificateExists(tokenId)) {
+            return address(0);
+        }
+        
+        address nftOwner = super._ownerOf(tokenId);
+        if (nftOwner == address(0)) {
+            return certificates[tokenId].holder; // Có thể claim
+        } else {
+            return address(0); // Đã mint, không thể claim
+        }
+    }
+
+    // Helper function to check if a certificate exists
+    function certificateExists(uint256 tokenId) internal view returns (bool) {
+        return certificates[tokenId].holder != address(0);
     }
 }
