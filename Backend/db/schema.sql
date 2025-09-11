@@ -50,3 +50,15 @@ CREATE TABLE IF NOT EXISTS sync_cursors (
     last_block BIGINT NOT NULL,
     updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- 4) Bảng học viên
+CREATE TABLE IF NOT EXISTS students (
+    id INTEGER PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    wallet_address VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_students_email ON students(email);
+CREATE INDEX IF NOT EXISTS idx_students_wallet ON students(wallet_address);

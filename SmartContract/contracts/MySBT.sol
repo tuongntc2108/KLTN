@@ -237,7 +237,6 @@ contract MySBT is ERC721, AccessControl, Pausable {
     // Verify certificate by token ID
     function verifyCertificate(uint256 tokenId) 
         external 
-        view 
         tokenExists(tokenId) 
         returns (
             Certificate memory cert,
@@ -247,11 +246,19 @@ contract MySBT is ERC721, AccessControl, Pausable {
     {
         cert = certificates[tokenId];
         
+        // Auto-update expired status if needed
+        if (block.timestamp > cert.expireDate && 
+            (cert.status == CertificateStatus.Active || cert.status == CertificateStatus.Issued)) {
+            certificates[tokenId].status = CertificateStatus.Expired;
+            emit CertificateExpired(tokenId);
+            cert = certificates[tokenId]; // Update local copy
+        }
+        
         if (cert.status == CertificateStatus.Revoked) {
             return (cert, false, "Certificate has been revoked");
         } else if (cert.status == CertificateStatus.Replaced) {
             return (cert, false, "Certificate has been replaced");
-        } else if (block.timestamp > cert.expireDate) {
+        } else if (cert.status == CertificateStatus.Expired) {
             return (cert, false, "Certificate has expired");
         } else if (cert.status == CertificateStatus.Issued) {
             return (cert, true, "Certificate issued but not yet claimed");
@@ -263,7 +270,6 @@ contract MySBT is ERC721, AccessControl, Pausable {
     // Verify certificate by verification code
     function verifyCertificateByCode(string memory verificationCode) 
         external 
-        view 
         returns (
             Certificate memory cert,
             bool isValid,
@@ -276,11 +282,19 @@ contract MySBT is ERC721, AccessControl, Pausable {
         
         cert = certificates[tokenId];
         
+        // Auto-update expired status if needed
+        if (block.timestamp > cert.expireDate && 
+            (cert.status == CertificateStatus.Active || cert.status == CertificateStatus.Issued)) {
+            certificates[tokenId].status = CertificateStatus.Expired;
+            emit CertificateExpired(tokenId);
+            cert = certificates[tokenId]; // Update local copy
+        }
+        
         if (cert.status == CertificateStatus.Revoked) {
             return (cert, false, "Certificate has been revoked", tokenId);
         } else if (cert.status == CertificateStatus.Replaced) {
             return (cert, false, "Certificate has been replaced", tokenId);
-        } else if (block.timestamp > cert.expireDate) {
+        } else if (cert.status == CertificateStatus.Expired) {
             return (cert, false, "Certificate has expired", tokenId);
         } else if (cert.status == CertificateStatus.Issued) {
             return (cert, true, "Certificate issued but not yet claimed", tokenId);

@@ -11,4 +11,7 @@ router.get("/:id", certificateController.getCertificateById);
 // PUT /api/certificates/:id/revoke
 router.put("/:id/revoke", certificateController.revokeCertificate);
 
+// PUT /api/certificates/:id/replace
+router.put("/:id/replace", certificateController.replaceCertificate);
+
 module.exports = router;

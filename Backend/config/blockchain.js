@@ -10,6 +10,7 @@ const contractABI = contractArtifact.abi;
 const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
 const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
+// Sử dụng dynamic gas pricing để tránh lỗi replacement transaction underpriced
 const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, contractABI, wallet);
 
 module.exports = { provider, wallet, contract };

@@ -240,6 +240,9 @@ async function checkAndUpdateExpiredCertificates() {
         
         // Gọi smart contract để cập nhật trạng thái (nếu cần)
         try {
+          // Tạo wallet từ private key để có thể gọi contract
+          const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
+          const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
           const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, MySBT.abi, wallet);
           await contract.updateExpiredStatus(cert.token_id);
           console.log(`✅ Updated expired status for token ${cert.token_id} on blockchain`);
@@ -248,13 +251,19 @@ async function checkAndUpdateExpiredCertificates() {
           // Vẫn cập nhật database ngay cả khi blockchain fail
         }
         
-        // Thêm event vào database
-        await insertEvent({
-          tokenId: cert.token_id,
-          type: "Expired",
-          blockNumber: null,
-          txHash: null
-        });
+        // Thêm event vào database với block number hiện tại
+        try {
+          const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
+          const currentBlock = await provider.getBlockNumber();
+          await insertEvent({
+            tokenId: cert.token_id,
+            type: "Expired",
+            blockNumber: currentBlock,
+            txHash: "SYSTEM_EXPIRED" // Đánh dấu đây là event được tạo bởi system
+          });
+        } catch (eventError) {
+          console.warn(`⚠️ Failed to insert expired event for token ${cert.token_id}:`, eventError.message);
+        }
         
         updatedCount++;
         

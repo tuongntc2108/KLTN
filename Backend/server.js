@@ -1,6 +1,7 @@
 // server.js
 const express = require("express");
 const app = express();
+const cors = require("cors");
 require("dotenv").config();
 const db = require("./config/pg");
 const { main: syncMain } = require("./services/sync");
@@ -15,6 +16,16 @@ db.pool.connect()
     console.error("❌ PostgreSQL connection error:", err);
     process.exit(1); // Dừng server nếu không kết nối được DB
   });
+
+// CORS
+app.use(
+  cors({
+    origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
+  })
+);
 
 // Middleware parse JSON
 app.use(express.json());
@@ -35,6 +46,9 @@ app.use("/api/certificates", certificateRoutes);
 
 const verifyRoutes = require("./routes/verifyRoutes");
 app.use("/api/verify", verifyRoutes);
+
+const studentRoutes = require("./routes/studentRoutes");
+app.use("/api/students", studentRoutes);
 
 // Auto-sync configuration
 const SYNC_INTERVAL = process.env.SYNC_INTERVAL || 5 * 60 * 1000; // 5 phút mặc định
@@ -84,7 +98,7 @@ process.on('SIGTERM', () => {
 });
 
 // Start server
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`✅ Backend chạy trên cổng ${PORT}`);
   
