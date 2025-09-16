@@ -48,7 +48,7 @@ async function upsertCertificateFromStruct(tokenId, cert) {
   const q = `
     INSERT INTO certificates (
       token_id, metadata_uri, holder, issuer, issued_date, expire_date, status,
-      course_id, student_id, verification_code, certificate_type, recipient_name, updated_at
+      course_id, student_id, verification_code, certificate_name, recipient_name, updated_at
     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW())
     ON CONFLICT (token_id) DO UPDATE SET
       metadata_uri=EXCLUDED.metadata_uri,
@@ -60,7 +60,7 @@ async function upsertCertificateFromStruct(tokenId, cert) {
       course_id=EXCLUDED.course_id,
       student_id=EXCLUDED.student_id,
       verification_code=EXCLUDED.verification_code,
-      certificate_type=EXCLUDED.certificate_type,
+      certificate_name=EXCLUDED.certificate_name,
       recipient_name=EXCLUDED.recipient_name,
       updated_at=NOW();
   `;
@@ -75,7 +75,7 @@ async function upsertCertificateFromStruct(tokenId, cert) {
     cert.courseId,
     cert.studentId,
     cert.verificationCode,
-    cert.certificateType,
+    cert.certificateName,
     cert.recipientName
   ];
   await db.query(q, params);

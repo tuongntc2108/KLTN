@@ -38,7 +38,7 @@ contract MySBT is ERC721, AccessControl, Pausable {
         string courseId;         // Mã khóa học từ metadata
         string studentId;        // Mã học viên
         string verificationCode; // Mã xác thực từ metadata
-        string certificateType;  // Loại chứng chỉ (TOEIC, IELTS, etc.)
+        string certificateName;  // Tên chứng chỉ
         string recipientName;    // Tên người nhận (có thể hash)
     }
     
@@ -110,7 +110,7 @@ contract MySBT is ERC721, AccessControl, Pausable {
         string memory courseId,
         string memory studentId,
         string memory verificationCode,
-        string memory certificateType,
+        string memory certificateName,
         string memory recipientName
     ) external onlyIssuer whenNotPaused returns (uint256) {
         require(holder != address(0), "Invalid holder address");
@@ -131,7 +131,7 @@ contract MySBT is ERC721, AccessControl, Pausable {
             courseId: courseId,
             studentId: studentId,
             verificationCode: verificationCode,
-            certificateType: certificateType,
+            certificateName: certificateName,
             recipientName: recipientName
         });
         
@@ -190,7 +190,7 @@ contract MySBT is ERC721, AccessControl, Pausable {
         string memory courseId,
         string memory studentId,
         string memory verificationCode,
-        string memory certificateType,
+        string memory certificateName,
         string memory recipientName
     ) external onlyIssuer tokenExists(oldTokenId) whenNotPaused returns (uint256) {
         Certificate storage oldCert = certificates[oldTokenId];
@@ -218,7 +218,7 @@ contract MySBT is ERC721, AccessControl, Pausable {
             courseId: courseId,
             studentId: studentId,
             verificationCode: verificationCode,
-            certificateType: certificateType,
+            certificateName: certificateName,
             recipientName: recipientName
         });
         

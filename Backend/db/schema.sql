@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS certificates (
     course_id VARCHAR(100),
     student_id VARCHAR(100),
     verification_code VARCHAR(100) UNIQUE NOT NULL,
-    certificate_type VARCHAR(50),
+    certificate_name VARCHAR(50),
     recipient_name TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()

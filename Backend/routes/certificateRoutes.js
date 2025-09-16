@@ -5,6 +5,12 @@ const certificateController = require("../controllers/certificateController");
 // POST /api/certificates
 router.post("/", certificateController.mintCertificate);
 
+// POST /api/certificates/seed (Development only)
+router.post("/seed", certificateController.seedTestCertificates);
+
+// GET /api/certificates/issuer/:issuerId (put specific routes before parameterized ones)
+router.get("/issuer/:issuerId", certificateController.getCertificatesByIssuer);
+
 // GET /api/certificates/:id
 router.get("/:id", certificateController.getCertificateById);
 

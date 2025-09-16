@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Search,
   Download,
@@ -21,68 +22,111 @@ import {
   RotateCcw,
   Ban,
   ExternalLink,
+  Loader2,
 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import Link from "next/link"
 
-const certificates = [
-  {
-    id: "CERT-001",
-    tokenId: "12345",
-    studentName: "Nguyễn Văn An",
-    studentEmail: "an.nguyen@email.com",
-    studentAvatar: "/placeholder.svg?height=32&width=32",
-    courseName: "Digital Marketing Professional",
-    certificateType: "Professional Certificate",
-    issueDate: "2024-01-20",
-    expiryDate: "2025-01-20",
-    status: "active",
-    blockchainTx: "0x742d35Cc6634C0532925a3b8D4C9db96590b4077",
-    ipfsHash: "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
-    walletAddress: "0x742d35Cc6634C0532925a3b8D4C9db96590b4077",
-  },
-  {
-    id: "CERT-002",
-    tokenId: "12346",
-    studentName: "Trần Thị Bình",
-    studentEmail: "binh.tran@email.com",
-    studentAvatar: "/placeholder.svg?height=32&width=32",
-    courseName: "English Communication Advanced",
-    certificateType: "Advanced Certificate",
-    issueDate: "2024-02-15",
-    expiryDate: "2025-02-15",
-    status: "issued_not_claimed",
-    blockchainTx: "0x8ba1f109551bD432803012645Hac136c30C6213",
-    ipfsHash: "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
-    walletAddress: null,
-  },
-  {
-    id: "CERT-003",
-    tokenId: "12347",
-    studentName: "Lê Minh Cường",
-    studentEmail: "cuong.le@email.com",
-    studentAvatar: "/placeholder.svg?height=32&width=32",
-    courseName: "Project Management Fundamentals",
-    certificateType: "Foundation Certificate",
-    issueDate: "2024-01-10",
-    expiryDate: "2024-12-10",
-    status: "expired",
-    blockchainTx: "0x9ca2f208662bE432804012645Hac136c30C6214",
-    ipfsHash: "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
-    walletAddress: "0x9ca2f208662bE432804012645Hac136c30C6214",
-  },
-]
+interface Certificate {
+  verified: boolean
+  certificate: {
+    token_id: string
+    status: string
+    metadata_uri: string
+    issuer: {
+      name: string
+      id: string
+      url: string
+    }
+    recipient: {
+      full_name: string
+      wallet_address: string
+      email_hash: string
+    }
+    certificate_detail: {
+      course_name: string
+      certificate_name: string
+      issue_date: string
+      expire_date: string
+      status: string
+    }
+    file_hash: {
+      sha256: string
+      pdf_url: string
+    }
+    verification: {
+      blockchain: string
+      chain_id: number
+      smart_contract: string
+      verified_at: string
+    }
+  }
+}
+
+interface ApiResponse {
+  success: boolean
+  message: string
+  issuer: {
+    id: string
+    name: string
+    url: string
+  }
+  certificates: Certificate[]
+}
 
 export default function CertificatesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [typeFilter, setTypeFilter] = useState("all")
+  const [certificates, setCertificates] = useState<Certificate[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const { toast } = useToast()
+
+  // Fetch certificates from API
+  useEffect(() => {
+    const fetchCertificates = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        // Using VNU-UET-001 as the issuer ID (should be dynamic based on logged-in user)
+        const response = await fetch('http://localhost:4000/api/certificates/issuer/VNU-UET-001?limit=50')
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
+        const data: ApiResponse = await response.json()
+        
+        if (data.success) {
+          setCertificates(data.certificates)
+        } else {
+          throw new Error(data.message || 'Failed to fetch certificates')
+        }
+      } catch (error) {
+        console.error('Error fetching certificates:', error)
+        setError(error instanceof Error ? error.message : 'An error occurred')
+        toast({
+          title: "Error",
+          description: "Failed to load certificates. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCertificates()
+  }, [])
 
   const filteredCertificates = certificates.filter((cert) => {
     const matchesSearch =
-      cert.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cert.courseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cert.id.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || cert.status === statusFilter
-    const matchesType = typeFilter === "all" || cert.certificateType.toLowerCase().includes(typeFilter.toLowerCase())
+      cert.certificate.recipient.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cert.certificate.certificate_detail.course_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cert.certificate.token_id.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = statusFilter === "all" || cert.certificate.status === statusFilter
+    const matchesType = typeFilter === "all" || cert.certificate.certificate_detail.certificate_name.toLowerCase().includes(typeFilter.toLowerCase())
 
     return matchesSearch && matchesStatus && matchesType
   })
@@ -130,21 +174,99 @@ export default function CertificatesPage() {
   }
 
   const getStatusCount = (status: string) => {
-    return certificates.filter((cert) => cert.status === status).length
+    return certificates.filter((cert) => cert.certificate.status === status).length
+  }
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Quản lý Chứng chỉ</h1>
+            <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ đã cấp</p>
+          </div>
+          <Button disabled>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Loading...
+          </Button>
+        </div>
+        
+        {/* Loading Stats Cards */}
+        <div className="grid gap-4 md:grid-cols-5">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Card key={i}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-4" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16 mb-2" />
+                <Skeleton className="h-3 w-24" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        
+        {/* Loading List */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="p-4">
+                  <Skeleton className="h-20 w-full" />
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Quản lý Chứng chỉ</h1>
+            <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ đã cấp</p>
+          </div>
+        </div>
+        
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-8">
+            <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Error Loading Certificates</h3>
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Quản lý Chứng chỉ</h1>
-          <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ đã cấp</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Quản lý Chứng chỉ</h1>
+            <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ đã cấp</p>
+          </div>
+          <Link href="/dashboard/training/certificates/issue">
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Cấp chứng chỉ mới
+            </Button>
+          </Link>
         </div>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Cấp chứng chỉ mới
-        </Button>
-      </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-5">
@@ -250,97 +372,133 @@ export default function CertificatesPage() {
 
           {/* Certificates List */}
           <div className="space-y-4">
-            {filteredCertificates.map((cert) => (
-              <Card key={cert.id} className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={cert.studentAvatar || "/placeholder.svg"} alt={cert.studentName} />
-                      <AvatarFallback>
-                        {cert.studentName
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">{cert.courseName}</h3>
-                        {getStatusBadge(cert.status)}
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>
-                          Học viên: <strong>{cert.studentName}</strong>
-                        </span>
-                        <span>
-                          Mã: <code className="bg-muted px-1 rounded">{cert.id}</code>
-                        </span>
-                        <span>
-                          Token ID: <code className="bg-muted px-1 rounded">{cert.tokenId}</code>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="text-right text-sm">
-                      <div className="font-medium">Cấp: {new Date(cert.issueDate).toLocaleDateString("vi-VN")}</div>
-                      <div className="text-muted-foreground">
-                        Hết hạn: {new Date(cert.expiryDate).toLocaleDateString("vi-VN")}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <Eye className="w-4 h-4 mr-1" />
-                        Xem
+            {filteredCertificates.length === 0 ? (
+              <Card className="p-8">
+                <div className="flex flex-col items-center justify-center text-center">
+                  <Award className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No certificates found</h3>
+                  <p className="text-muted-foreground mb-4">
+                    {searchTerm || statusFilter !== "all" || typeFilter !== "all"
+                      ? "Try adjusting your search filters"
+                      : "You haven't issued any certificates yet"}
+                  </p>
+                  {!searchTerm && statusFilter === "all" && typeFilter === "all" && (
+                    <Link href="/dashboard/training/certificates/issue">
+                      <Button>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Issue your first certificate
                       </Button>
-                      <Button variant="outline" size="sm">
-                        <ExternalLink className="w-4 h-4 mr-1" />
-                        Blockchain
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Edit className="w-4 h-4 mr-1" />
-                        Quản lý
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <p className="font-medium mb-1">Loại chứng chỉ:</p>
-                      <Badge variant="secondary">{cert.certificateType}</Badge>
-                    </div>
-                    <div>
-                      <p className="font-medium mb-1">Blockchain TX:</p>
-                      <code className="text-xs bg-muted px-2 py-1 rounded block">
-                        {cert.blockchainTx.slice(0, 8)}...{cert.blockchainTx.slice(-6)}
-                      </code>
-                    </div>
-                    <div>
-                      <p className="font-medium mb-1">IPFS Hash:</p>
-                      <code className="text-xs bg-muted px-2 py-1 rounded block">
-                        {cert.ipfsHash.slice(0, 8)}...{cert.ipfsHash.slice(-6)}
-                      </code>
-                    </div>
-                    <div>
-                      <p className="font-medium mb-1">Địa chỉ ví:</p>
-                      {cert.walletAddress ? (
-                        <code className="text-xs bg-muted px-2 py-1 rounded block">
-                          {cert.walletAddress.slice(0, 6)}...{cert.walletAddress.slice(-4)}
-                        </code>
-                      ) : (
-                        <Badge variant="outline" className="text-xs">
-                          <AlertCircle className="w-3 h-3 mr-1" />
-                          Chưa kết nối
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
+                    </Link>
+                  )}
                 </div>
               </Card>
-            ))}
+            ) : (
+              filteredCertificates.map((cert) => {
+                const certificate = cert.certificate
+                const tokenId = certificate.token_id
+                const studentName = certificate.recipient.full_name
+                const courseName = certificate.certificate_detail.course_name
+                const certificateName = certificate.certificate_detail.certificate_name
+                const issueDate = new Date(certificate.certificate_detail.issue_date)
+                const expiryDate = new Date(certificate.certificate_detail.expire_date)
+                const status = certificate.status
+                const walletAddress = certificate.recipient.wallet_address
+                const blockchainTx = certificate.verification.smart_contract
+                const ipfsHash = certificate.file_hash.pdf_url
+
+                return (
+                  <Card key={tokenId} className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback>
+                            {studentName
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold">{courseName}</h3>
+                            {getStatusBadge(status)}
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span>
+                              Học viên: <strong>{studentName}</strong>
+                            </span>
+                            <span>
+                              Token ID: <code className="bg-muted px-1 rounded">{tokenId}</code>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <div className="text-right text-sm">
+                          <div className="font-medium">Cấp: {issueDate.toLocaleDateString("vi-VN")}</div>
+                          <div className="text-muted-foreground">
+                            Hết hạn: {expiryDate.toLocaleDateString("vi-VN")}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm">
+                            <Eye className="w-4 h-4 mr-1" />
+                            Xem
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => window.open(`https://sepolia.etherscan.io/address/${blockchainTx}`, '_blank')}
+                          >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            Blockchain
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <Edit className="w-4 h-4 mr-1" />
+                            Quản lý
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <p className="font-medium mb-1">Loại chứng chỉ:</p>
+                          <Badge variant="secondary">{certificateName}</Badge>
+                        </div>
+                        <div>
+                          <p className="font-medium mb-1">Smart Contract:</p>
+                          <code className="text-xs bg-muted px-2 py-1 rounded block">
+                            {blockchainTx.slice(0, 8)}...{blockchainTx.slice(-6)}
+                          </code>
+                        </div>
+                        <div>
+                          <p className="font-medium mb-1">IPFS Hash:</p>
+                          <code className="text-xs bg-muted px-2 py-1 rounded block">
+                            {ipfsHash.replace('ipfs://', '').slice(0, 8)}...{ipfsHash.replace('ipfs://', '').slice(-6)}
+                          </code>
+                        </div>
+                        <div>
+                          <p className="font-medium mb-1">Địa chỉ ví:</p>
+                          {walletAddress ? (
+                            <code className="text-xs bg-muted px-2 py-1 rounded block">
+                              {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                            </code>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              <AlertCircle className="w-3 h-3 mr-1" />
+                              Chưa kết nối
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                )
+              })
+            )}
           </div>
         </CardContent>
       </Card>

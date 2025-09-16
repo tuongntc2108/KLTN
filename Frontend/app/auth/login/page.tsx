@@ -64,7 +64,7 @@ export default function LoginPage() {
             </div>
             <h1 className="text-2xl font-bold">CertChain</h1>
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Đăng nhập hệ thống</h2>
+          <h2 className="text-xl font-semibold" style={{color: '#ffffff'}}>Đăng nhập hệ thống</h2>
           <p className="text-gray-600 dark:text-gray-300">Chọn loại tài khoản và đăng nhập để tiếp tục</p>
         </div>
 
@@ -122,10 +122,11 @@ export default function LoginPage() {
                 {/* Google Login Button - emphasized */}
                 <Button
                   onClick={handleGoogleLogin}
-                  className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/30 hover:shadow-blue-600/40 ring-1 ring-blue-400/40 hover:from-blue-700 hover:to-indigo-700 transition-colors"
+                  className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg shadow-blue-600/30 hover:shadow-blue-600/40 ring-1 ring-blue-400/40 hover:from-blue-700 hover:to-indigo-700 transition-colors"
+                  style={{ color: 'white !important' }}
                 >
-                  <Chrome className="w-5 h-5 mr-3" />
-                  Đăng nhập với Google
+                  <Chrome className="w-5 h-5 mr-3" style={{ color: 'white !important' }} />
+                  <span style={{ color: 'white !important' }}>Đăng nhập với Google</span>
                 </Button>
               </CardContent>
             </Card>

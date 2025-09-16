@@ -588,7 +588,7 @@
         },
         {
           "internalType": "string",
-          "name": "certificateType",
+          "name": "certificateName",
           "type": "string"
         },
         {
@@ -710,7 +710,7 @@
             },
             {
               "internalType": "string",
-              "name": "certificateType",
+              "name": "certificateName",
               "type": "string"
             },
             {
@@ -927,7 +927,7 @@
         },
         {
           "internalType": "string",
-          "name": "certificateType",
+          "name": "certificateName",
           "type": "string"
         },
         {
@@ -1093,7 +1093,7 @@
         },
         {
           "internalType": "string",
-          "name": "certificateType",
+          "name": "certificateName",
           "type": "string"
         },
         {
@@ -1403,7 +1403,7 @@
             },
             {
               "internalType": "string",
-              "name": "certificateType",
+              "name": "certificateName",
               "type": "string"
             },
             {
@@ -1489,7 +1489,7 @@
             },
             {
               "internalType": "string",
-              "name": "certificateType",
+              "name": "certificateName",
               "type": "string"
             },
             {

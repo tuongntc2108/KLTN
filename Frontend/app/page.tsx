@@ -53,13 +53,13 @@ export default function HomePage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/auth/login">
-              <Button size="lg" className="text-lg px-8 shadow-lg shadow-primary/20">
+              <Button size="lg" className="text-lg px-8 shadow-lg shadow-primary/20 cursor-pointer">
                 Bắt đầu ngay
                 <ChevronRight className="w-5 h-5 ml-2" />
               </Button>
             </Link>
             <Link href="/verify">
-              <Button variant="outline" size="lg" className="text-lg px-8 bg-transparent border-border/40 text-foreground/90">
+              <Button variant="outline" size="lg" className="text-lg px-8 bg-transparent border-border/40 text-foreground/90 cursor-pointer">
                 Xác minh chứng chỉ
               </Button>
             </Link>
@@ -93,11 +93,6 @@ export default function HomePage() {
                   <li>• Theo dõi trạng thái chứng chỉ</li>
                   <li>• Thu hồi hoặc cập nhật chứng chỉ</li>
                 </ul>
-                <Link href="/auth/login?role=training" className="w-full">
-                  <Button className="w-full bg-transparent mt-4" variant="outline">
-                    Đăng nhập với Google
-                  </Button>
-                </Link>
               </CardContent>
             </Card>
 
@@ -117,11 +112,6 @@ export default function HomePage() {
                   <li>• Chia sẻ chứng chỉ với nhà tuyển dụng</li>
                   <li>• Tải xuống file PDF chứng chỉ</li>
                 </ul>
-                <Link href="/auth/login?role=student" className="w-full">
-                  <Button className="w-full bg-transparent mt-4" variant="outline">
-                    Đăng nhập với Google
-                  </Button>
-                </Link>
               </CardContent>
             </Card>
 
@@ -141,9 +131,6 @@ export default function HomePage() {
                   <li>• Tóm tắt nội dung đào tạo bằng AI</li>
                   <li>• Không cần đăng ký tài khoản</li>
                 </ul>
-                <Link href="/verify">
-                  <Button className="w-full mt-4 bg-transparent" variant="outline">Tra cứu ngay</Button>
-                </Link>
               </CardContent>
             </Card>
 
@@ -163,11 +150,6 @@ export default function HomePage() {
                   <li>• Theo dõi hoạt động tổng thể</li>
                   <li>• Báo cáo và thống kê</li>
                 </ul>
-                <Link href="/auth/login?role=admin" className="w-full">
-                  <Button className="w-full mt-4 bg-transparent" variant="outline">
-                    Đăng nhập Admin
-                  </Button>
-                </Link>
               </CardContent>
             </Card>
           </div>
