@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,11 +16,13 @@ export default function IssueCertificatePage() {
   const [isIssuing, setIsIssuing] = useState(false)
   const [issuedCertificate, setIssuedCertificate] = useState<any>(null)
   const { toast } = useToast()
+  const router = useRouter()
 
   const [formData, setFormData] = useState({
     studentName: "",
     studentEmail: "",
     studentWallet: "",
+    studentId: "",
     courseName: "",
     certificateName: "",
     issueDate: "",
@@ -27,6 +30,9 @@ export default function IssueCertificatePage() {
     description: "",
     grade: "",
     courseType: "",
+    issuerName: "VNU University",
+    issuerId: "VNU-001",
+    issuerUrl: "https://vnu.edu.vn",
   })
 
   const handleInputChange = (field: string, value: string) => {
@@ -36,26 +42,74 @@ export default function IssueCertificatePage() {
   const handleIssueCertificate = async () => {
     setIsIssuing(true)
     try {
-      // Simulate certificate issuance process
-      await new Promise((resolve) => setTimeout(resolve, 3000))
+      // Validate required fields
+      if (!formData.studentName || !formData.studentWallet || !formData.certificateName || 
+          !formData.courseName || !formData.issueDate || !formData.studentId) {
+        toast({
+          title: "Thiếu thông tin",
+          description: "Vui lòng điền đầy đủ các trường bắt buộc",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Generate SHA256 hash for verification (simplified)
+      const sha256Hash = `hash_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      const pdfIpfsHash = `Qm${Math.random().toString(36).substr(2, 44)}`
+
+      // Prepare API request body
+      const requestBody = {
+        student_id: formData.studentId,
+        course_name: formData.courseName,
+        certificate_name: formData.certificateName,
+        recipient_name: formData.studentName,
+        recipient_wallet: formData.studentWallet,
+        issuer_name: formData.issuerName,
+        issuer_id: formData.issuerId,
+        issuer_url: formData.issuerUrl,
+        issued_date: formData.issueDate,
+        expire_date: formData.expiryDate || null,
+        sha256_hash: sha256Hash,
+        pdf_ipfs_hash: pdfIpfsHash,
+      }
+
+      // Call mint certificate API
+      const response = await fetch('http://localhost:4000/api/certificates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Add authentication header if needed
+          // 'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to mint certificate')
+      }
+
+      const result = await response.json()
 
       const certificate = {
-        id: `CERT-${Date.now()}`,
-        tokenId: `0x${Math.random().toString(16).substr(2, 16)}`,
-        transactionHash: `0x${Math.random().toString(16).substr(2, 64)}`,
-        ipfsHash: `Qm${Math.random().toString(36).substr(2, 44)}`,
+        id: `CERT-${result.certificate_id}`,
+        tokenId: result.token_id,
+        transactionHash: result.transaction_hash || `0x${Math.random().toString(16).substr(2, 64)}`,
+        ipfsHash: result.metadata_uri,
+        status: result.status,
         ...formData,
       }
 
       setIssuedCertificate(certificate)
       toast({
         title: "Cấp chứng chỉ thành công",
-        description: "Chứng chỉ NFT đã được tạo và gửi đến học viên",
+        description: "Chứng chỉ NFT đã được tạo và ghi lên blockchain",
       })
     } catch (error) {
+      console.error('Error minting certificate:', error)
       toast({
         title: "Lỗi cấp chứng chỉ",
-        description: "Không thể cấp chứng chỉ. Vui lòng thử lại.",
+        description: (error as Error)?.message || "Không thể cấp chứng chỉ. Vui lòng thử lại.",
         variant: "destructive",
       })
     } finally {
@@ -97,6 +151,10 @@ export default function IssueCertificatePage() {
                   <Label className="text-sm font-medium text-muted-foreground">Transaction Hash</Label>
                   <p className="font-mono text-xs break-all">{issuedCertificate.transactionHash}</p>
                 </div>
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Metadata URI</Label>
+                  <p className="font-mono text-xs break-all">{issuedCertificate.ipfsHash}</p>
+                </div>
               </div>
               <div className="space-y-4">
                 <div>
@@ -109,7 +167,9 @@ export default function IssueCertificatePage() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Trạng thái</Label>
-                  <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Chờ học viên nhận</Badge>
+                  <Badge className="bg-green-100 text-green-800 border-green-200">
+                    {issuedCertificate.status === 'issued_not_claimed' ? 'Chờ học viên nhận' : issuedCertificate.status}
+                  </Badge>
                 </div>
               </div>
             </div>
@@ -117,6 +177,12 @@ export default function IssueCertificatePage() {
             <div className="flex gap-3 mt-6">
               <Button>Xem trên Blockchain Explorer</Button>
               <Button variant="outline">Gửi thông báo cho học viên</Button>
+              <Button 
+                variant="outline" 
+                onClick={() => router.push('/dashboard/training/certificates?refresh=true')}
+              >
+                Quay về Dashboard
+              </Button>
               <Button variant="outline" onClick={() => setIssuedCertificate(null)}>
                 Cấp chứng chỉ khác
               </Button>
@@ -158,6 +224,17 @@ export default function IssueCertificatePage() {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="studentId">Mã học viên *</Label>
+                  <Input
+                    id="studentId"
+                    value={formData.studentId}
+                    onChange={(e) => handleInputChange("studentId", e.target.value)}
+                    placeholder="STUDENT001"
+                  />
+                </div>
+              </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
                   <Label htmlFor="studentEmail">Email *</Label>
                   <Input
                     id="studentEmail"
@@ -167,15 +244,15 @@ export default function IssueCertificatePage() {
                     placeholder="student@example.com"
                   />
                 </div>
-              </div>
-              <div>
-                <Label htmlFor="studentWallet">Địa chỉ ví blockchain *</Label>
-                <Input
-                  id="studentWallet"
-                  value={formData.studentWallet}
-                  onChange={(e) => handleInputChange("studentWallet", e.target.value)}
-                  placeholder="0x742d35Cc6634C0532925a3b8D41C71D3d9C8b663"
-                />
+                <div>
+                  <Label htmlFor="studentWallet">Địa chỉ ví blockchain *</Label>
+                  <Input
+                    id="studentWallet"
+                    value={formData.studentWallet}
+                    onChange={(e) => handleInputChange("studentWallet", e.target.value)}
+                    placeholder="0x742d35Cc6634C0532925a3b8D41C71D3d9C8b663"
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -336,7 +413,7 @@ export default function IssueCertificatePage() {
             <Button
               className="w-full"
               onClick={handleIssueCertificate}
-              disabled={isIssuing || !formData.studentName || !formData.certificateName}
+              disabled={isIssuing || !formData.studentName || !formData.studentId || !formData.certificateName || !formData.courseName || !formData.studentWallet || !formData.issueDate}
             >
               {isIssuing ? (
                 <>

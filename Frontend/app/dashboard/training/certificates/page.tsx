@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -23,6 +24,7 @@ import {
   Ban,
   ExternalLink,
   Loader2,
+  RefreshCw,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
@@ -81,52 +83,120 @@ export default function CertificatesPage() {
   const [certificates, setCertificates] = useState<Certificate[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
   const { toast } = useToast()
+  const searchParams = useSearchParams()
+
+  // Centralized status mapping utility for consistent status handling
+  const normalizeStatus = (status: string): string => {
+    const statusLower = status.toLowerCase();
+    switch (statusLower) {
+      case 'active':
+        return 'active';
+      case 'issued':
+      case 'issued_not_claimed':
+        return 'issued_not_claimed';
+      case 'expired':
+        return 'expired';
+      case 'revoked':
+        return 'revoked';
+      case 'replaced':
+        return 'replaced';
+      default:
+        return status;
+    }
+  };
+
+  // Check if status matches filter (handles multiple status variations)
+  const statusMatches = (certificateStatus: string, filterStatus: string): boolean => {
+    if (filterStatus === "all") return true;
+    
+    const normalizedCertStatus = normalizeStatus(certificateStatus);
+    const normalizedFilterStatus = normalizeStatus(filterStatus);
+    
+    return normalizedCertStatus === normalizedFilterStatus;
+  };
 
   // Fetch certificates from API
-  useEffect(() => {
-    const fetchCertificates = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        
-        // Using VNU-UET-001 as the issuer ID (should be dynamic based on logged-in user)
-        const response = await fetch('http://localhost:4000/api/certificates/issuer/VNU-UET-001?limit=50')
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-        
-        const data: ApiResponse = await response.json()
-        
-        if (data.success) {
-          setCertificates(data.certificates)
-        } else {
-          throw new Error(data.message || 'Failed to fetch certificates')
-        }
-      } catch (error) {
-        console.error('Error fetching certificates:', error)
-        setError(error instanceof Error ? error.message : 'An error occurred')
-        toast({
-          title: "Error",
-          description: "Failed to load certificates. Please try again.",
-          variant: "destructive",
-        })
-      } finally {
-        setLoading(false)
+  const fetchCertificates = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // Using VNU-UET-001 as the issuer ID (should be dynamic based on logged-in user)
+      const response = await fetch('http://localhost:4000/api/certificates/issuer/VNU-UET-001?limit=50')
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
+      
+      const data: ApiResponse = await response.json()
+      
+      if (data.success) {
+        setCertificates(data.certificates)
+        // Debug: Log certificate statuses to help troubleshoot
+        console.log('Certificate statuses:', data.certificates.map(cert => ({
+          tokenId: cert?.certificate?.token_id,
+          status: cert?.certificate?.status,
+          normalized: normalizeStatus(cert?.certificate?.status || "")
+        })))
+      } else {
+        throw new Error(data.message || 'Failed to fetch certificates')
+      }
+    } catch (error) {
+      console.error('Error fetching certificates:', error)
+      setError(error instanceof Error ? error.message : 'An error occurred')
+      toast({
+        title: "Error",
+        description: "Failed to load certificates. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
     }
+  }
 
+  // Manual refresh function
+  const handleRefresh = () => {
+    setRefreshTrigger(prev => prev + 1)
+  }
+
+  useEffect(() => {
     fetchCertificates()
-  }, [])
+  }, [refreshTrigger])
+
+  // Check for refresh parameter and auto-refresh
+  useEffect(() => {
+    const refreshParam = searchParams.get('refresh')
+    if (refreshParam === 'true') {
+      // Clear the URL parameter
+      window.history.replaceState(null, '', '/dashboard/training/certificates')
+      // Trigger refresh
+      handleRefresh()
+      toast({
+        title: "Đã cập nhật",
+        description: "Danh sách chứng chỉ đã được làm mới",
+      })
+    }
+  }, [searchParams])
 
   const filteredCertificates = certificates.filter((cert) => {
+    // Defensive checks for undefined objects
+    const recipientName = cert?.certificate?.recipient?.full_name || "";
+    const courseName = cert?.certificate?.certificate_detail?.course_name || "";
+    const tokenId = cert?.certificate?.token_id || "";
+    const certificateName = cert?.certificate?.certificate_detail?.certificate_name || "";
+    const status = cert?.certificate?.status || "";
+
     const matchesSearch =
-      cert.certificate.recipient.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cert.certificate.certificate_detail.course_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cert.certificate.token_id.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || cert.certificate.status === statusFilter
-    const matchesType = typeFilter === "all" || cert.certificate.certificate_detail.certificate_name.toLowerCase().includes(typeFilter.toLowerCase())
+      recipientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      courseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tokenId.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    // Use centralized status matching utility
+    const matchesStatus = statusMatches(status, statusFilter);
+    
+    const matchesType = typeFilter === "all" || certificateName.toLowerCase().includes(typeFilter.toLowerCase())
 
     return matchesSearch && matchesStatus && matchesType
   })
@@ -134,6 +204,7 @@ export default function CertificatesPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
+      case "Active":
         return (
           <Badge className="bg-green-100 text-green-800">
             <CheckCircle className="w-3 h-3 mr-1" />
@@ -141,13 +212,16 @@ export default function CertificatesPage() {
           </Badge>
         )
       case "issued_not_claimed":
+      case "issued":
+      case "Issued":
         return (
-          <Badge variant="secondary">
+          <Badge className="bg-orange-100 text-orange-800 border-orange-200">
             <Clock className="w-3 h-3 mr-1" />
-            Chờ nhận
+            Đang chờ nhận
           </Badge>
         )
       case "expired":
+      case "Expired":
         return (
           <Badge variant="destructive">
             <XCircle className="w-3 h-3 mr-1" />
@@ -155,6 +229,7 @@ export default function CertificatesPage() {
           </Badge>
         )
       case "revoked":
+      case "Revoked":
         return (
           <Badge variant="destructive">
             <Ban className="w-3 h-3 mr-1" />
@@ -162,6 +237,7 @@ export default function CertificatesPage() {
           </Badge>
         )
       case "replaced":
+      case "Replaced":
         return (
           <Badge variant="outline">
             <RotateCcw className="w-3 h-3 mr-1" />
@@ -169,12 +245,20 @@ export default function CertificatesPage() {
           </Badge>
         )
       default:
-        return <Badge variant="outline">Không xác định</Badge>
+        return (
+          <Badge variant="outline" className="bg-gray-100 text-gray-800">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Không xác định
+          </Badge>
+        )
     }
   }
 
   const getStatusCount = (status: string) => {
-    return certificates.filter((cert) => cert.certificate.status === status).length
+    return certificates.filter((cert) => {
+      const certStatus = cert?.certificate?.status || "";
+      return statusMatches(certStatus, status);
+    }).length;
   }
 
   // Loading state
@@ -260,12 +344,22 @@ export default function CertificatesPage() {
             <h1 className="text-3xl font-bold tracking-tight">Quản lý Chứng chỉ</h1>
             <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ đã cấp</p>
           </div>
-          <Link href="/dashboard/training/certificates/issue">
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Cấp chứng chỉ mới
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleRefresh}
+              disabled={loading}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Làm mới
             </Button>
-          </Link>
+            <Link href="/dashboard/training/certificates/issue">
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Cấp chứng chỉ mới
+              </Button>
+            </Link>
+          </div>
         </div>
 
       {/* Stats Cards */}
@@ -292,7 +386,7 @@ export default function CertificatesPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Chờ nhận</CardTitle>
+            <CardTitle className="text-sm font-medium">Đang chờ nhận</CardTitle>
             <Clock className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
@@ -348,7 +442,7 @@ export default function CertificatesPage() {
               <SelectContent>
                 <SelectItem value="all">Tất cả trạng thái</SelectItem>
                 <SelectItem value="active">Hoạt động</SelectItem>
-                <SelectItem value="issued_not_claimed">Chờ nhận</SelectItem>
+                <SelectItem value="issued_not_claimed">Đang chờ nhận</SelectItem>
                 <SelectItem value="expired">Hết hạn</SelectItem>
                 <SelectItem value="revoked">Thu hồi</SelectItem>
               </SelectContent>
@@ -394,17 +488,17 @@ export default function CertificatesPage() {
               </Card>
             ) : (
               filteredCertificates.map((cert) => {
-                const certificate = cert.certificate
-                const tokenId = certificate.token_id
-                const studentName = certificate.recipient.full_name
-                const courseName = certificate.certificate_detail.course_name
-                const certificateName = certificate.certificate_detail.certificate_name
-                const issueDate = new Date(certificate.certificate_detail.issue_date)
-                const expiryDate = new Date(certificate.certificate_detail.expire_date)
-                const status = certificate.status
-                const walletAddress = certificate.recipient.wallet_address
-                const blockchainTx = certificate.verification.smart_contract
-                const ipfsHash = certificate.file_hash.pdf_url
+                const certificate = cert?.certificate || {}
+                const tokenId = certificate?.token_id || "N/A"
+                const studentName = certificate?.recipient?.full_name || "Unknown Student"
+                const courseName = certificate?.certificate_detail?.course_name || "Unknown Course"
+                const certificateName = certificate?.certificate_detail?.certificate_name || "Unknown Certificate"
+                const issueDate = certificate?.certificate_detail?.issue_date ? new Date(certificate.certificate_detail.issue_date) : new Date()
+                const expiryDate = certificate?.certificate_detail?.expire_date ? new Date(certificate.certificate_detail.expire_date) : new Date()
+                const status = certificate?.status || "unknown"
+                const walletAddress = certificate?.recipient?.wallet_address || ""
+                const blockchainTx = certificate?.verification?.smart_contract || ""
+                const ipfsHash = certificate?.file_hash?.pdf_url || ""
 
                 return (
                   <Card key={tokenId} className="p-4">
@@ -412,10 +506,12 @@ export default function CertificatesPage() {
                       <div className="flex items-center space-x-4">
                         <Avatar className="h-10 w-10">
                           <AvatarFallback>
-                            {studentName
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
+                            {studentName && studentName !== "Unknown Student"
+                              ? studentName
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")
+                              : "??"}
                           </AvatarFallback>
                         </Avatar>
                         <div className="space-y-1">
@@ -449,7 +545,8 @@ export default function CertificatesPage() {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => window.open(`https://sepolia.etherscan.io/address/${blockchainTx}`, '_blank')}
+                            onClick={() => blockchainTx && window.open(`https://sepolia.etherscan.io/address/${blockchainTx}`, '_blank')}
+                            disabled={!blockchainTx}
                           >
                             <ExternalLink className="w-4 h-4 mr-1" />
                             Blockchain
@@ -471,13 +568,13 @@ export default function CertificatesPage() {
                         <div>
                           <p className="font-medium mb-1">Smart Contract:</p>
                           <code className="text-xs bg-muted px-2 py-1 rounded block">
-                            {blockchainTx.slice(0, 8)}...{blockchainTx.slice(-6)}
+                            {blockchainTx ? `${blockchainTx.slice(0, 8)}...${blockchainTx.slice(-6)}` : "N/A"}
                           </code>
                         </div>
                         <div>
                           <p className="font-medium mb-1">IPFS Hash:</p>
                           <code className="text-xs bg-muted px-2 py-1 rounded block">
-                            {ipfsHash.replace('ipfs://', '').slice(0, 8)}...{ipfsHash.replace('ipfs://', '').slice(-6)}
+                            {ipfsHash ? `${ipfsHash.replace('ipfs://', '').slice(0, 8)}...${ipfsHash.replace('ipfs://', '').slice(-6)}` : "N/A"}
                           </code>
                         </div>
                         <div>

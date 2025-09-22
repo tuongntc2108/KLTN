@@ -326,4 +326,21 @@ if (require.main === module) {
   main().catch(err => { console.error(err); process.exit(1); });
 }
 
-module.exports = { main };
+// Export helper function for immediate sync after mint
+exports.syncCertificateImmediately = async (tokenId) => {
+  try {
+    const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
+    const MySBTAbi = require(path.join(__dirname, "..", "..", "SmartContract", "artifacts", "contracts", "MySBT.sol", "MySBT.json")).abi;
+    const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, MySBTAbi, provider);
+    
+    const cert = await contract.certificates(tokenId);
+    await upsertCertificateFromStruct(tokenId.toString(), cert);
+    console.log(`✅ Certificate ${tokenId} synced immediately`);
+    return true;
+  } catch (error) {
+    console.error(`❌ Failed to sync certificate ${tokenId}:`, error.message);
+    return false;
+  }
+};
+
+exports.main = main;
