@@ -123,10 +123,19 @@ export default function CertificatesPage() {
       setLoading(true)
       setError(null)
       
-      // Using VNU-UET-001 as the issuer ID (should be dynamic based on logged-in user)
-      const response = await fetch('http://localhost:4000/api/certificates/issuer/VNU-UET-001?limit=50')
+      // Get all certificates in the system (as requested)
+      const response = await fetch('http://localhost:4000/api/certificates/all?limit=100', {
+        method: 'GET',
+        credentials: 'include', // Include cookies for authentication
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
       
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication required. Please login first.')
+        }
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       
@@ -268,7 +277,7 @@ export default function CertificatesPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Quản lý Chứng chỉ</h1>
-            <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ đã cấp</p>
+            <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ trong hệ thống</p>
           </div>
           <Button disabled>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -319,7 +328,7 @@ export default function CertificatesPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Quản lý Chứng chỉ</h1>
-            <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ đã cấp</p>
+            <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ trong hệ thống</p>
           </div>
         </div>
         
@@ -342,7 +351,7 @@ export default function CertificatesPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Quản lý Chứng chỉ</h1>
-            <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ đã cấp</p>
+            <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ trong hệ thống</p>
           </div>
           <div className="flex gap-2">
             <Button 
@@ -420,7 +429,7 @@ export default function CertificatesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Danh sách Chứng chỉ</CardTitle>
-          <CardDescription>Tìm kiếm và quản lý chứng chỉ đã cấp</CardDescription>
+          <CardDescription>Tìm kiếm và quản lý tất cả chứng chỉ trong hệ thống</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4 mb-6">

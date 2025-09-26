@@ -1,21 +1,26 @@
 const express = require("express");
 const router = express.Router();
 const certificateController = require("../controllers/certificateController");
+const { authenticate, requireRole } = require("../middlewares/authMiddleware");
 
-// POST /api/certificates
-router.post("/", certificateController.mintCertificate);
+// POST /api/certificates (Issuer, Admin only)
+router.post("/", authenticate, requireRole(["Issuer", "Admin"]), certificateController.mintCertificate);
 
+// GET /api/certificates/all (get all certificates in the system)
+router.get("/all", authenticate, requireRole(["Issuer", "Admin"]), certificateController.getAllCertificates);
 
+/*
 // GET /api/certificates/issuer/:issuerId (put specific routes before parameterized ones)
-router.get("/issuer/:issuerId", certificateController.getCertificatesByIssuer);
+router.get("/issuer/:issuerId", authenticate, requireRole(["Issuer", "Admin"]), certificateController.getCertificatesByIssuer);
+*/
 
-// GET /api/certificates/:id
-router.get("/:id", certificateController.getCertificateById);
+// GET /api/certificates/:id (authenticated users only)
+router.get("/:id", authenticate, certificateController.getCertificateById);
 
-// PUT /api/certificates/:id/revoke
-router.put("/:id/revoke", certificateController.revokeCertificate);
+// PUT /api/certificates/:id/revoke (Issuer, Admin only)
+router.put("/:id/revoke", authenticate, requireRole(["Issuer", "Admin"]), certificateController.revokeCertificate);
 
-// PUT /api/certificates/:id/replace
-router.put("/:id/replace", certificateController.replaceCertificate);
+// PUT /api/certificates/:id/replace (Issuer, Admin only)
+router.put("/:id/replace", authenticate, requireRole(["Issuer", "Admin"]), certificateController.replaceCertificate);
 
 module.exports = router;

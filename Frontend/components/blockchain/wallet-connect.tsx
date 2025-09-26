@@ -1,76 +1,96 @@
 "use client"
 
-import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Wallet, CheckCircle, Copy, ExternalLink, Loader2 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-
-interface WalletInfo {
-  address: string
-  network: string
-  balance: string
-  isConnected: boolean
-}
+import { Wallet, CheckCircle, Copy, ExternalLink, Loader2, AlertCircle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useWallet } from "@/hooks/use-wallet"
 
 export function WalletConnect() {
-  const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null)
-  const [isConnecting, setIsConnecting] = useState(false)
-  const { toast } = useToast()
+  const {
+    walletInfo,
+    isConnecting,
+    error,
+    isMetaMaskInstalled,
+    connectWallet,
+    disconnectWallet,
+    copyAddress,
+    openInExplorer,
+    formatAddress
+  } = useWallet()
 
-  // Mock wallet connection
-  const connectWallet = async () => {
-    setIsConnecting(true)
-    try {
-      // Simulate wallet connection
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      const mockWallet: WalletInfo = {
-        address: "0x742d35Cc6634C0532925a3b8D41C71D3d9C8b663",
-        network: "Polygon Mainnet",
-        balance: "0.05 MATIC",
-        isConnected: true,
-      }
-
-      setWalletInfo(mockWallet)
-      toast({
-        title: "Kết nối ví thành công",
-        description: "Ví blockchain đã được kết nối và sẵn sàng sử dụng",
-      })
-    } catch (error) {
-      toast({
-        title: "Lỗi kết nối ví",
-        description: "Không thể kết nối với ví blockchain. Vui lòng thử lại.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsConnecting(false)
-    }
+  // MetaMask not installed warning
+  if (!isMetaMaskInstalled) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wallet className="w-5 h-5" />
+            Kết nối ví Blockchain
+          </CardTitle>
+          <CardDescription>Kết nối ví để nhận và quản lý chứng chỉ NFT của bạn</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              MetaMask không được cài đặt. Vui lòng cài đặt MetaMask để tiếp tục.
+            </AlertDescription>
+          </Alert>
+          <div className="text-center py-6">
+            <Button 
+              onClick={() => window.open('https://metamask.io/download/', '_blank')}
+              className="mb-4"
+            >
+              Tải xuống MetaMask
+            </Button>
+            <p className="text-sm text-muted-foreground">
+              Sau khi cài đặt, hãy tải lại trang này.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
-  const disconnectWallet = () => {
-    setWalletInfo(null)
-    toast({
-      title: "Đã ngắt kết nối ví",
-      description: "Ví blockchain đã được ngắt kết nối",
-    })
+  // Show error state
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wallet className="w-5 h-5" />
+            Kết nối ví Blockchain
+          </CardTitle>
+          <CardDescription>Kết nối ví để nhận và quản lý chứng chỉ NFT của bạn</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <div className="text-center py-4">
+            <Button onClick={connectWallet} disabled={isConnecting}>
+              {isConnecting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Đang kết nối...
+                </>
+              ) : (
+                <>
+                  <Wallet className="w-4 h-4 mr-2" />
+                  Thử lại
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
-  const copyAddress = () => {
-    if (walletInfo?.address) {
-      navigator.clipboard.writeText(walletInfo.address)
-      toast({
-        title: "Đã sao chép",
-        description: "Địa chỉ ví đã được sao chép vào clipboard",
-      })
-    }
-  }
-
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`
-  }
-
+  // Not connected state
   if (!walletInfo) {
     return (
       <Card>
@@ -119,6 +139,7 @@ export function WalletConnect() {
     )
   }
 
+  // Connected state
   return (
     <Card>
       <CardHeader>
@@ -144,7 +165,7 @@ export function WalletConnect() {
               <Button variant="ghost" size="sm" onClick={copyAddress}>
                 <Copy className="w-4 h-4" />
               </Button>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" onClick={openInExplorer}>
                 <ExternalLink className="w-4 h-4" />
               </Button>
             </div>
@@ -176,7 +197,7 @@ export function WalletConnect() {
           <Button variant="outline" className="flex-1 bg-transparent" onClick={disconnectWallet}>
             Ngắt kết nối
           </Button>
-          <Button className="flex-1">Xem trên Explorer</Button>
+          <Button className="flex-1" onClick={openInExplorer}>Xem trên Explorer</Button>
         </div>
       </CardContent>
     </Card>

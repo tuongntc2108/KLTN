@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS students (
     id INTEGER PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    wallet_address VARCHAR(255) UNIQUE NOT NULL,
+    wallet_address VARCHAR(255) UNIQUE,
     created_at TIMESTAMP DEFAULT NOW()
 );
 

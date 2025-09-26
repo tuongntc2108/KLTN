@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from 'next/navigation'
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,49 +9,90 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Mail, Lock, Eye, EyeOff, Shield, GraduationCap, Building2, UserCheck, Chrome } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Mail, Lock, Eye, EyeOff, Shield, Chrome, AlertCircle } from "lucide-react"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
-  const [userType, setUserType] = useState<"training" | "student" | "admin">("student")
+  const searchParams = useSearchParams()
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [isDevMode, setIsDevMode] = useState(false)
+  const [devEmail, setDevEmail] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const userTypes = [
-    {
-      id: "student",
-      label: "Học viên",
-      icon: GraduationCap,
-      description: "Nhận và quản lý chứng chỉ NFT",
-      color: "bg-blue-100 text-blue-800",
-    },
-    {
-      id: "training",
-      label: "Đơn vị đào tạo",
-      icon: Building2,
-      description: "Cấp phát và quản lý chứng chỉ",
-      color: "bg-green-100 text-green-800",
-    },
-    {
-      id: "admin",
-      label: "Quản trị viên",
-      icon: Shield,
-      description: "Quản lý toàn bộ hệ thống",
-      color: "bg-purple-100 text-purple-800",
-    },
-  ]
+  useEffect(() => {
+    const errorParam = searchParams.get('error')
+    const authParam = searchParams.get('auth')
+    
+    if (errorParam) {
+      switch (errorParam) {
+        case 'oauth_failed':
+          setError('Đăng nhập Google thất bại. Vui lòng thử lại.')
+          break
+        case 'invalid_domain':
+          setError('Any email can now register as a student.')
+          break
+        case 'oauth_not_configured':
+          setError('Google OAuth chưa được cấu hình. Vui lòng thiết lập thông tin xác thực Google.')
+          setIsDevMode(true) // Enable dev mode if OAuth not configured
+          break
+        case 'callback_failed':
+          setError('Có lỗi xảy ra trong quá trình xác thực. Vui lòng thử lại.')
+          break
+        default:
+          setError('Có lỗi xảy ra. Vui lòng thử lại.')
+      }
+    } else if (authParam === 'success') {
+      setSuccess('Đăng nhập thành công! Đang chuyển hướng...')
+    }
+  }, [searchParams])
+
+
 
   const handleGoogleLogin = () => {
-    // Simulate Google OAuth login
-    console.log("[v0] Google login initiated for user type:", userType)
+    setLoading(true)
+    
+    // Redirect to backend OAuth route without user type preference
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+    window.location.href = `${backendUrl}/auth/google`
+  }
 
-    // Redirect based on user type
-    const redirectPaths = {
-      student: "/dashboard/student",
-      training: "/dashboard/training",
-      admin: "/dashboard/admin",
+  const handleDevLogin = async () => {
+    if (!devEmail || !devEmail.includes('@')) {
+      setError('Vui lòng nhập email hợp lệ')
+      return
     }
 
-    // In real implementation, this would handle OAuth flow
-    window.location.href = redirectPaths[userType]
+    setLoading(true)
+    setError(null)
+
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+      const response = await fetch(`${backendUrl}/auth/dev-login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: devEmail
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        window.location.href = data.redirectUrl
+      } else {
+        setError(data.message)
+      }
+    } catch (error) {
+      console.error('Development login error:', error)
+      setError('Đăng nhập thất bại. Vui lòng thử lại.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -65,53 +107,28 @@ export default function LoginPage() {
             <h1 className="text-2xl font-bold">CertChain</h1>
           </div>
           <h2 className="text-xl font-semibold" style={{color: '#ffffff'}}>Đăng nhập hệ thống</h2>
-          <p className="text-gray-600 dark:text-gray-300">Chọn loại tài khoản và đăng nhập để tiếp tục</p>
+          <p className="text-gray-600 dark:text-gray-300">Sử dụng tài khoản Google để đăng nhập an toàn</p>
         </div>
 
-        {/* Desktop grid: left (roles) | right (login + security). Mobile: stacked */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Left: User Type Selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Chọn loại tài khoản</CardTitle>
-              <CardDescription>Vui lòng chọn vai trò phù hợp với bạn</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {userTypes.map((type) => {
-                const Icon = type.icon
-                return (
-                  <div
-                    key={type.id}
-                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                      userType === type.id ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300"
-                    }`}
-                    onClick={() => setUserType(type.id as any)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${type.color}`}>
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium">{type.label}</h3>
-                          {userType === type.id && (
-                            <Badge variant="default" className="text-xs">
-                              <UserCheck className="w-3 h-3 mr-1" />
-                              Đã chọn
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">{type.description}</p>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </CardContent>
-          </Card>
-
-          {/* Right: Login + Security */}
-          <div className="space-y-6">
+        {/* Center the login form */}
+        <div className="flex justify-center">
+          <div className="w-full max-w-md space-y-6">
+            {/* Error/Success Messages */}
+            {(error || success) && (
+              <div className="mb-4">
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                {success && (
+                  <Alert className="border-green-200 bg-green-50 text-green-800">
+                    <AlertDescription>{success}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
             {/* Login Form */}
             <Card>
               <CardHeader>
@@ -122,12 +139,51 @@ export default function LoginPage() {
                 {/* Google Login Button - emphasized */}
                 <Button
                   onClick={handleGoogleLogin}
+                  disabled={loading}
                   className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg shadow-blue-600/30 hover:shadow-blue-600/40 ring-1 ring-blue-400/40 hover:from-blue-700 hover:to-indigo-700 transition-colors"
                   style={{ color: 'white !important' }}
                 >
                   <Chrome className="w-5 h-5 mr-3" style={{ color: 'white !important' }} />
-                  <span style={{ color: 'white !important' }}>Đăng nhập với Google</span>
+                  <span style={{ color: 'white !important' }}>
+                    {loading ? 'Đang đăng nhập...' : 'Đăng nhập với Google'}
+                  </span>
                 </Button>
+
+                {/* Development Login (only shown if OAuth not configured) */}
+                {isDevMode && (
+                  <>
+                    <Separator className="my-4" />
+                    <div className="space-y-3">
+                      <div className="text-center">
+                        <Badge variant="outline" className="text-xs">
+                          Chế độ phát triển
+                        </Badge>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="dev-email">Email thử nghiệm</Label>
+                        <Input
+                          id="dev-email"
+                          type="email"
+                          placeholder="example@gmail.com"
+                          value={devEmail}
+                          onChange={(e) => setDevEmail(e.target.value)}
+                          className="w-full"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Có thể đăng nhập với bất kỳ email nào
+                        </p>
+                      </div>
+                      <Button
+                        onClick={handleDevLogin}
+                        disabled={loading || !devEmail}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        {loading ? 'Đang đăng nhập...' : 'Đăng nhập thử nghiệm'}
+                      </Button>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
 

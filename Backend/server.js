@@ -1,8 +1,11 @@
 // server.js
+require("dotenv").config();
 const express = require("express");
 const app = express();
 const cors = require("cors");
-require("dotenv").config();
+const session = require('express-session');
+const cookieParser = require('cookie-parser');
+const passport = require('./config/passport');
 const db = require("./config/pg");
 const { main: syncMain } = require("./services/sync");
 
@@ -21,26 +24,46 @@ db.pool.connect()
 app.use(
   cors({
     origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
   })
 );
 
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
+
 // Middleware parse JSON
 app.use(express.json());
+app.use(cookieParser());
 
-// Fake auth (sau khi parse JSON mới thêm user)
-app.use((req, res, next) => {
-  req.user = {
-    email: "22021207@vnu.edu.vn",
-    walletAddress: process.env.STUDENT_WALLET,
-    fullName: "Nguyen Van A"
-  };
-  next();
-});
+// Fake auth (commented out - now using real OAuth)
+// app.use((req, res, next) => {
+//   req.user = {
+//     email: "22021207@vnu.edu.vn",
+//     walletAddress: process.env.STUDENT_WALLET,
+//     fullName: "Nguyen Van A"
+//   };
+//   next();
+// });
 
 // Routes
+const authRoutes = require("./routes/authRoutes");
+app.use("/auth", authRoutes);
+
 const certificateRoutes = require("./routes/certificateRoutes");
 app.use("/api/certificates", certificateRoutes);
 

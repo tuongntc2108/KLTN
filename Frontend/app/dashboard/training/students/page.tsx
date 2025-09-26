@@ -1,18 +1,26 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
   Search,
   Download,
   Mail,
-  Phone,
-  Calendar,
   Award,
   Clock,
   CheckCircle,
@@ -21,57 +29,281 @@ import {
   Plus,
   Eye,
   Edit,
+  Loader2,
+  Wallet,
+  User,
 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
-const students = [
-  {
-    id: "1",
-    name: "Nguyễn Văn An",
-    email: "an.nguyen@email.com",
-    phone: "0901234567",
-    avatar: "/placeholder.svg?height=40&width=40",
-    joinDate: "2024-01-15",
-    totalCertificates: 3,
-    activeCertificates: 2,
-    expiredCertificates: 1,
-    courses: ["Digital Marketing", "Data Analytics", "Project Management"],
-    walletAddress: "0x742d35Cc6634C0532925a3b8D4C9db96590b4077",
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Trần Thị Bình",
-    email: "binh.tran@email.com",
-    phone: "0912345678",
-    avatar: "/placeholder.svg?height=40&width=40",
-    joinDate: "2024-02-20",
-    totalCertificates: 2,
-    activeCertificates: 2,
-    expiredCertificates: 0,
-    courses: ["English Communication", "Presentation Skills"],
-    walletAddress: "0x8ba1f109551bD432803012645Hac136c30C6213",
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Lê Minh Cường",
-    email: "cuong.le@email.com",
-    phone: "0923456789",
-    avatar: "/placeholder.svg?height=40&width=40",
-    joinDate: "2024-03-10",
-    totalCertificates: 1,
-    activeCertificates: 0,
-    expiredCertificates: 0,
-    courses: ["Web Development"],
-    walletAddress: null,
-    status: "pending",
-  },
-]
+interface Student {
+  student_id: number;
+  name: string;
+  email: string;
+  wallet_address: string | null;
+  created_at?: string;
+  totalCertificates?: number;
+  activeCertificates?: number;
+  expiredCertificates?: number;
+  pendingCertificates?: number;
+  revokedCertificates?: number;
+  courses?: string[];
+  status?: string;
+}
+
+interface Certificate {
+  token_id: string;
+  status: string;
+  metadata_uri: string;
+  issuer: {
+    name: string;
+    id: string;
+    url: string;
+  };
+  recipient: {
+    full_name: string;
+    wallet_address: string;
+  };
+  certificate_detail: {
+    course_name: string;
+    certificate_name: string;
+    issued_date: string;
+    expire_date: string;
+    status: string;
+  };
+}
 
 export default function StudentsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [courseFilter, setCourseFilter] = useState("all")
+  const [students, setStudents] = useState<Student[]>([])
+  const [certificates, setCertificates] = useState<Certificate[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { toast } = useToast()
+
+  // Form state for adding new student
+  const [newStudent, setNewStudent] = useState({
+    id: '',
+    name: '',
+    email: '',
+    wallet_address: ''
+  })
+
+  // Fetch students data from API
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // Construct API URLs with proper base URL
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+      
+      // Fetch students with authentication
+      const studentsResponse = await fetch(`${baseUrl}/api/students`, {
+        method: 'GET',
+        credentials: 'include', // Include cookies for authentication
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!studentsResponse.ok) {
+        if (studentsResponse.status === 401) {
+          throw new Error('Authentication required. Please login first.')
+        }
+        throw new Error(`Failed to fetch students: ${studentsResponse.status}`)
+      }
+      
+      const studentsData = await studentsResponse.json()
+      
+      // Fetch all certificates to calculate student statistics
+      const certificatesResponse = await fetch(`${baseUrl}/api/certificates/all`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      let certificatesData = []
+      if (certificatesResponse.ok) {
+        const certResponse = await certificatesResponse.json()
+        certificatesData = certResponse.certificates || []
+      }
+      
+      setCertificates(certificatesData)
+      
+      // Calculate statistics for each student based on API response
+      const studentsWithStats = studentsData.map((student: Student) => {
+        return {
+          ...student,
+          // The backend now provides these statistics directly
+          totalCertificates: student.totalCertificates || 0,
+          activeCertificates: student.activeCertificates || 0,
+          expiredCertificates: student.expiredCertificates || 0,
+          courses: student.courses || [],
+          status: student.status || (student.wallet_address ? 'active' : 'pending')
+        }
+      })
+      
+      setStudents(studentsWithStats)
+    } catch (err) {
+      console.error('Error fetching data:', err)
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Load data on component mount
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  // Handle form input changes
+  const handleInputChange = (field: string, value: string) => {
+    setNewStudent(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  // Validate form data
+  const validateForm = () => {
+    const errors = []
+    
+    // Debug: log current form state
+    console.log('Validating form with data:', newStudent)
+    
+    if (!newStudent.id || !newStudent.id.trim()) {
+      errors.push('Mã sinh viên là bắt buộc')
+    } else if (!/^\d+$/.test(newStudent.id.trim())) {
+      errors.push('Mã sinh viên phải là số')
+    }
+    
+    if (!newStudent.name || !newStudent.name.trim()) {
+      errors.push('Họ tên là bắt buộc')
+    }
+    
+    if (!newStudent.email || !newStudent.email.trim()) {
+      errors.push('Email là bắt buộc')
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newStudent.email.trim())) {
+      errors.push('Email không hợp lệ')
+    }
+    
+    // Only validate wallet address if it's provided
+    if (newStudent.wallet_address && newStudent.wallet_address.trim()) {
+      if (!/^0x[a-fA-F0-9]{40}$/.test(newStudent.wallet_address.trim())) {
+        errors.push('Địa chỉ ví không hợp lệ (phải có định dạng 0x...)')
+      }
+    }
+    
+    console.log('Validation errors:', errors)
+    return errors
+  }
+
+  // Handle form submission
+  const handleSubmit = async () => {
+    const validationErrors = validateForm()
+    if (validationErrors.length > 0) {
+      toast({
+        title: "Lỗi validation",
+        description: validationErrors.join(', '),
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+    
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+      
+      const payload = {
+        student_id: parseInt(newStudent.id.trim()),
+        name: newStudent.name.trim(),
+        email: newStudent.email.trim().toLowerCase(),
+        wallet_address: newStudent.wallet_address && newStudent.wallet_address.trim() ? newStudent.wallet_address.trim() : null
+      }
+      
+      console.log('Sending payload:', payload) // Debug log
+      
+      const response = await fetch(`${baseUrl}/api/students`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+      
+      console.log('Response status:', response.status) // Debug log
+      
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}`
+        try {
+          const errorData = await response.json()
+          console.log('Error response:', errorData) // Debug log
+          errorMessage = errorData.details || errorData.error || errorData.message || errorMessage
+        } catch (parseError) {
+          console.log('Could not parse error response')
+          const textError = await response.text()
+          console.log('Raw error response:', textError)
+          errorMessage = textError || errorMessage
+        }
+        throw new Error(errorMessage)
+      }
+      
+      const result = await response.json()
+      console.log('Success response:', result) // Debug log
+      
+      toast({
+        title: "Thành công",
+        description: `Đã thêm học viên ${newStudent.name}`,
+      })
+      
+      // Reset form
+      setNewStudent({
+        id: '',
+        name: '',
+        email: '',
+        wallet_address: ''
+      })
+      
+      // Close dialog
+      setIsAddDialogOpen(false)
+      
+      // Refresh data
+      fetchData()
+      
+    } catch (error) {
+      console.error('Error adding student:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Không thể thêm học viên'
+      console.log('Final error message:', errorMessage) // Debug log
+      
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Reset form when dialog closes
+  const handleDialogClose = () => {
+    setIsAddDialogOpen(false)
+    setNewStudent({
+      id: '',
+      name: '',
+      email: '',
+      wallet_address: ''
+    })
+  }
 
   const filteredStudents = students.filter((student) => {
     const matchesSearch =
@@ -80,7 +312,7 @@ export default function StudentsPage() {
     const matchesStatus = statusFilter === "all" || student.status === statusFilter
     const matchesCourse =
       courseFilter === "all" ||
-      student.courses.some((course) => course.toLowerCase().includes(courseFilter.toLowerCase()))
+      (student.courses && student.courses.some((course) => course.toLowerCase().includes(courseFilter.toLowerCase())))
 
     return matchesSearch && matchesStatus && matchesCourse
   })
@@ -120,10 +352,102 @@ export default function StudentsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Quản lý Học viên</h1>
           <p className="text-muted-foreground">Quản lý thông tin học viên và theo dõi tiến độ học tập</p>
         </div>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Thêm học viên
-        </Button>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => setIsAddDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Thêm học viên
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Thêm học viên mới</DialogTitle>
+              <DialogDescription>
+                Nhập thông tin của học viên mới. Địa chỉ ví có thể để trống và cập nhật sau.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="student-id" className="text-right">
+                  Mã sinh viên *
+                </Label>
+                <Input
+                  id="student-id"
+                  placeholder="VD: 12345"
+                  className="col-span-3"
+                  value={newStudent.id}
+                  onChange={(e) => handleInputChange('id', e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="student-name" className="text-right">
+                  Họ tên *
+                </Label>
+                <Input
+                  id="student-name"
+                  placeholder="VD: Nguyễn Văn An"
+                  className="col-span-3"
+                  value={newStudent.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="student-email" className="text-right">
+                  Email *
+                </Label>
+                <Input
+                  id="student-email"
+                  type="email"
+                  placeholder="VD: an.nguyen@vnu.edu.vn"
+                  className="col-span-3"
+                  value={newStudent.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="student-wallet" className="text-right">
+                  Địa chỉ ví
+                </Label>
+                <div className="col-span-3">
+                  <Input
+                    id="student-wallet"
+                    placeholder="VD: 0x742d35Cc6644C0532925a3b8D51C8123Af14b3e3"
+                    value={newStudent.wallet_address}
+                    onChange={(e) => handleInputChange('wallet_address', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Tuỳ chọn - học viên có thể kết nối ví sau
+                  </p>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={handleDialogClose}
+                disabled={isSubmitting}
+              >
+                Hủy
+              </Button>
+              <Button 
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Đang lưu...
+                  </>
+                ) : (
+                  <>
+                    <User className="w-4 h-4 mr-2" />
+                    Thêm học viên
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Stats Cards */}
@@ -134,8 +458,8 @@ export default function StudentsPage() {
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{students.length}</div>
-            <p className="text-xs text-muted-foreground">+2 từ tháng trước</p>
+            <div className="text-2xl font-bold">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : students.length}</div>
+            <p className="text-xs text-muted-foreground">+{students.length > 0 ? Math.max(0, students.length - 1) : 0} từ tháng trước</p>
           </CardContent>
         </Card>
         <Card>
@@ -144,9 +468,9 @@ export default function StudentsPage() {
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{students.filter((s) => s.status === "active").length}</div>
+            <div className="text-2xl font-bold">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : students.filter((s) => s.status === "active").length}</div>
             <p className="text-xs text-muted-foreground">
-              {Math.round((students.filter((s) => s.status === "active").length / students.length) * 100)}% tổng số
+              {students.length > 0 ? Math.round((students.filter((s) => s.status === "active").length / students.length) * 100) : 0}% tổng số
             </p>
           </CardContent>
         </Card>
@@ -156,9 +480,9 @@ export default function StudentsPage() {
             <Award className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{students.reduce((sum, s) => sum + s.totalCertificates, 0)}</div>
+            <div className="text-2xl font-bold">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : students.reduce((sum, s) => sum + (s.totalCertificates || 0), 0)}</div>
             <p className="text-xs text-muted-foreground">
-              Trung bình {(students.reduce((sum, s) => sum + s.totalCertificates, 0) / students.length).toFixed(1)}{" "}
+              Trung bình {students.length > 0 ? (students.reduce((sum, s) => sum + (s.totalCertificates || 0), 0) / students.length).toFixed(1) : 0}{" "}
               chứng chỉ/học viên
             </p>
           </CardContent>
@@ -169,7 +493,7 @@ export default function StudentsPage() {
             <Clock className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{students.filter((s) => !s.walletAddress).length}</div>
+            <div className="text-2xl font-bold">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : students.filter((s) => !s.wallet_address).length}</div>
             <p className="text-xs text-muted-foreground">Cần hướng dẫn kết nối</p>
           </CardContent>
         </Card>
@@ -223,14 +547,51 @@ export default function StudentsPage() {
             </Button>
           </div>
 
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <span className="ml-2">Đang tải dữ liệu học viên...</span>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <div className="text-center py-8">
+              <div className="mb-4">
+                <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-2" />
+                <p className="text-red-500 font-medium">Có lỗi xảy ra</p>
+                <p className="text-sm text-muted-foreground mt-1">{error}</p>
+              </div>
+              <div className="flex gap-2 justify-center">
+                <Button onClick={() => window.location.reload()} variant="outline">
+                  Thử lại
+                </Button>
+                {error.includes('Authentication') && (
+                  <Button onClick={() => window.location.href = '/auth/login'}>
+                    Đăng nhập lại
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && !error && students.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Không có học viên nào được tìm thấy.</p>
+            </div>
+          )}
+
           {/* Students List */}
-          <div className="space-y-4">
-            {filteredStudents.map((student) => (
-              <Card key={student.id} className="p-4">
+          {!loading && !error && (
+            <div className="space-y-4">
+              {filteredStudents.map((student) => (
+                <Card key={student.student_id} className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <Avatar className="h-12 w-12">
-                      <AvatarImage src={student.avatar || "/placeholder.svg"} alt={student.name} />
+                      <AvatarImage src="/placeholder.svg" alt={student.name} />
                       <AvatarFallback>
                         {student.name
                           .split(" ")
@@ -241,20 +602,12 @@ export default function StudentsPage() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold">{student.name}</h3>
-                        {getStatusBadge(student.status)}
+                        {getStatusBadge(student.status || 'unknown')}
                       </div>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Mail className="w-3 h-3" />
                           {student.email}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Phone className="w-3 h-3" />
-                          {student.phone}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          Tham gia: {new Date(student.joinDate).toLocaleDateString("vi-VN")}
                         </div>
                       </div>
                     </div>
@@ -262,9 +615,9 @@ export default function StudentsPage() {
 
                   <div className="flex items-center gap-4">
                     <div className="text-right text-sm">
-                      <div className="font-medium">{student.totalCertificates} chứng chỉ</div>
+                      <div className="font-medium">{student.totalCertificates || 0} chứng chỉ</div>
                       <div className="text-muted-foreground">
-                        {student.activeCertificates} hoạt động, {student.expiredCertificates} hết hạn
+                        {student.activeCertificates || 0} hoạt động, {student.expiredCertificates || 0} hết hạn
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -285,18 +638,24 @@ export default function StudentsPage() {
                     <div>
                       <p className="text-sm font-medium mb-1">Khóa học đã tham gia:</p>
                       <div className="flex flex-wrap gap-1">
-                        {student.courses.map((course, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            {course}
+                        {student.courses && student.courses.length > 0 ? (
+                          student.courses.map((course, index) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {course}
+                            </Badge>
+                          ))
+                        ) : (
+                          <Badge variant="outline" className="text-xs">
+                            Chưa có khóa học
                           </Badge>
-                        ))}
+                        )}
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium mb-1">Địa chỉ ví:</p>
-                      {student.walletAddress ? (
+                      {student.wallet_address ? (
                         <code className="text-xs bg-muted px-2 py-1 rounded">
-                          {student.walletAddress.slice(0, 6)}...{student.walletAddress.slice(-4)}
+                          {student.wallet_address.slice(0, 6)}...{student.wallet_address.slice(-4)}
                         </code>
                       ) : (
                         <Badge variant="outline" className="text-xs">
@@ -308,8 +667,9 @@ export default function StudentsPage() {
                   </div>
                 </div>
               </Card>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

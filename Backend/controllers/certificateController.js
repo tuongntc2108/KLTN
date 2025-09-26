@@ -8,9 +8,10 @@ let certificateCounter = 1000;
 
 exports.mintCertificate = async (req, res) => {
   try {
+    // Only issuer (tts.tuongntc@vnpay.vn) can issue certificates
     const userEmail = req.user?.email;
-    if (!userEmail || !userEmail.endsWith("@vnu.edu.vn")) {
-      return res.status(401).json({ error: "Unauthorized: Gmail VNU required" });
+    if (!userEmail || userEmail !== 'tts.tuongntc@vnpay.vn') {
+      return res.status(401).json({ error: "Unauthorized: Only designated issuer can issue certificates" });
     }
 
     const {
@@ -19,6 +20,7 @@ exports.mintCertificate = async (req, res) => {
       certificate_name,
       recipient_name,
       recipient_wallet,
+      recipient_email, // Add recipient email to check if student exists
       issuer_name,
       issuer_id,
       issuer_url,
@@ -28,10 +30,35 @@ exports.mintCertificate = async (req, res) => {
       pdf_ipfs_hash,
     } = req.body;
 
-    if (!student_id || !course_name || !recipient_name || !recipient_wallet) {
+    if (!student_id || !course_name || !recipient_name || !recipient_wallet || !recipient_email) {
       return res.status(400).json({
         error: "Missing required fields",
+        required: ["student_id", "course_name", "recipient_name", "recipient_wallet", "recipient_email"],
         received: req.body,
+      });
+    }
+
+    // Check if recipient email exists as a student in the database
+    const studentCheck = await db.pool.query(
+      'SELECT id, email, wallet_address FROM students WHERE email = $1',
+      [recipient_email]
+    );
+
+    if (studentCheck.rows.length === 0) {
+      return res.status(400).json({
+        error: "Student not found",
+        message: `Student with email ${recipient_email} must be registered in the system before issuing certificates`,
+        suggestion: "Please ensure the student is added to the system first"
+      });
+    }
+
+    const student = studentCheck.rows[0];
+
+    // Verify wallet address matches the student record
+    if (student.wallet_address !== recipient_wallet) {
+      return res.status(400).json({
+        error: "Wallet address mismatch",
+        message: `The provided wallet address ${recipient_wallet} does not match the student's registered wallet address ${student.wallet_address}`
       });
     }
 
@@ -228,6 +255,8 @@ exports.revokeCertificate = async (req, res) => {
   }
 };
 
+/*
+// Đây là API lấy danh sách 10 chứng chỉ của 1 issuer, để cho version sau, version đầu tiên chỉ có 1 issuer duy nhất nên sẽ lấy toàn bộ chứng chỉ toàn hệ thống
 // ========================
 // GET /api/certificates/issuer/:issuerId
 // ========================
@@ -377,16 +406,128 @@ exports.getCertificatesByIssuer = async (req, res) => {
     });
   }
 };
+*/
 
 // ========================
-// PUT /api/certificates/:id/replace
+// GET /api/certificates/all - Get all certificates in the system
 // ========================
+exports.getAllCertificates = async (req, res) => {
+  try {
+    const { status, limit = 100, offset = 0 } = req.query;
+
+    // Build query to get all certificates
+    let query = `
+      SELECT 
+        c.*,
+        CASE 
+          WHEN c.expire_date < NOW() THEN 'expired'
+          ELSE c.status
+        END as computed_status
+      FROM certificates c 
+    `;
+    const params = [];
+    let paramCount = 0;
+
+    // Add status filter if provided
+    if (status) {
+      paramCount++;
+      if (status === 'expired') {
+        query += ` WHERE c.expire_date < NOW()`;
+      } else {
+        query += ` WHERE c.status = $${paramCount}`;
+        params.push(status);
+      }
+    }
+
+    // Add ordering and pagination
+    query += ` ORDER BY c.created_at DESC`;
+    
+    // Add limit
+    paramCount++;
+    query += ` LIMIT $${paramCount}`;
+    params.push(parseInt(limit));
+    
+    // Add offset
+    paramCount++;
+    query += ` OFFSET $${paramCount}`;
+    params.push(parseInt(offset));
+
+    const result = await db.pool.query(query, params);
+    const certificates = result.rows;
+
+    // Map the certificates to the expected response format
+    const formattedCertificates = certificates.map(cert => {
+      // Get issuer information based on issuer wallet address
+      const issuerInfo = {
+        id: 'VNU-UET-001', // Default issuer ID
+        name: 'VNU-UET',
+        url: 'https://uet.vnu.edu.vn'
+      };
+
+      // Parse metadata if needed
+      let parsedMetadata = {
+        issuer: issuerInfo,
+        recipient: {
+          full_name: cert.recipient_name || "Unknown",
+          wallet_address: cert.holder || "",
+          email_hash: "hash-email-tam-thoi"
+        },
+        certificate: {
+          course_name: cert.course_id || "N/A",
+          certificate_name: cert.certificate_name || "N/A",
+          issued_date: cert.issued_date,
+          expire_date: cert.expire_date,
+          status: cert.computed_status
+        },
+        verification: {
+          blockchain: "Sepolia",
+          chain_id: 11155111,
+          smart_contract: process.env.CONTRACT_ADDRESS,
+          verified_at: new Date().toISOString()
+        }
+      };
+
+      return {
+        verified: true, // Assuming all certificates in DB are verified
+        certificate: {
+          token_id: cert.token_id.toString(),
+          status: cert.computed_status,
+          metadata_uri: cert.metadata_uri,
+          issuer: parsedMetadata.issuer,
+          recipient: parsedMetadata.recipient,
+          certificate_detail: parsedMetadata.certificate,
+          file_hash: {
+            sha256: "8f2a559490fba9b65c9f8e60a63e4cc5db1adbd918f6b2f7d5e0340d5f37a16c", // Mock hash
+            pdf_url: "ipfs://QmYwAPJzv5CZsnAzt8auV2u9wM8k7iQzQZ5Nw5vLhY3w7D" // Mock IPFS
+          },
+          verification: parsedMetadata.verification
+        }
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Danh sách tất cả chứng chỉ trong hệ thống.",
+      total: certificates.length,
+      certificates: formattedCertificates
+    });
+
+  } catch (err) {
+    console.error("❌ Lỗi getAllCertificates:", err);
+    res.status(500).json({ 
+      success: false,
+      message: "Không thể lấy danh sách chứng chỉ",
+      error: err.message 
+    });
+  }
+};
 exports.replaceCertificate = async (req, res) => {
   try {
     const oldTokenId = req.params.id;
+    // Only issuer (tts.tuongntc@vnpay.vn) can replace certificates
     const userEmail = req.user?.email;
-    if (!userEmail || !userEmail.endsWith("@vnu.edu.vn")) {
-      return res.status(401).json({ error: "Unauthorized: Gmail VNU required" });
+    if (!userEmail || userEmail !== 'tts.tuongntc@vnpay.vn') {
+      return res.status(401).json({ error: "Unauthorized: Only designated issuer can replace certificates" });
     }
 
     const {
@@ -395,6 +536,7 @@ exports.replaceCertificate = async (req, res) => {
       certificate_name,
       recipient_name,
       recipient_wallet,
+      recipient_email, // Add recipient email to check if student exists
       issuer_name,
       issuer_id,
       issuer_url,
@@ -404,10 +546,35 @@ exports.replaceCertificate = async (req, res) => {
       pdf_ipfs_hash,
     } = req.body;
 
-    if (!student_id || !course_name || !recipient_name || !recipient_wallet) {
+    if (!student_id || !course_name || !recipient_name || !recipient_wallet || !recipient_email) {
       return res.status(400).json({
         error: "Missing required fields",
+        required: ["student_id", "course_name", "recipient_name", "recipient_wallet", "recipient_email"],
         received: req.body,
+      });
+    }
+
+    // Check if recipient email exists as a student in the database
+    const studentCheck = await db.pool.query(
+      'SELECT id, email, wallet_address FROM students WHERE email = $1',
+      [recipient_email]
+    );
+
+    if (studentCheck.rows.length === 0) {
+      return res.status(400).json({
+        error: "Student not found",
+        message: `Student with email ${recipient_email} must be registered in the system before replacing certificates`,
+        suggestion: "Please ensure the student is added to the system first"
+      });
+    }
+
+    const student = studentCheck.rows[0];
+
+    // Verify wallet address matches the student record
+    if (student.wallet_address !== recipient_wallet) {
+      return res.status(400).json({
+        error: "Wallet address mismatch",
+        message: `The provided wallet address ${recipient_wallet} does not match the student's registered wallet address ${student.wallet_address}`
       });
     }
 

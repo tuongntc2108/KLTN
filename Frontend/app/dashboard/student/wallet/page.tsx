@@ -3,39 +3,67 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Award, ExternalLink, Calendar, CheckCircle, Clock, AlertTriangle } from "lucide-react"
+import { useMemo, memo } from "react"
 
-export default function StudentWalletPage() {
-  const nftCertificates = [
-    {
-      id: 1,
-      name: "English Communication B2",
-      tokenId: "0x1a2b3c4d5e6f7890",
-      status: "active",
-      mintDate: "15/11/2024",
-      network: "Polygon",
-      image: "/certificate-nft-badge.jpg",
-    },
-    {
-      id: 2,
-      name: "Advanced Presentation Skills",
-      tokenId: "0x4d5e6f7890123456",
-      status: "active",
-      mintDate: "10/11/2024",
-      network: "Polygon",
-      image: "/presentation-skills-nft-badge.jpg",
-    },
-    {
-      id: 3,
-      name: "Digital Marketing Fundamentals",
-      tokenId: "0x7g8h9i0123456789",
-      status: "pending",
-      mintDate: "05/11/2024",
-      network: "Polygon",
-      image: "/digital-marketing-nft-badge.jpg",
-    },
-  ]
+// Static data to prevent re-renders
+const NFT_CERTIFICATES = [
+  {
+    id: 1,
+    name: "English Communication B2",
+    tokenId: "0x1a2b3c4d5e6f7890",
+    status: "active",
+    mintDate: "15/11/2024",
+    network: "Polygon",
+    image: "/certificate-nft-badge.jpg",
+  },
+  {
+    id: 2,
+    name: "Advanced Presentation Skills",
+    tokenId: "0x4d5e6f7890123456",
+    status: "active",
+    mintDate: "10/11/2024",
+    network: "Polygon",
+    image: "/presentation-skills-nft-badge.jpg",
+  },
+  {
+    id: 3,
+    name: "Digital Marketing Fundamentals",
+    tokenId: "0x7g8h9i0123456789",
+    status: "pending",
+    mintDate: "05/11/2024",
+    network: "Polygon",
+    image: "/digital-marketing-nft-badge.jpg",
+  },
+]
 
-  const getStatusBadge = (status: string) => {
+const BLOCKCHAIN_ACTIVITIES = [
+  {
+    type: "mint",
+    description: "Nhận chứng chỉ NFT English Communication B2",
+    date: "15/11/2024 14:30",
+    txHash: "0xabcd...1234",
+    status: "success",
+  },
+  {
+    type: "mint",
+    description: "Nhận chứng chỉ NFT Advanced Presentation Skills",
+    date: "10/11/2024 09:15",
+    txHash: "0xefgh...5678",
+    status: "success",
+  },
+  {
+    type: "pending",
+    description: "Chờ nhận chứng chỉ NFT Digital Marketing",
+    date: "05/11/2024 16:45",
+    txHash: "Đang xử lý...",
+    status: "pending",
+  },
+]
+
+const StudentWalletPage = memo(function StudentWalletPage() {
+
+  // Memoized functions to prevent re-renders
+  const getStatusBadge = useMemo(() => (status: string) => {
     switch (status) {
       case "active":
         return (
@@ -54,7 +82,7 @@ export default function StudentWalletPage() {
       default:
         return null
     }
-  }
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -78,7 +106,7 @@ export default function StudentWalletPage() {
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {nftCertificates.map((nft) => (
+            {NFT_CERTIFICATES.map((nft) => (
               <Card key={nft.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="aspect-square bg-gradient-to-br from-secondary/20 to-secondary/5 flex items-center justify-center">
                   <img src={nft.image || "/placeholder.svg"} alt={nft.name} className="w-full h-full object-cover" />
@@ -115,7 +143,7 @@ export default function StudentWalletPage() {
             ))}
           </div>
 
-          {nftCertificates.length === 0 && (
+          {NFT_CERTIFICATES.length === 0 && (
             <div className="text-center py-12">
               <Award className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">Chưa có NFT nào</h3>
@@ -135,29 +163,7 @@ export default function StudentWalletPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {[
-              {
-                type: "mint",
-                description: "Nhận chứng chỉ NFT English Communication B2",
-                date: "15/11/2024 14:30",
-                txHash: "0xabcd...1234",
-                status: "success",
-              },
-              {
-                type: "mint",
-                description: "Nhận chứng chỉ NFT Advanced Presentation Skills",
-                date: "10/11/2024 09:15",
-                txHash: "0xefgh...5678",
-                status: "success",
-              },
-              {
-                type: "pending",
-                description: "Chờ nhận chứng chỉ NFT Digital Marketing",
-                date: "05/11/2024 16:45",
-                txHash: "Đang xử lý...",
-                status: "pending",
-              },
-            ].map((activity, index) => (
+            {BLOCKCHAIN_ACTIVITIES.map((activity, index) => (
               <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-8 h-8 bg-secondary/20 rounded-full">
@@ -205,4 +211,6 @@ export default function StudentWalletPage() {
       </Card>
     </div>
   )
-}
+})
+
+export default StudentWalletPage
