@@ -43,7 +43,7 @@ export default function VerifyPage() {
         ? `/api/verify/by-token/${searchQuery}`
         : `/api/verify/by-code/${searchQuery}`
 
-      const response = await fetch(`http://localhost:4000${endpoint}`)
+      const response = await fetch(`/api/verify${endpoint}`)
       const data = await response.json()
       
       console.log('API Response:', data) // Debug log

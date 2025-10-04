@@ -18,9 +18,6 @@ exports.mintCertificate = async (req, res) => {
       student_id,
       course_name,
       certificate_name,
-      recipient_name,
-      recipient_wallet,
-      recipient_email, // Add recipient email to check if student exists
       issuer_name,
       issuer_id,
       issuer_url,
@@ -30,37 +27,44 @@ exports.mintCertificate = async (req, res) => {
       pdf_ipfs_hash,
     } = req.body;
 
-    if (!student_id || !course_name || !recipient_name || !recipient_wallet || !recipient_email) {
+    // Only student_id is required from the issuer, other info will be auto-fetched
+    if (!student_id || !course_name || !certificate_name) {
       return res.status(400).json({
         error: "Missing required fields",
-        required: ["student_id", "course_name", "recipient_name", "recipient_wallet", "recipient_email"],
+        required: ["student_id", "course_name", "certificate_name"],
         received: req.body,
       });
     }
 
-    // Check if recipient email exists as a student in the database
+    // Auto-fetch student information based on student_id
     const studentCheck = await db.pool.query(
-      'SELECT id, email, wallet_address FROM students WHERE email = $1',
-      [recipient_email]
+      'SELECT id, name, email, wallet_address FROM students WHERE id = $1',
+      [student_id]
     );
 
     if (studentCheck.rows.length === 0) {
       return res.status(400).json({
-        error: "Student not found",
-        message: `Student with email ${recipient_email} must be registered in the system before issuing certificates`,
-        suggestion: "Please ensure the student is added to the system first"
+        error: "Không tìm thấy sinh viên",
+        message: `Student với mã ${student_id} không tồn tại trong hệ thống`,
+        suggestion: "Vui lòng kiểm tra lại mã sinh viên hoặc thêm sinh viên vào hệ thống trước"
       });
     }
 
     const student = studentCheck.rows[0];
 
-    // Verify wallet address matches the student record
-    if (student.wallet_address !== recipient_wallet) {
+    // Check if student has wallet address
+    if (!student.wallet_address) {
       return res.status(400).json({
-        error: "Wallet address mismatch",
-        message: `The provided wallet address ${recipient_wallet} does not match the student's registered wallet address ${student.wallet_address}`
+        error: "Student chưa kết nối ví",
+        message: `Sinh viên ${student.name} (${student.email}) chưa kết nối địa chỉ ví blockchain`,
+        suggestion: "Sinh viên cần đăng nhập và kết nối ví trước khi có thể nhận chứng chỉ"
       });
     }
+
+    // Auto-fill recipient information from database
+    const recipient_name = student.name;
+    const recipient_email = student.email;
+    const recipient_wallet = student.wallet_address;
 
     // Generate tokenId giả lập từ counter
     certificateCounter++;
@@ -153,11 +157,25 @@ exports.mintCertificate = async (req, res) => {
 
     // Immediately sync the certificate to database
     try {
+      console.log(`🔄 Starting immediate sync for certificate ${tokenId}...`);
       await syncCertificateImmediately(tokenId);
       console.log(`✅ Certificate ${tokenId} synced to database immediately`);
+      
+      // Verify the sync worked by checking the database
+      const verifyQuery = await db.pool.query(
+        'SELECT token_id, status, recipient_name, course_id FROM certificates WHERE token_id = $1',
+        [tokenId]
+      );
+      
+      if (verifyQuery.rows.length > 0) {
+        console.log(`✅ Certificate ${tokenId} confirmed in database:`, verifyQuery.rows[0]);
+      } else {
+        console.warn(`⚠️ Certificate ${tokenId} not found in database after sync`);
+      }
     } catch (syncError) {
-      console.warn(`⚠️ Failed to sync certificate ${tokenId} immediately:`, syncError.message);
-      // Don't fail the whole operation if sync fails
+      console.error(`❌ Failed to sync certificate ${tokenId} immediately:`, syncError.message);
+      // Don't fail the whole operation if sync fails, but log more details
+      console.error('Sync error details:', syncError);
     }
 
     return res.status(201).json({
@@ -171,6 +189,127 @@ exports.mintCertificate = async (req, res) => {
   } catch (err) {
     console.error("❌ Lỗi mint:", err);
     res.status(500).json({ error: "Không thể mint chứng chỉ" });
+  }
+};
+
+// ========================
+// GET /api/certificates/my - Get certificates for current authenticated user
+// ========================
+exports.getMyCertificates = async (req, res) => {
+  try {
+    const userEmail = req.user?.email;
+    console.log(`🔍 Debug getMyCertificates - Raw user object:`, req.user);
+    console.log(`🔍 Debug getMyCertificates - User email: ${userEmail}`);
+    
+    if (!userEmail) {
+      console.log(`❌ Debug getMyCertificates - No user email found`);
+      return res.status(401).json({ error: "Unauthorized: User not authenticated" });
+    }
+
+    // Get student info based on authenticated user's email
+    const studentQuery = await db.pool.query(
+      'SELECT id, email, wallet_address, name FROM students WHERE email = $1',
+      [userEmail.toLowerCase()]
+    );
+
+    console.log(`🔍 Debug getMyCertificates - Student query for email: ${userEmail.toLowerCase()}`);
+    console.log(`🔍 Debug getMyCertificates - Student query result:`, studentQuery.rows);
+
+    if (studentQuery.rows.length === 0) {
+      console.log(`❌ Debug getMyCertificates - No student found for email: ${userEmail}`);
+      return res.status(200).json({
+        success: true,
+        message: "No student record found. Please connect your wallet first.",
+        certificates: []
+      });
+    }
+
+    const student = studentQuery.rows[0];
+    console.log(`🔍 Debug getMyCertificates - Found student:`, student);
+    
+    // If student doesn't have a wallet address, return empty certificates
+    if (!student.wallet_address) {
+      console.log(`❌ Debug getMyCertificates - Student has no wallet address`);
+      return res.status(200).json({
+        success: true,
+        message: "Please connect your wallet to view certificates.",
+        certificates: []
+      });
+    }
+
+    // Get certificates for this student's wallet address
+    // Only include certificates where this student is the holder
+    // Use LOWER() for case-insensitive wallet address comparison
+    const query = `
+      SELECT 
+        c.*,
+        CASE 
+          WHEN c.expire_date < NOW() THEN 'expired'
+          WHEN c.status = 'Issued' THEN 'pending'
+          WHEN c.status = 'Active' THEN 'active'
+          WHEN c.status = 'Revoked' THEN 'revoked'
+          WHEN c.status = 'Replaced' THEN 'replaced'
+          ELSE LOWER(c.status)
+        END as computed_status
+      FROM certificates c 
+      WHERE LOWER(c.holder) = LOWER($1)
+      ORDER BY c.created_at DESC
+    `;
+    
+    const result = await db.pool.query(query, [student.wallet_address]);
+    const certificates = result.rows;
+
+    console.log(`🔍 Debug getMyCertificates - Certificates query for wallet ${student.wallet_address}:`, certificates.length, "certificates found");
+    console.log(`🔍 Debug getMyCertificates - Sample certificates:`, certificates.slice(0, 2));
+
+    // Format certificates for frontend
+    const formattedCertificates = certificates.map(cert => {
+      // Map status for display
+      let displayStatus = cert.computed_status;
+      if (cert.computed_status === 'issued_not_claimed' || cert.computed_status === 'issued' || cert.computed_status === 'pending') {
+        displayStatus = 'pending';
+      } else if (cert.computed_status === 'active') {
+        displayStatus = 'active';
+      } else if (cert.computed_status === 'expired') {
+        displayStatus = 'expired';
+      } else if (cert.computed_status === 'revoked') {
+        displayStatus = 'revoked';
+      }
+
+      return {
+        id: cert.id,
+        name: cert.certificate_name || "Chứng chỉ",
+        issuer: "VNU-UET", // Default issuer
+        issueDate: new Date(cert.issued_date).toLocaleDateString('vi-VN'),
+        expiryDate: new Date(cert.expire_date).toLocaleDateString('vi-VN'),
+        status: displayStatus,
+        tokenId: cert.token_id,
+        description: `Chứng nhận hoàn thành khóa học ${cert.course_id || 'N/A'}`,
+        course: cert.course_id || "N/A",
+        grade: "Đạt", // Default grade since we don't have grade in DB
+        recipient_name: cert.recipient_name,
+        metadata_uri: cert.metadata_uri
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Danh sách chứng chỉ của học viên.",
+      student: {
+        name: student.name,
+        email: student.email,
+        wallet_address: student.wallet_address
+      },
+      certificates: formattedCertificates
+    });
+
+  } catch (err) {
+    console.error("❌ Lỗi getMyCertificates:", err);
+    res.status(500).json({ 
+      success: false,
+      message: "Không thể lấy danh sách chứng chỉ",
+      error: err.message 
+    });
   }
 };
 
@@ -534,9 +673,6 @@ exports.replaceCertificate = async (req, res) => {
       student_id,
       course_name,
       certificate_name,
-      recipient_name,
-      recipient_wallet,
-      recipient_email, // Add recipient email to check if student exists
       issuer_name,
       issuer_id,
       issuer_url,
@@ -546,37 +682,44 @@ exports.replaceCertificate = async (req, res) => {
       pdf_ipfs_hash,
     } = req.body;
 
-    if (!student_id || !course_name || !recipient_name || !recipient_wallet || !recipient_email) {
+    // Only student_id is required from the issuer, other info will be auto-fetched
+    if (!student_id || !course_name || !certificate_name) {
       return res.status(400).json({
         error: "Missing required fields",
-        required: ["student_id", "course_name", "recipient_name", "recipient_wallet", "recipient_email"],
+        required: ["student_id", "course_name", "certificate_name"],
         received: req.body,
       });
     }
 
-    // Check if recipient email exists as a student in the database
+    // Auto-fetch student information based on student_id
     const studentCheck = await db.pool.query(
-      'SELECT id, email, wallet_address FROM students WHERE email = $1',
-      [recipient_email]
+      'SELECT id, name, email, wallet_address FROM students WHERE id = $1',
+      [student_id]
     );
 
     if (studentCheck.rows.length === 0) {
       return res.status(400).json({
-        error: "Student not found",
-        message: `Student with email ${recipient_email} must be registered in the system before replacing certificates`,
-        suggestion: "Please ensure the student is added to the system first"
+        error: "Không tìm thấy sinh viên",
+        message: `Student với mã ${student_id} không tồn tại trong hệ thống`,
+        suggestion: "Vui lòng kiểm tra lại mã sinh viên hoặc thêm sinh viên vào hệ thống trước"
       });
     }
 
     const student = studentCheck.rows[0];
 
-    // Verify wallet address matches the student record
-    if (student.wallet_address !== recipient_wallet) {
+    // Check if student has wallet address
+    if (!student.wallet_address) {
       return res.status(400).json({
-        error: "Wallet address mismatch",
-        message: `The provided wallet address ${recipient_wallet} does not match the student's registered wallet address ${student.wallet_address}`
+        error: "Student chưa kết nối ví",
+        message: `Sinh viên ${student.name} (${student.email}) chưa kết nối địa chỉ ví blockchain`,
+        suggestion: "Sinh viên cần đăng nhập và kết nối ví trước khi có thể nhận chứng chỉ"
       });
     }
+
+    // Auto-fill recipient information from database
+    const recipient_name = student.name;
+    const recipient_email = student.email;
+    const recipient_wallet = student.wallet_address;
 
     // Build metadata JSON for new certificate
     const metadata = {

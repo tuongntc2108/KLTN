@@ -329,16 +329,43 @@ if (require.main === module) {
 // Export helper function for immediate sync after mint
 exports.syncCertificateImmediately = async (tokenId) => {
   try {
+    console.log(`🔄 Starting immediate sync for certificate ${tokenId}`);
     const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
     const MySBTAbi = require(path.join(__dirname, "..", "..", "SmartContract", "artifacts", "contracts", "MySBT.sol", "MySBT.json")).abi;
     const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, MySBTAbi, provider);
     
-    const cert = await contract.certificates(tokenId);
+    // Use retry logic for getting certificate data
+    const cert = await retryOperation(() => contract.certificates(tokenId));
+    
+    if (!cert || cert.holder === ethers.ZeroAddress) {
+      throw new Error(`Certificate ${tokenId} not found on blockchain`);
+    }
+    
+    console.log(`🗺️ Certificate data from blockchain:`, {
+      holder: cert.holder,
+      issuer: cert.issuer,
+      status: STATUS[Number(cert.status)] || "Issued",
+      metadataURI: cert.metadataURI,
+      recipientName: cert.recipientName
+    });
+    
     await upsertCertificateFromStruct(tokenId.toString(), cert);
-    console.log(`✅ Certificate ${tokenId} synced immediately`);
+    
+    // Verify the insert/update worked
+    const verifyResult = await db.query(
+      'SELECT token_id, status, recipient_name, course_id FROM certificates WHERE token_id = $1',
+      [tokenId.toString()]
+    );
+    
+    if (verifyResult.rows.length === 0) {
+      throw new Error(`Certificate ${tokenId} was not saved to database`);
+    }
+    
+    console.log(`✅ Certificate ${tokenId} synced immediately and verified in database`);
     return true;
   } catch (error) {
     console.error(`❌ Failed to sync certificate ${tokenId}:`, error.message);
+    console.error('Full error:', error);
     return false;
   }
 };

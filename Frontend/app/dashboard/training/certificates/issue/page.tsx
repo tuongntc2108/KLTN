@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,19 +9,19 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Award, Upload, Loader2, CheckCircle, User, Calendar, FileText, Blocks } from "lucide-react"
+import { Award, Upload, Loader2, CheckCircle, User, Calendar, FileText, Blocks, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useStudentInfo } from "@/hooks/use-student-info"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function IssueCertificatePage() {
   const [isIssuing, setIsIssuing] = useState(false)
   const [issuedCertificate, setIssuedCertificate] = useState<any>(null)
   const { toast } = useToast()
   const router = useRouter()
+  const { student, loading: studentLoading, error: studentError, fetchStudentInfo, clearStudent } = useStudentInfo()
 
   const [formData, setFormData] = useState({
-    studentName: "",
-    studentEmail: "",
-    studentWallet: "",
     studentId: "",
     courseName: "",
     certificateName: "",
@@ -35,6 +35,21 @@ export default function IssueCertificatePage() {
     issuerUrl: "https://vnu.edu.vn",
   })
 
+  // Add useEffect to handle student ID changes with debouncing
+  useEffect(() => {
+    if (formData.studentId.trim() === "") {
+      clearStudent()
+      return
+    }
+    
+    // Debounce the API call
+    const timeoutId = setTimeout(() => {
+      fetchStudentInfo(formData.studentId.trim())
+    }, 500)
+    
+    return () => clearTimeout(timeoutId)
+  }, [formData.studentId, clearStudent, fetchStudentInfo])
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
@@ -43,11 +58,20 @@ export default function IssueCertificatePage() {
     setIsIssuing(true)
     try {
       // Validate required fields
-      if (!formData.studentName || !formData.studentWallet || !formData.certificateName || 
-          !formData.courseName || !formData.issueDate || !formData.studentId) {
+      if (!formData.studentId || !formData.certificateName || !formData.courseName || !formData.issueDate) {
         toast({
           title: "Thiếu thông tin",
           description: "Vui lòng điền đầy đủ các trường bắt buộc",
+          variant: "destructive",
+        })
+        return
+      }
+      
+      // Validate student information is loaded
+      if (!student) {
+        toast({
+          title: "Thông tin học viên chưa được tìm thấy",
+          description: "Vui lòng nhập mã học viên hợp lệ và chờ thông tin tải về",
           variant: "destructive",
         })
         return
@@ -57,13 +81,11 @@ export default function IssueCertificatePage() {
       const sha256Hash = `hash_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       const pdfIpfsHash = `Qm${Math.random().toString(36).substr(2, 44)}`
 
-      // Prepare API request body
+      // Prepare API request body - only need student_id now
       const requestBody = {
         student_id: formData.studentId,
         course_name: formData.courseName,
         certificate_name: formData.certificateName,
-        recipient_name: formData.studentName,
-        recipient_wallet: formData.studentWallet,
         issuer_name: formData.issuerName,
         issuer_id: formData.issuerId,
         issuer_url: formData.issuerUrl,
@@ -74,12 +96,11 @@ export default function IssueCertificatePage() {
       }
 
       // Call mint certificate API
-      const response = await fetch('http://localhost:4000/api/certificates', {
+      const response = await fetch('/api/certificates', {
         method: 'POST',
+        credentials: 'include', // Include cookies for authentication
         headers: {
           'Content-Type': 'application/json',
-          // Add authentication header if needed
-          // 'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(requestBody),
       })
@@ -97,7 +118,11 @@ export default function IssueCertificatePage() {
         transactionHash: result.transaction_hash || `0x${Math.random().toString(16).substr(2, 64)}`,
         ipfsHash: result.metadata_uri,
         status: result.status,
-        ...formData,
+        studentId: formData.studentId,
+        courseName: formData.courseName,
+        certificateName: formData.certificateName,
+        issueDate: formData.issueDate,
+        expiryDate: formData.expiryDate,
       }
 
       setIssuedCertificate(certificate)
@@ -163,7 +188,7 @@ export default function IssueCertificatePage() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Học viên</Label>
-                  <p>{issuedCertificate.studentName}</p>
+                  <p>Mã SV: {issuedCertificate.studentId}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Trạng thái</Label>
@@ -213,16 +238,8 @@ export default function IssueCertificatePage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* First row: Student ID and Name */}
               <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="studentName">Họ và tên *</Label>
-                  <Input
-                    id="studentName"
-                    value={formData.studentName}
-                    onChange={(e) => handleInputChange("studentName", e.target.value)}
-                    placeholder="Nguyễn Văn A"
-                  />
-                </div>
                 <div>
                   <Label htmlFor="studentId">Mã học viên *</Label>
                   <Input
@@ -232,28 +249,81 @@ export default function IssueCertificatePage() {
                     placeholder="STUDENT001"
                   />
                 </div>
+                <div>
+                  <Label htmlFor="studentName">Họ và tên</Label>
+                  <Input
+                    id="studentName"
+                    value={student?.name || ""}
+                    placeholder="Sẽ tự động điền khi nhập mã học viên"
+                    readOnly
+                    className="bg-muted cursor-not-allowed"
+                  />
+                </div>
               </div>
+              
+              {/* Second row: Email and Wallet Address */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="studentEmail">Email *</Label>
+                  <Label htmlFor="studentEmail">Email</Label>
                   <Input
                     id="studentEmail"
-                    type="email"
-                    value={formData.studentEmail}
-                    onChange={(e) => handleInputChange("studentEmail", e.target.value)}
-                    placeholder="student@example.com"
+                    value={student?.email || ""}
+                    placeholder="Sẽ tự động điền khi nhập mã học viên"
+                    readOnly
+                    className="bg-muted cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="studentWallet">Địa chỉ ví blockchain *</Label>
+                  <Label htmlFor="studentWallet">Địa chỉ ví</Label>
                   <Input
                     id="studentWallet"
-                    value={formData.studentWallet}
-                    onChange={(e) => handleInputChange("studentWallet", e.target.value)}
-                    placeholder="0x742d35Cc6634C0532925a3b8D41C71D3d9C8b663"
+                    value={student?.wallet_address || ""}
+                    placeholder="Sẽ tự động điền khi nhập mã học viên"
+                    readOnly
+                    className="bg-muted cursor-not-allowed"
                   />
                 </div>
               </div>
+              
+              {/* Helper text */}
+              <p className="text-sm text-muted-foreground">
+                Thông tin sinh viên (họ tên, email, địa chỉ ví) sẽ được tự động truy vấn từ hệ thống
+              </p>
+              
+              {/* Loading indicator */}
+              {studentLoading && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Đang tìm kiếm thông tin học viên...
+                </div>
+              )}
+              
+              {/* Error message */}
+              {studentError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{studentError}</AlertDescription>
+                </Alert>
+              )}
+              
+              {/* Wallet warning */}
+              {student && !student.wallet_address && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-sm text-yellow-600">
+                    ⚠️ Học viên chưa kết nối ví. Chứng chỉ sẽ chờ cho đến khi học viên kết nối ví.
+                  </p>
+                </div>
+              )}
+              
+              {/* Student verification status */}
+              {student && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                  <div className="flex items-center gap-2 text-sm text-green-800">
+                    <CheckCircle className="w-4 h-4" />
+                    Thông tin học viên đã được xác thực
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -413,7 +483,7 @@ export default function IssueCertificatePage() {
             <Button
               className="w-full"
               onClick={handleIssueCertificate}
-              disabled={isIssuing || !formData.studentName || !formData.studentId || !formData.certificateName || !formData.courseName || !formData.studentWallet || !formData.issueDate}
+              disabled={isIssuing || !formData.studentId || !formData.certificateName || !formData.courseName || !formData.issueDate || !student || studentLoading}
             >
               {isIssuing ? (
                 <>

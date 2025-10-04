@@ -1,5 +1,68 @@
 const db = require("../config/pg");
 
+// Get student by ID (for issuers when issuing certificates)
+exports.getStudentById = async (req, res) => {
+  try {
+    const studentId = req.params.id;
+    console.log("🔍 Debug getStudentById - Student ID requested:", studentId);
+    
+    if (!studentId) {
+      return res.status(400).json({ error: "Bad Request", details: "Student ID is required" });
+    }
+    
+    const idNum = Number(studentId);
+    console.log("🔍 Debug getStudentById - Parsed student ID:", idNum);
+    
+    if (!Number.isInteger(idNum) || idNum <= 0) {
+      console.log("❌ Debug getStudentById - Invalid student ID format");
+      return res.status(400).json({ error: "Bad Request", details: "Student ID must be a positive integer" });
+    }
+
+    const query = `
+      SELECT 
+        id,
+        name,
+        email,
+        wallet_address,
+        created_at
+      FROM students 
+      WHERE id = $1
+    `;
+    
+    console.log("🔍 Debug getStudentById - Executing query for ID:", idNum);
+    const result = await db.pool.query(query, [idNum]);
+    console.log("🔍 Debug getStudentById - Query result count:", result.rows.length);
+    
+    if (result.rows.length === 0) {
+      console.log("❌ Debug getStudentById - No student found with ID:", idNum);
+      return res.status(404).json({ error: "Not Found", details: "Student not found" });
+    }
+
+    const student = result.rows[0];
+    console.log("✅ Debug getStudentById - Found student:", {
+      id: student.id,
+      name: student.name,
+      email: student.email,
+      has_wallet: !!student.wallet_address
+    });
+    
+    return res.status(200).json({
+      success: true,
+      student: {
+        student_id: student.id,
+        name: student.name,
+        email: student.email,
+        wallet_address: student.wallet_address,
+        created_at: student.created_at,
+        has_wallet: !!student.wallet_address
+      }
+    });
+  } catch (err) {
+    console.error("❌ getStudentById error:", err.message);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 exports.createStudent = async (req, res) => {
   try {
     const { student_id, id: aliasId, name, email, wallet_address } = req.body;

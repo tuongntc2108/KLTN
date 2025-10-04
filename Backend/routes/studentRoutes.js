@@ -9,6 +9,9 @@ router.post("/", authenticate, requireRole(["Issuer", "Admin"]), studentControll
 // GET Students
 router.get("/", authenticate, requireRole(["Issuer", "Admin"]), studentController.getStudents);
 
+// GET Student by ID (for certificate issuance)
+router.get("/:id", authenticate, requireRole(["Issuer", "Admin"]), studentController.getStudentById);
+
 // UPDATE Student
 router.put("/:id", authenticate, requireRole(["Issuer", "Admin"]), studentController.updateStudent);
 

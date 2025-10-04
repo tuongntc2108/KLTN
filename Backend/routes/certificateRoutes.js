@@ -6,6 +6,9 @@ const { authenticate, requireRole } = require("../middlewares/authMiddleware");
 // POST /api/certificates (Issuer, Admin only)
 router.post("/", authenticate, requireRole(["Issuer", "Admin"]), certificateController.mintCertificate);
 
+// GET /api/certificates/my (authenticated students get their own certificates)
+router.get("/my", authenticate, certificateController.getMyCertificates);
+
 // GET /api/certificates/all (get all certificates in the system)
 router.get("/all", authenticate, requireRole(["Issuer", "Admin"]), certificateController.getAllCertificates);
 
