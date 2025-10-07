@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS certificates (
     issued_date TIMESTAMP NOT NULL,
     expire_date TIMESTAMP NOT NULL,
     status VARCHAR(20) NOT NULL,               -- Issued | Active | Expired | Revoked | Replaced
-    course_id VARCHAR(100),
+    course_name VARCHAR(100),
     student_id VARCHAR(100),
     verification_code VARCHAR(100) UNIQUE NOT NULL,
     certificate_name VARCHAR(50),

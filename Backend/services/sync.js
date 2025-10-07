@@ -48,7 +48,7 @@ async function upsertCertificateFromStruct(tokenId, cert) {
   const q = `
     INSERT INTO certificates (
       token_id, metadata_uri, holder, issuer, issued_date, expire_date, status,
-      course_id, student_id, verification_code, certificate_name, recipient_name, updated_at
+      course_name, student_id, verification_code, certificate_name, recipient_name, updated_at
     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW())
     ON CONFLICT (token_id) DO UPDATE SET
       metadata_uri=EXCLUDED.metadata_uri,
@@ -57,7 +57,7 @@ async function upsertCertificateFromStruct(tokenId, cert) {
       issued_date=EXCLUDED.issued_date,
       expire_date=EXCLUDED.expire_date,
       status=EXCLUDED.status,
-      course_id=EXCLUDED.course_id,
+      course_name=EXCLUDED.course_name,
       student_id=EXCLUDED.student_id,
       verification_code=EXCLUDED.verification_code,
       certificate_name=EXCLUDED.certificate_name,
@@ -353,7 +353,7 @@ exports.syncCertificateImmediately = async (tokenId) => {
     
     // Verify the insert/update worked
     const verifyResult = await db.query(
-      'SELECT token_id, status, recipient_name, course_id FROM certificates WHERE token_id = $1',
+      'SELECT token_id, status, recipient_name, course_name FROM certificates WHERE token_id = $1',
       [tokenId.toString()]
     );
     

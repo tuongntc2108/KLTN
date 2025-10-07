@@ -5,8 +5,8 @@ import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { AIChatbot } from "@/components/ai/chatbot"
 import { Toaster } from "@/components/ui/toaster"
+import { Providers } from "@/components/providers"
 import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
 
 export const metadata: Metadata = {
   title: "CertChain - Hệ thống chứng chỉ số Blockchain",
@@ -28,12 +28,12 @@ export default function RootLayout({
   return (
     <html lang="vi" suppressHydrationWarning>
       <body className={`font-sans ${inter.variable} ${GeistMono.variable}`}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+        <Providers>
           {children}
           <AIChatbot />
           <Toaster />
           <Analytics />
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   )

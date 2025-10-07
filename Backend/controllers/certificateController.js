@@ -16,7 +16,8 @@ exports.mintCertificate = async (req, res) => {
 
     const {
       student_id,
-      course_name,
+      course_name, // Keep for backward compatibility
+      course_id,   // New field for course selection
       certificate_name,
       issuer_name,
       issuer_id,
@@ -28,11 +29,41 @@ exports.mintCertificate = async (req, res) => {
     } = req.body;
 
     // Only student_id is required from the issuer, other info will be auto-fetched
-    if (!student_id || !course_name || !certificate_name) {
+    if (!student_id || !certificate_name) {
       return res.status(400).json({
         error: "Missing required fields",
-        required: ["student_id", "course_name", "certificate_name"],
+        required: ["student_id", "certificate_name"],
         received: req.body,
+      });
+    }
+
+    // Handle course information - use course_id if provided, otherwise course_name
+    let finalCourseName = course_name;
+    let finalCourseId = course_id;
+    
+    if (course_id) {
+      // Fetch course information from database
+      const courseQuery = await db.pool.query(
+        'SELECT id, course_name FROM courses WHERE id = $1',
+        [course_id]
+      );
+      
+      if (courseQuery.rows.length === 0) {
+        return res.status(400).json({
+          error: "Không tìm thấy khóa học",
+          message: `Course với ID ${course_id} không tồn tại trong hệ thống`
+        });
+      }
+      
+      finalCourseName = courseQuery.rows[0].course_name;
+      finalCourseId = courseQuery.rows[0].id;
+    } else if (course_name) {
+      // For backward compatibility, keep the course_name approach
+      finalCourseName = course_name;
+    } else {
+      return res.status(400).json({
+        error: "Missing course information",
+        message: "Either course_id or course_name must be provided"
       });
     }
 
@@ -134,7 +165,7 @@ exports.mintCertificate = async (req, res) => {
       recipient_wallet,
       metadataURI,
       expireUnix,
-      course_name,
+      finalCourseName,
       student_id.toString(),
       verificationCode,
       certificate_name,
@@ -163,7 +194,7 @@ exports.mintCertificate = async (req, res) => {
       
       // Verify the sync worked by checking the database
       const verifyQuery = await db.pool.query(
-        'SELECT token_id, status, recipient_name, course_id FROM certificates WHERE token_id = $1',
+        'SELECT token_id, status, recipient_name, course_name FROM certificates WHERE token_id = $1',
         [tokenId]
       );
       
@@ -284,8 +315,8 @@ exports.getMyCertificates = async (req, res) => {
         expiryDate: new Date(cert.expire_date).toLocaleDateString('vi-VN'),
         status: displayStatus,
         tokenId: cert.token_id,
-        description: `Chứng nhận hoàn thành khóa học ${cert.course_id || 'N/A'}`,
-        course: cert.course_id || "N/A",
+        description: `Chứng nhận hoàn thành khóa học ${cert.course_name || 'N/A'}`,
+        course: cert.course_name || "N/A",
         grade: "Đạt", // Default grade since we don't have grade in DB
         recipient_name: cert.recipient_name,
         metadata_uri: cert.metadata_uri
@@ -490,7 +521,7 @@ exports.getCertificatesByIssuer = async (req, res) => {
           email_hash: "hash-email-tam-thoi"
         },
         certificate: {
-          course_name: cert.course_id || "N/A",
+          course_name: cert.course_name || "N/A",
           certificate_name: cert.certificate_name || "N/A",
           issued_date: cert.issued_date,
           expire_date: cert.expire_date,
@@ -612,7 +643,7 @@ exports.getAllCertificates = async (req, res) => {
           email_hash: "hash-email-tam-thoi"
         },
         certificate: {
-          course_name: cert.course_id || "N/A",
+          course_name: cert.course_name || "N/A",
           certificate_name: cert.certificate_name || "N/A",
           issued_date: cert.issued_date,
           expire_date: cert.expire_date,

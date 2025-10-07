@@ -124,7 +124,7 @@ exports.getStudents = async (req, res) => {
         COUNT(CASE WHEN c.status = 'expired' OR c.expire_date < NOW() THEN 1 END) as expired_certificates,
         COUNT(CASE WHEN c.status = 'issued_not_claimed' THEN 1 END) as pending_certificates,
         COUNT(CASE WHEN c.status = 'revoked' THEN 1 END) as revoked_certificates,
-        ARRAY_AGG(DISTINCT c.course_id) FILTER (WHERE c.course_id IS NOT NULL) as courses
+        ARRAY_AGG(DISTINCT c.course_name) FILTER (WHERE c.course_name IS NOT NULL) as courses
       FROM students s
       LEFT JOIN certificates c ON s.wallet_address = c.holder
       GROUP BY s.id, s.name, s.email, s.wallet_address, s.created_at

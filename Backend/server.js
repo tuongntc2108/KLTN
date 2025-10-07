@@ -73,6 +73,9 @@ app.use("/api/verify", verifyRoutes);
 const studentRoutes = require("./routes/studentRoutes");
 app.use("/api/students", studentRoutes);
 
+const courseRoutes = require("./routes/courseRoutes");
+app.use("/api/courses", courseRoutes);
+
 // Auto-sync configuration
 const SYNC_INTERVAL = process.env.SYNC_INTERVAL || 5 * 60 * 1000; // 5 phút mặc định
 let syncInterval;

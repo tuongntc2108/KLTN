@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Award, Upload, Loader2, CheckCircle, User, Calendar, FileText, Blocks, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useStudentInfo } from "@/hooks/use-student-info"
+import { useCourses } from "@/hooks/use-courses"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function IssueCertificatePage() {
@@ -20,10 +22,11 @@ export default function IssueCertificatePage() {
   const { toast } = useToast()
   const router = useRouter()
   const { student, loading: studentLoading, error: studentError, fetchStudentInfo, clearStudent } = useStudentInfo()
+  const { courses, loading: coursesLoading, fetchCourses } = useCourses()
 
   const [formData, setFormData] = useState({
     studentId: "",
-    courseName: "",
+    courseId: "", // Changed from courseName to courseId
     certificateName: "",
     issueDate: "",
     expiryDate: "",
@@ -50,6 +53,11 @@ export default function IssueCertificatePage() {
     return () => clearTimeout(timeoutId)
   }, [formData.studentId, clearStudent, fetchStudentInfo])
 
+  // Load courses on mount
+  useEffect(() => {
+    fetchCourses()
+  }, [fetchCourses])
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
@@ -58,7 +66,7 @@ export default function IssueCertificatePage() {
     setIsIssuing(true)
     try {
       // Validate required fields
-      if (!formData.studentId || !formData.certificateName || !formData.courseName || !formData.issueDate) {
+      if (!formData.studentId || !formData.certificateName || !formData.courseId || !formData.issueDate) {
         toast({
           title: "Thiếu thông tin",
           description: "Vui lòng điền đầy đủ các trường bắt buộc",
@@ -81,10 +89,11 @@ export default function IssueCertificatePage() {
       const sha256Hash = `hash_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       const pdfIpfsHash = `Qm${Math.random().toString(36).substr(2, 44)}`
 
-      // Prepare API request body - only need student_id now
+      // Prepare API request body - use course_id instead of course_name
+      const selectedCourse = courses.find(c => c.id.toString() === formData.courseId)
       const requestBody = {
         student_id: formData.studentId,
-        course_name: formData.courseName,
+        course_id: parseInt(formData.courseId), // Send course ID instead of name
         certificate_name: formData.certificateName,
         issuer_name: formData.issuerName,
         issuer_id: formData.issuerId,
@@ -119,7 +128,7 @@ export default function IssueCertificatePage() {
         ipfsHash: result.metadata_uri,
         status: result.status,
         studentId: formData.studentId,
-        courseName: formData.courseName,
+        courseName: selectedCourse?.course_name || 'Unknown Course',
         certificateName: formData.certificateName,
         issueDate: formData.issueDate,
         expiryDate: formData.expiryDate,
@@ -346,13 +355,33 @@ export default function IssueCertificatePage() {
                 />
               </div>
               <div>
-                <Label htmlFor="courseName">Tên khóa học *</Label>
-                <Input
-                  id="courseName"
-                  value={formData.courseName}
-                  onChange={(e) => handleInputChange("courseName", e.target.value)}
-                  placeholder="English Communication B2"
-                />
+                <Label htmlFor="courseId">Khóa học *</Label>
+                <Select onValueChange={(value) => handleInputChange("courseId", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn khóa học" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {coursesLoading ? (
+                      <div className="p-2 text-sm text-muted-foreground">Đang tải khóa học...</div>
+                    ) : courses.length === 0 ? (
+                      <div className="p-2 text-sm text-muted-foreground">Chưa có khóa học nào</div>
+                    ) : (
+                      courses.map((course) => (
+                        <SelectItem key={course.id} value={course.id.toString()}>
+                          {course.course_name}
+                          {course.duration && (
+                            <span className="text-muted-foreground ml-2">({course.duration})</span>
+                          )}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {courses.length === 0 && !coursesLoading && (
+                  <p className="text-sm text-yellow-600 mt-1">
+                    ⚠️ Chưa có khóa học nào. <a href="/dashboard/training/courses" className="underline">Tạo khóa học mới</a>
+                  </p>
+                )}
               </div>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
@@ -483,7 +512,7 @@ export default function IssueCertificatePage() {
             <Button
               className="w-full"
               onClick={handleIssueCertificate}
-              disabled={isIssuing || !formData.studentId || !formData.certificateName || !formData.courseName || !formData.issueDate || !student || studentLoading}
+              disabled={isIssuing || !formData.studentId || !formData.certificateName || !formData.courseId || !formData.issueDate || !student || studentLoading}
             >
               {isIssuing ? (
                 <>
