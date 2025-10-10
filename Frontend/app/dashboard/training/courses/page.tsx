@@ -66,6 +66,7 @@ export default function CoursesPage() {
   }
 
   const handleCreateCourse = async () => {
+    // Validate all required fields
     if (!formData.course_name.trim()) {
       toast({
         title: "Lỗi",
@@ -75,12 +76,39 @@ export default function CoursesPage() {
       return
     }
 
+    if (!formData.course_description.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Mô tả khóa học là bắt buộc",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!formData.duration.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Thời lượng khóa học là bắt buộc",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!formData.training_content.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Nội dung chương trình đào tạo là bắt buộc",
+        variant: "destructive"
+      })
+      return
+    }
+
     setSubmitting(true)
     const result = await createCourse({
       course_name: formData.course_name.trim(),
-      course_description: formData.course_description.trim() || undefined,
-      training_content: formData.training_content.trim() || undefined,
-      duration: formData.duration.trim() || undefined
+      course_description: formData.course_description.trim(),
+      training_content: formData.training_content.trim(),
+      duration: formData.duration.trim()
     })
 
     if (result) {
@@ -95,7 +123,10 @@ export default function CoursesPage() {
   }
 
   const handleEditCourse = async () => {
-    if (!editingCourse || !formData.course_name.trim()) {
+    if (!editingCourse) return
+
+    // Validate all required fields
+    if (!formData.course_name.trim()) {
       toast({
         title: "Lỗi",
         description: "Tên khóa học là bắt buộc",
@@ -104,12 +135,39 @@ export default function CoursesPage() {
       return
     }
 
+    if (!formData.course_description.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Mô tả khóa học là bắt buộc",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!formData.duration.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Thời lượng khóa học là bắt buộc",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!formData.training_content.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Nội dung chương trình đào tạo là bắt buộc",
+        variant: "destructive"
+      })
+      return
+    }
+
     setSubmitting(true)
     const result = await updateCourse(editingCourse.id, {
       course_name: formData.course_name.trim(),
-      course_description: formData.course_description.trim() || undefined,
-      training_content: formData.training_content.trim() || undefined,
-      duration: formData.duration.trim() || undefined
+      course_description: formData.course_description.trim(),
+      training_content: formData.training_content.trim(),
+      duration: formData.duration.trim()
     })
 
     if (result) {
@@ -179,35 +237,39 @@ export default function CoursesPage() {
                   value={formData.course_name}
                   onChange={(e) => handleInputChange("course_name", e.target.value)}
                   placeholder="Ví dụ: Tiếng Anh Giao Tiếp Cấp độ B2"
+                  required
                 />
               </div>
               <div>
-                <Label htmlFor="create-course-description">Mô tả khóa học</Label>
+                <Label htmlFor="create-course-description">Mô tả khóa học *</Label>
                 <Textarea
                   id="create-course-description"
                   value={formData.course_description}
                   onChange={(e) => handleInputChange("course_description", e.target.value)}
                   placeholder="Mô tả tổng quan về khóa học..."
                   rows={3}
+                  required
                 />
               </div>
               <div>
-                <Label htmlFor="create-duration">Thời lượng</Label>
+                <Label htmlFor="create-duration">Thời lượng *</Label>
                 <Input
                   id="create-duration"
                   value={formData.duration}
                   onChange={(e) => handleInputChange("duration", e.target.value)}
                   placeholder="Ví dụ: 40 giờ, 3 tháng, 6 tuần"
+                  required
                 />
               </div>
               <div>
-                <Label htmlFor="create-training-content">Nội dung chương trình đào tạo</Label>
+                <Label htmlFor="create-training-content">Nội dung chương trình đào tạo *</Label>
                 <Textarea
                   id="create-training-content"
                   value={formData.training_content}
                   onChange={(e) => handleInputChange("training_content", e.target.value)}
                   placeholder="Chi tiết nội dung đào tạo, mục tiêu học tập, kỹ năng đạt được..."
                   rows={6}
+                  required
                 />
               </div>
             </div>
@@ -382,35 +444,39 @@ export default function CoursesPage() {
                 value={formData.course_name}
                 onChange={(e) => handleInputChange("course_name", e.target.value)}
                 placeholder="Ví dụ: Tiếng Anh Giao Tiếp Cấp độ B2"
+                required
               />
             </div>
             <div>
-              <Label htmlFor="edit-course-description">Mô tả khóa học</Label>
+              <Label htmlFor="edit-course-description">Mô tả khóa học *</Label>
               <Textarea
                 id="edit-course-description"
                 value={formData.course_description}
                 onChange={(e) => handleInputChange("course_description", e.target.value)}
                 placeholder="Mô tả tổng quan về khóa học..."
                 rows={3}
+                required
               />
             </div>
             <div>
-              <Label htmlFor="edit-duration">Thời lượng</Label>
+              <Label htmlFor="edit-duration">Thời lượng *</Label>
               <Input
                 id="edit-duration"
                 value={formData.duration}
                 onChange={(e) => handleInputChange("duration", e.target.value)}
                 placeholder="Ví dụ: 40 giờ, 3 tháng, 6 tuần"
+                required
               />
             </div>
             <div>
-              <Label htmlFor="edit-training-content">Nội dung chương trình đào tạo</Label>
+              <Label htmlFor="edit-training-content">Nội dung chương trình đào tạo *</Label>
               <Textarea
                 id="edit-training-content"
                 value={formData.training_content}
                 onChange={(e) => handleInputChange("training_content", e.target.value)}
                 placeholder="Chi tiết nội dung đào tạo, mục tiêu học tập, kỹ năng đạt được..."
                 rows={6}
+                required
               />
             </div>
           </div>

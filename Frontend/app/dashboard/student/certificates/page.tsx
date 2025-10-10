@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useCertificates } from "@/hooks/use-certificates"
+import { useToast } from "@/hooks/use-toast"
 import { useState, useMemo } from "react"
 import {
   Award,
@@ -27,9 +28,11 @@ import {
 } from "lucide-react"
 
 export default function StudentCertificates() {
-  const { certificates, student, loading, error, refreshCertificates } = useCertificates()
+  const { certificates, student, loading, error, refreshCertificates, claimCertificate } = useCertificates()
+  const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [claimingTokenId, setClaimingTokenId] = useState<string | null>(null)
 
   // Filter certificates based on search term and status
   const filteredCertificates = useMemo(() => {
@@ -83,6 +86,44 @@ export default function StudentCertificates() {
         )
       default:
         return null
+    }
+  }
+
+  const handleClaimCertificate = async (tokenId: string) => {
+    if (!student?.wallet_address) {
+      toast({
+        title: "Chưa kết nối ví",
+        description: "Vui lòng kết nối ví MetaMask trước khi nhận chứng chỉ.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setClaimingTokenId(tokenId)
+    
+    try {
+      const result = await claimCertificate(tokenId)
+      
+      if (result.success) {
+        toast({
+          title: "Đã nhận chứng chỉ thành công!",
+          description: "Chứng chỉ đã được kích hoạt và xuất hiện trong ví MetaMask của bạn.",
+        })
+      } else {
+        toast({
+          title: "Lỗi nhận chứng chỉ",
+          description: result.error || "Không thể nhận chứng chỉ. Vui lòng thử lại.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Lỗi hệ thống",
+        description: "Có lỗi xảy ra. Vui lòng thử lại sau.",
+        variant: "destructive",
+      })
+    } finally {
+      setClaimingTokenId(null)
     }
   }
 
@@ -270,6 +311,26 @@ export default function StudentCertificates() {
               </div>
 
               <div className="flex flex-wrap gap-2 pt-2">
+                {cert.status === "pending" && (
+                  <Button 
+                    size="sm" 
+                    onClick={() => handleClaimCertificate(cert.tokenId)}
+                    disabled={claimingTokenId === cert.tokenId}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {claimingTokenId === cert.tokenId ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Đang nhận...
+                      </>
+                    ) : (
+                      <>
+                        <Award className="w-4 h-4 mr-2" />
+                        Nhận chứng chỉ
+                      </>
+                    )}
+                  </Button>
+                )}
                 <Button size="sm" variant="outline">
                   <Download className="w-4 h-4 mr-2" />
                   Tải PDF

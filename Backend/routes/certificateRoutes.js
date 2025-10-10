@@ -20,6 +20,9 @@ router.get("/issuer/:issuerId", authenticate, requireRole(["Issuer", "Admin"]), 
 // GET /api/certificates/:id (authenticated users only)
 router.get("/:id", authenticate, certificateController.getCertificateById);
 
+// POST /api/certificates/:id/claim (authenticated students only)
+router.post("/:id/claim", authenticate, certificateController.claimCertificate);
+
 // PUT /api/certificates/:id/revoke (Issuer, Admin only)
 router.put("/:id/revoke", authenticate, requireRole(["Issuer", "Admin"]), certificateController.revokeCertificate);
 

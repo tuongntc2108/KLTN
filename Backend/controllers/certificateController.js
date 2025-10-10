@@ -345,6 +345,137 @@ exports.getMyCertificates = async (req, res) => {
 };
 
 // ========================
+// POST /api/certificates/:id/claim - Claim a certificate
+// ========================
+exports.claimCertificate = async (req, res) => {
+  try {
+    const tokenId = req.params.id;
+    const userEmail = req.user?.email;
+
+    if (!userEmail) {
+      return res.status(401).json({ 
+        success: false,
+        error: "Authentication required" 
+      });
+    }
+
+    // Get student info based on authenticated user's email
+    const studentQuery = await db.pool.query(
+      'SELECT id, email, wallet_address, name FROM students WHERE email = $1',
+      [userEmail.toLowerCase()]
+    );
+
+    if (studentQuery.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Student not found",
+        message: "Please register as a student first"
+      });
+    }
+
+    const student = studentQuery.rows[0];
+    
+    // Check if student has a wallet address
+    if (!student.wallet_address) {
+      return res.status(400).json({
+        success: false,
+        error: "Wallet not connected",
+        message: "Please connect your wallet before claiming certificates"
+      });
+    }
+
+    // Check if certificate exists and belongs to this student
+    const certQuery = await db.pool.query(
+      'SELECT * FROM certificates WHERE token_id = $1 AND LOWER(holder) = LOWER($2)',
+      [tokenId, student.wallet_address]
+    );
+
+    if (certQuery.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Certificate not found",
+        message: "Certificate not found or not assigned to your wallet"
+      });
+    }
+
+    const certificate = certQuery.rows[0];
+    
+    // Check if certificate is in claimable status
+    if (certificate.status.toLowerCase() !== 'issued' && certificate.status.toLowerCase() !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        error: "Certificate not claimable",
+        message: `Certificate is in ${certificate.status} status and cannot be claimed`
+      });
+    }
+
+    // Call smart contract to claim the certificate
+    const gasOptions = {
+      gasLimit: 300000,
+      gasPrice: ethers.parseUnits("25", "gwei")
+    };
+
+    console.log(`🔄 Claiming certificate ${tokenId} for wallet ${student.wallet_address}...`);
+    const tx = await contract.claimCertificate(tokenId, gasOptions);
+    const receipt = await tx.wait();
+
+    console.log(`✅ Certificate ${tokenId} claimed successfully. Transaction: ${receipt.transactionHash}`);
+
+    // Update the certificate status in database
+    await db.pool.query(
+      'UPDATE certificates SET status = $1, updated_at = NOW() WHERE token_id = $2',
+      ['Active', tokenId]
+    );
+
+    // Immediately sync the certificate to ensure status is updated
+    try {
+      await syncCertificateImmediately(tokenId);
+      console.log(`✅ Certificate ${tokenId} synced after claiming`);
+    } catch (syncError) {
+      console.error(`❌ Failed to sync certificate ${tokenId} after claiming:`, syncError.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Certificate claimed successfully",
+      data: {
+        token_id: tokenId,
+        status: "Active",
+        transaction_hash: receipt.transactionHash,
+        claimed_at: new Date().toISOString()
+      }
+    });
+
+  } catch (err) {
+    console.error("❌ Error claiming certificate:", err);
+    
+    // Handle specific blockchain errors
+    if (err.message?.includes("Certificate already claimed")) {
+      return res.status(400).json({
+        success: false,
+        error: "Certificate already claimed",
+        message: "This certificate has already been claimed"
+      });
+    }
+    
+    if (err.message?.includes("Not authorized")) {
+      return res.status(403).json({
+        success: false,
+        error: "Not authorized",
+        message: "You are not authorized to claim this certificate"
+      });
+    }
+
+    return res.status(500).json({ 
+      success: false,
+      error: "Failed to claim certificate",
+      message: "An error occurred while claiming the certificate",
+      details: err.message
+    });
+  }
+};
+
+// ========================
 // GET /api/certificates/:id
 // ========================
 exports.getCertificateById = async (req, res) => {

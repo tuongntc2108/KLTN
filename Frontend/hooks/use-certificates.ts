@@ -94,11 +94,43 @@ export function useCertificates() {
     fetchCertificates()
   }
 
+  const claimCertificate = async (tokenId: string) => {
+    try {
+      const response = await fetch(`/api/certificates/${tokenId}/claim`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        // Refresh certificates after successful claim
+        await fetchCertificates()
+        return { success: true, data: data.data }
+      } else {
+        return { 
+          success: false, 
+          error: data.error || data.message || 'Failed to claim certificate' 
+        }
+      }
+    } catch (error) {
+      console.error('Error claiming certificate:', error)
+      return { 
+        success: false, 
+        error: 'Network error. Please try again.' 
+      }
+    }
+  }
+
   return {
     certificates: state.certificates,
     student: state.student,
     loading: state.loading,
     error: state.error,
-    refreshCertificates
+    refreshCertificates,
+    claimCertificate
   }
 }
