@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useCertificates } from "@/hooks/use-certificates"
+import { useMetaMask } from "@/hooks/use-metamask"
 import { useToast } from "@/hooks/use-toast"
 import { useState, useMemo } from "react"
 import {
@@ -29,6 +30,7 @@ import {
 
 export default function StudentCertificates() {
   const { certificates, student, loading, error, refreshCertificates, claimCertificate } = useCertificates()
+  const { connect, isConnected, account, isMetaMaskInstalled } = useMetaMask()
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -90,13 +92,29 @@ export default function StudentCertificates() {
   }
 
   const handleClaimCertificate = async (tokenId: string) => {
-    if (!student?.wallet_address) {
+    // Check if MetaMask is installed
+    if (!isMetaMaskInstalled) {
+      toast({
+        title: "MetaMask chưa được cài đặt",
+        description: "Vui lòng cài đặt MetaMask extension để có thể nhận chứng chỉ.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Check if wallet is connected
+    if (!isConnected || !account) {
       toast({
         title: "Chưa kết nối ví",
         description: "Vui lòng kết nối ví MetaMask trước khi nhận chứng chỉ.",
         variant: "destructive",
       })
-      return
+      
+      // Try to connect automatically
+      const connected = await connect()
+      if (!connected) {
+        return
+      }
     }
 
     setClaimingTokenId(tokenId)
@@ -116,10 +134,10 @@ export default function StudentCertificates() {
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Lỗi hệ thống",
-        description: "Có lỗi xảy ra. Vui lòng thử lại sau.",
+        description: error.message || "Có lỗi xảy ra. Vui lòng thử lại sau.",
         variant: "destructive",
       })
     } finally {
@@ -211,6 +229,20 @@ export default function StudentCertificates() {
             Quản lý và chia sẻ các chứng chỉ số của bạn
             {student && ` - ${student.name}`}
           </p>
+          {/* MetaMask Connection Status */}
+          <div className="flex items-center gap-2 mt-2">
+            {isConnected && account ? (
+              <Badge variant="default" className="bg-green-100 text-green-800">
+                <CheckCircle className="w-3 h-3 mr-1" />
+                MetaMask: {account.slice(0, 6)}...{account.slice(-4)}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="bg-orange-100 text-orange-800">
+                <AlertTriangle className="w-3 h-3 mr-1" />
+                MetaMask chưa kết nối
+              </Badge>
+            )}
+          </div>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" onClick={refreshCertificates} disabled={loading}>

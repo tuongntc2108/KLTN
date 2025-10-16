@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Search,
   Download,
@@ -86,6 +88,10 @@ export default function CertificatesPage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const { toast } = useToast()
   const searchParams = useSearchParams()
+  const [revokeDialogOpen, setRevokeDialogOpen] = useState(false)
+  const [revokeReason, setRevokeReason] = useState("")
+  const [certificateToRevoke, setCertificateToRevoke] = useState<Certificate | null>(null)
+  const [isRevoking, setIsRevoking] = useState(false)
 
   // Centralized status mapping utility for consistent status handling
   const normalizeStatus = (status: string): string => {
@@ -96,10 +102,10 @@ export default function CertificatesPage() {
       case 'issued':
       case 'issued_not_claimed':
         return 'issued_not_claimed';
-      case 'expired':
-        return 'expired';
       case 'revoked':
         return 'revoked';
+      case 'expired':
+        return 'expired';
       case 'replaced':
         return 'replaced';
       default:
@@ -152,9 +158,9 @@ export default function CertificatesPage() {
       } else {
         throw new Error(data.message || 'Failed to fetch certificates')
       }
-    } catch (error) {
-      console.error('Error fetching certificates:', error)
-      setError(error instanceof Error ? error.message : 'An error occurred')
+    } catch (err) {
+      console.error('Error fetching certificates:', err)
+      setError(err instanceof Error ? err.message : 'An error occurred')
       toast({
         title: "Error",
         description: "Failed to load certificates. Please try again.",
@@ -168,6 +174,60 @@ export default function CertificatesPage() {
   // Manual refresh function
   const handleRefresh = () => {
     setRefreshTrigger(prev => prev + 1)
+  }
+
+  // Handle revoke certificate
+  const handleRevokeCertificate = async () => {
+    if (!certificateToRevoke || !revokeReason.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng nhập lý do thu hồi",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsRevoking(true)
+      const tokenId = certificateToRevoke.certificate.token_id
+      
+      const response = await fetch(`/api/certificates/${tokenId}/revoke`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason: revokeReason.trim() })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+      
+      toast({
+        title: "Thành công",
+        description: "Chứng chỉ đã được thu hồi thành công",
+      })
+      
+      // Close dialog and reset state
+      setRevokeDialogOpen(false)
+      setCertificateToRevoke(null)
+      setRevokeReason("")
+      
+      // Refresh certificates list
+      handleRefresh()
+    } catch (err) {
+      console.error('Error revoking certificate:', err)
+      toast({
+        title: "Lỗi",
+        description: "Không thể thu hồi chứng chỉ. Vui lòng thử lại.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsRevoking(false)
+    }
   }
 
   useEffect(() => {
@@ -229,20 +289,20 @@ export default function CertificatesPage() {
             Đang chờ nhận
           </Badge>
         )
-      case "expired":
-      case "Expired":
-        return (
-          <Badge variant="destructive">
-            <XCircle className="w-3 h-3 mr-1" />
-            Hết hạn
-          </Badge>
-        )
       case "revoked":
       case "Revoked":
         return (
           <Badge variant="destructive">
             <Ban className="w-3 h-3 mr-1" />
             Đã thu hồi
+          </Badge>
+        )
+      case "expired":
+      case "Expired":
+        return (
+          <Badge variant="destructive">
+            <XCircle className="w-3 h-3 mr-1" />
+            Hết hạn
           </Badge>
         )
       case "replaced":
@@ -564,6 +624,75 @@ export default function CertificatesPage() {
                             <Edit className="w-4 h-4 mr-1" />
                             Quản lý
                           </Button>
+                          {/* Revoke Button - Only show for active certificates */}
+                          {status.toLowerCase() === 'active' && (
+                            <Dialog open={revokeDialogOpen} onOpenChange={(open) => {
+                              setRevokeDialogOpen(open)
+                              if (!open) {
+                                setCertificateToRevoke(null)
+                                setRevokeReason("")
+                              }
+                            }}>
+                              <DialogTrigger asChild>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm"
+                                  onClick={() => setCertificateToRevoke(cert)}
+                                >
+                                  <Ban className="w-4 h-4 mr-1" />
+                                  Thu hồi
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="sm:max-w-[425px]">
+                                <DialogHeader>
+                                  <DialogTitle>Thu hồi chứng chỉ</DialogTitle>
+                                  <DialogDescription>
+                                    Bạn đang thu hồi chứng chỉ với mã token <strong>{tokenId}</strong> của học viên <strong>{studentName}</strong>.
+                                    Vui lòng nhập lý do thu hồi bên dưới.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                  <div className="grid grid-cols-4 items-center gap-4">
+                                    <Textarea
+                                      id="reason"
+                                      placeholder="Nhập lý do thu hồi chứng chỉ..."
+                                      className="col-span-4"
+                                      value={revokeReason}
+                                      onChange={(e) => setRevokeReason(e.target.value)}
+                                      rows={4}
+                                    />
+                                  </div>
+                                </div>
+                                <DialogFooter>
+                                  <Button 
+                                    variant="outline" 
+                                    onClick={() => {
+                                      setRevokeDialogOpen(false)
+                                      setCertificateToRevoke(null)
+                                      setRevokeReason("")
+                                    }}
+                                    disabled={isRevoking}
+                                  >
+                                    Hủy
+                                  </Button>
+                                  <Button 
+                                    variant="destructive" 
+                                    onClick={handleRevokeCertificate}
+                                    disabled={isRevoking || !revokeReason.trim()}
+                                  >
+                                    {isRevoking ? (
+                                      <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Đang thu hồi...
+                                      </>
+                                    ) : (
+                                      "Xác nhận thu hồi"
+                                    )}
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -573,12 +702,6 @@ export default function CertificatesPage() {
                         <div>
                           <p className="font-medium mb-1">Loại chứng chỉ:</p>
                           <Badge variant="secondary">{certificateName}</Badge>
-                        </div>
-                        <div>
-                          <p className="font-medium mb-1">Smart Contract:</p>
-                          <code className="text-xs bg-muted px-2 py-1 rounded block">
-                            {blockchainTx ? `${blockchainTx.slice(0, 8)}...${blockchainTx.slice(-6)}` : "N/A"}
-                          </code>
                         </div>
                         <div>
                           <p className="font-medium mb-1">IPFS Hash:</p>

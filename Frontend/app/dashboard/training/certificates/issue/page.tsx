@@ -294,11 +294,6 @@ export default function IssueCertificatePage() {
                 </div>
               </div>
               
-              {/* Helper text */}
-              <p className="text-sm text-muted-foreground">
-                Thông tin sinh viên (họ tên, email, địa chỉ ví) sẽ được tự động truy vấn từ hệ thống
-              </p>
-              
               {/* Loading indicator */}
               {studentLoading && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -382,46 +377,6 @@ export default function IssueCertificatePage() {
                     ⚠️ Chưa có khóa học nào. <a href="/dashboard/training/courses" className="underline">Tạo khóa học mới</a>
                   </p>
                 )}
-              </div>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="courseType">Loại khóa học</Label>
-                  <Select onValueChange={(value) => handleInputChange("courseType", value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Chọn loại khóa học" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="language">Ngoại ngữ</SelectItem>
-                      <SelectItem value="skills">Kỹ năng mềm</SelectItem>
-                      <SelectItem value="technical">Kỹ thuật</SelectItem>
-                      <SelectItem value="management">Quản lý</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="grade">Kết quả</Label>
-                  <Select onValueChange={(value) => handleInputChange("grade", value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Chọn kết quả" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="excellent">Xuất sắc</SelectItem>
-                      <SelectItem value="good">Giỏi</SelectItem>
-                      <SelectItem value="fair">Khá</SelectItem>
-                      <SelectItem value="pass">Đạt</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="description">Mô tả chương trình đào tạo</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => handleInputChange("description", e.target.value)}
-                  placeholder="Mô tả chi tiết về nội dung khóa học, kỹ năng đạt được..."
-                  rows={4}
-                />
               </div>
             </CardContent>
           </Card>

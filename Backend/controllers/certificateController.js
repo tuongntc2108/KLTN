@@ -275,11 +275,11 @@ exports.getMyCertificates = async (req, res) => {
       SELECT 
         c.*,
         CASE 
+          WHEN c.status = 'Revoked' THEN 'revoked'
+          WHEN c.status = 'Replaced' THEN 'replaced'
           WHEN c.expire_date < NOW() THEN 'expired'
           WHEN c.status = 'Issued' THEN 'pending'
           WHEN c.status = 'Active' THEN 'active'
-          WHEN c.status = 'Revoked' THEN 'revoked'
-          WHEN c.status = 'Replaced' THEN 'replaced'
           ELSE LOWER(c.status)
         END as computed_status
       FROM certificates c 
@@ -521,6 +521,89 @@ exports.getCertificateById = async (req, res) => {
 };
 
 // ========================
+// POST /api/certificates/:id/sync-status - Sync certificate status after blockchain claim
+// ========================
+exports.syncCertificateStatus = async (req, res) => {
+  try {
+    const tokenId = req.params.id;
+    const { transactionHash, blockNumber } = req.body;
+    const userEmail = req.user?.email;
+
+    if (!userEmail) {
+      return res.status(401).json({ 
+        success: false,
+        error: "Authentication required" 
+      });
+    }
+
+    // Get student info
+    const studentQuery = await db.pool.query(
+      'SELECT id, email, wallet_address, name FROM students WHERE email = $1',
+      [userEmail.toLowerCase()]
+    );
+
+    if (studentQuery.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Student not found"
+      });
+    }
+
+    const student = studentQuery.rows[0];
+
+    // Verify the certificate belongs to this student
+    const certQuery = await db.pool.query(
+      'SELECT * FROM certificates WHERE token_id = $1 AND LOWER(holder) = LOWER($2)',
+      [tokenId, student.wallet_address]
+    );
+
+    if (certQuery.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Certificate not found or not assigned to your wallet"
+      });
+    }
+
+    const certificate = certQuery.rows[0];
+
+    // Update certificate status to Active
+    await db.pool.query(
+      'UPDATE certificates SET status = $1, updated_at = NOW() WHERE token_id = $2',
+      ['Active', tokenId]
+    );
+
+    // Log the claim event
+    await db.pool.query(
+      `INSERT INTO certificate_events (token_id, event_type, holder, block_number, tx_hash) 
+       VALUES ($1, $2, $3, $4, $5)`,
+      [tokenId, 'Claimed', student.wallet_address, blockNumber || null, transactionHash]
+    );
+
+    console.log(`✅ Certificate ${tokenId} status synced to Active after blockchain claim`);
+
+    return res.status(200).json({
+      success: true,
+      message: "Certificate status synced successfully",
+      data: {
+        token_id: tokenId,
+        status: "Active",
+        transaction_hash: transactionHash,
+        synced_at: new Date().toISOString()
+      }
+    });
+
+  } catch (err) {
+    console.error("❌ Error syncing certificate status:", err);
+    return res.status(500).json({ 
+      success: false,
+      error: "Failed to sync certificate status",
+      message: "An error occurred while syncing the certificate status",
+      details: err.message
+    });
+  }
+};
+
+// ========================
 // PUT /api/certificates/:id/revoke
 // ========================
 exports.revokeCertificate = async (req, res) => {
@@ -721,6 +804,8 @@ exports.getAllCertificates = async (req, res) => {
       SELECT 
         c.*,
         CASE 
+          WHEN c.status = 'Revoked' THEN 'revoked'
+          WHEN c.status = 'Replaced' THEN 'replaced'
           WHEN c.expire_date < NOW() THEN 'expired'
           ELSE c.status
         END as computed_status
@@ -733,7 +818,11 @@ exports.getAllCertificates = async (req, res) => {
     if (status) {
       paramCount++;
       if (status === 'expired') {
-        query += ` WHERE c.expire_date < NOW()`;
+        query += ` WHERE c.expire_date < NOW() AND c.status != 'Revoked' AND c.status != 'Replaced'`;
+      } else if (status === 'revoked') {
+        query += ` WHERE c.status = 'Revoked'`;
+      } else if (status === 'replaced') {
+        query += ` WHERE c.status = 'Replaced'`;
       } else {
         query += ` WHERE c.status = $${paramCount}`;
         params.push(status);
