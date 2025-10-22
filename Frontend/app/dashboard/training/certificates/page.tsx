@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -27,9 +28,11 @@ import {
   ExternalLink,
   Loader2,
   RefreshCw,
+  Replace,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
+import { useCourses } from "@/hooks/use-courses"
 
 interface Certificate {
   verified: boolean
@@ -46,6 +49,7 @@ interface Certificate {
       full_name: string
       wallet_address: string
       email_hash: string
+      student_id: string
     }
     certificate_detail: {
       course_name: string
@@ -92,6 +96,9 @@ export default function CertificatesPage() {
   const [revokeReason, setRevokeReason] = useState("")
   const [certificateToRevoke, setCertificateToRevoke] = useState<Certificate | null>(null)
   const [isRevoking, setIsRevoking] = useState(false)
+  const [replaceDialogOpen, setReplaceDialogOpen] = useState(false)
+  const [certificateToReplace, setCertificateToReplace] = useState<Certificate | null>(null)
+  const [isReplacing, setIsReplacing] = useState(false)
 
   // Centralized status mapping utility for consistent status handling
   const normalizeStatus = (status: string): string => {
@@ -227,6 +234,60 @@ export default function CertificatesPage() {
       })
     } finally {
       setIsRevoking(false)
+    }
+  }
+
+  // Handle replace certificate
+  const handleReplaceCertificate = async (replaceData: any) => {
+    if (!certificateToReplace) {
+      toast({
+        title: "Lỗi",
+        description: "Không tìm thấy chứng chỉ để thay thế",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsReplacing(true)
+      const oldTokenId = certificateToReplace.certificate.token_id
+      
+      const response = await fetch(`/api/certificates/${oldTokenId}/replace`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(replaceData)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to replace certificate')
+      }
+
+      const result = await response.json()
+      
+      toast({
+        title: "Thay thế chứng chỉ thành công",
+        description: `Chứng chỉ cũ: ${result.replaced_old_cert_id}, Chứng chỉ mới: ${result.new_certificate_id}`,
+      })
+      
+      // Close dialog and reset state
+      setReplaceDialogOpen(false)
+      setCertificateToReplace(null)
+      
+      // Refresh certificates list
+      handleRefresh()
+    } catch (err) {
+      console.error('Error replacing certificate:', err)
+      toast({
+        title: "Lỗi",
+        description: (err as Error)?.message || "Không thể thay thế chứng chỉ. Vui lòng thử lại.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsReplacing(false)
     }
   }
 
@@ -624,6 +685,44 @@ export default function CertificatesPage() {
                             <Edit className="w-4 h-4 mr-1" />
                             Quản lý
                           </Button>
+                          {/* Replace Button - Only show for active and issued certificates */}
+                          {(status.toLowerCase() === 'active' || status.toLowerCase() === 'issued_not_claimed') && (
+                            <Dialog open={replaceDialogOpen} onOpenChange={(open) => {
+                              setReplaceDialogOpen(open)
+                              if (!open) {
+                                setCertificateToReplace(null)
+                              }
+                            }}>
+                              <DialogTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => setCertificateToReplace(cert)}
+                                >
+                                  <Replace className="w-4 h-4 mr-1" />
+                                  Thay thế
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="sm:max-w-[600px]">
+                                <DialogHeader>
+                                  <DialogTitle>Thay thế chứng chỉ</DialogTitle>
+                                  <DialogDescription>
+                                    Bạn đang thay thế chứng chỉ với mã token <strong>{tokenId}</strong> của học viên <strong>{studentName}</strong>.
+                                    Mã sinh viên sẽ được tự động điền sẵn và không thể sửa.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <ReplaceCertificateForm 
+                                  certificate={cert}
+                                  onReplace={handleReplaceCertificate}
+                                  isReplacing={isReplacing}
+                                  onCancel={() => {
+                                    setReplaceDialogOpen(false)
+                                    setCertificateToReplace(null)
+                                  }}
+                                />
+                              </DialogContent>
+                            </Dialog>
+                          )}
                           {/* Revoke Button - Only show for active certificates */}
                           {status.toLowerCase() === 'active' && (
                             <Dialog open={revokeDialogOpen} onOpenChange={(open) => {
@@ -731,6 +830,181 @@ export default function CertificatesPage() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+// Replace Certificate Form Component
+interface ReplaceCertificateFormProps {
+  certificate: Certificate
+  onReplace: (data: any) => void
+  isReplacing: boolean
+  onCancel: () => void
+}
+
+function ReplaceCertificateForm({ certificate, onReplace, isReplacing, onCancel }: ReplaceCertificateFormProps) {
+  const { courses, loading: coursesLoading, fetchCourses } = useCourses()
+  const [formData, setFormData] = useState({
+    studentId: "",
+    courseName: "",
+    certificateName: "",
+    issuerName: "VNU University",
+    issuerId: "VNU-001", 
+    issuerUrl: "https://vnu.edu.vn",
+    issueDate: "",
+    expiryDate: "",
+  })
+
+  // Initialize form data when certificate changes
+  useEffect(() => {
+    if (certificate) {
+      const cert = certificate.certificate
+      setFormData({
+        studentId: cert.recipient?.student_id || "",
+        courseName: cert.certificate_detail?.course_name || "",
+        certificateName: cert.certificate_detail?.certificate_name || "",
+        issuerName: "VNU University",
+        issuerId: "VNU-001",
+        issuerUrl: "https://vnu.edu.vn",
+        issueDate: cert.certificate_detail?.issue_date ? new Date(cert.certificate_detail.issue_date).toISOString().split('T')[0] : "",
+        expiryDate: cert.certificate_detail?.expire_date ? new Date(cert.certificate_detail.expire_date).toISOString().split('T')[0] : "",
+      })
+    }
+  }, [certificate])
+
+  // Load courses on mount
+  useEffect(() => {
+    fetchCourses()
+  }, [fetchCourses])
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleSubmit = () => {
+    if (!formData.certificateName || !formData.courseName || !formData.issueDate) {
+      return
+    }
+
+    // Generate SHA256 hash for verification (simplified)
+    const sha256Hash = `hash_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const pdfIpfsHash = `Qm${Math.random().toString(36).substr(2, 44)}`
+
+    // Extract student ID from the original certificate
+    const originalStudentId = certificate?.certificate?.recipient?.student_id || ""
+    
+    const replaceData = {
+      student_id: originalStudentId, // Use the original student ID from the certificate
+      course_name: formData.courseName,
+      certificate_name: formData.certificateName,
+      issuer_name: formData.issuerName,
+      issuer_id: formData.issuerId,
+      issuer_url: formData.issuerUrl,
+      issued_date: formData.issueDate,
+      expire_date: formData.expiryDate || null,
+      sha256_hash: sha256Hash,
+      pdf_ipfs_hash: pdfIpfsHash,
+    }
+
+    onReplace(replaceData)
+  }
+
+  return (
+    <div className="space-y-4 py-4">
+      <div className="grid gap-4">
+        {/* Student ID - Read only */}
+        <div>
+          <Label htmlFor="studentId">Mã sinh viên</Label>
+          <Input
+            id="studentId"
+            value={formData.studentId}
+            readOnly
+            className="bg-muted cursor-not-allowed"
+          />
+        </div>
+
+        {/* Student Name - Read only (for reference) */}
+        <div>
+          <Label htmlFor="studentName">Tên sinh viên</Label>
+          <Input
+            id="studentName"
+            value={certificate?.certificate?.recipient?.full_name || ""}
+            readOnly
+            className="bg-muted cursor-not-allowed"
+            placeholder="Tên sinh viên sẽ hiển thị ở đây"
+          />
+        </div>
+
+        {/* Certificate Name */}
+        <div>
+          <Label htmlFor="certificateName">Tên chứng chỉ *</Label>
+          <Input
+            id="certificateName"
+            value={formData.certificateName}
+            onChange={(e) => handleInputChange("certificateName", e.target.value)}
+            placeholder="Chứng chỉ Tiếng Anh Giao Tiếp - Cấp độ B2"
+          />
+        </div>
+
+        {/* Course Name */}
+        <div>
+          <Label htmlFor="courseName">Khóa học *</Label>
+          <Input
+            id="courseName"
+            value={formData.courseName}
+            onChange={(e) => handleInputChange("courseName", e.target.value)}
+            placeholder="Tên khóa học"
+          />
+        </div>
+
+        {/* Issue Date */}
+        <div>
+          <Label htmlFor="issueDate">Ngày cấp *</Label>
+          <Input
+            id="issueDate"
+            type="date"
+            value={formData.issueDate}
+            onChange={(e) => handleInputChange("issueDate", e.target.value)}
+          />
+        </div>
+
+        {/* Expiry Date */}
+        <div>
+          <Label htmlFor="expiryDate">Ngày hết hạn</Label>
+          <Input
+            id="expiryDate"
+            type="date"
+            value={formData.expiryDate}
+            onChange={(e) => handleInputChange("expiryDate", e.target.value)}
+          />
+        </div>
+      </div>
+
+      <DialogFooter>
+        <Button 
+          variant="outline" 
+          onClick={onCancel}
+          disabled={isReplacing}
+        >
+          Hủy
+        </Button>
+        <Button 
+          onClick={handleSubmit}
+          disabled={isReplacing || !formData.certificateName || !formData.courseName || !formData.issueDate}
+        >
+          {isReplacing ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Đang thay thế...
+            </>
+          ) : (
+            <>
+              <Replace className="w-4 h-4 mr-2" />
+              Cấp chứng chỉ NFT
+            </>
+          )}
+        </Button>
+      </DialogFooter>
     </div>
   )
 }

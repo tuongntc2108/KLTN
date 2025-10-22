@@ -110,7 +110,7 @@ exports.mintCertificate = async (req, res) => {
       attributes: [
         { trait_type: "Issuer", value: issuer_name },
         { trait_type: "Recipient", value: recipient_name },
-        { trait_type: "Course Name", value: course_name },
+        { trait_type: "Course Name", value: finalCourseName },
         { trait_type: "Certificate Name", value: certificate_name },
         { trait_type: "Issued Date", value: issued_date },
         { trait_type: "Expire Date", value: expire_date },
@@ -130,7 +130,7 @@ exports.mintCertificate = async (req, res) => {
         email_hash: "hash-email-tam-thoi",
       },
       certificate: {
-        course_name: course_name,
+        course_name: finalCourseName,
         certificate_name: certificate_name,
         issued_date: new Date(issued_date).toISOString(),
         expire_date: new Date(expire_date).toISOString(),
@@ -732,7 +732,8 @@ exports.getCertificatesByIssuer = async (req, res) => {
         recipient: {
           full_name: cert.recipient_name || "Unknown",
           wallet_address: cert.holder || "",
-          email_hash: "hash-email-tam-thoi"
+          email_hash: "hash-email-tam-thoi",
+          student_id: cert.student_id || ""
         },
         certificate: {
           course_name: cert.course_name || "N/A",
@@ -860,7 +861,8 @@ exports.getAllCertificates = async (req, res) => {
         recipient: {
           full_name: cert.recipient_name || "Unknown",
           wallet_address: cert.holder || "",
-          email_hash: "hash-email-tam-thoi"
+          email_hash: "hash-email-tam-thoi",
+          student_id: cert.student_id || ""
         },
         certificate: {
           course_name: cert.course_name || "N/A",
@@ -922,7 +924,8 @@ exports.replaceCertificate = async (req, res) => {
 
     const {
       student_id,
-      course_name,
+      course_name, // Keep for backward compatibility
+      course_id,   // New field for course selection
       certificate_name,
       issuer_name,
       issuer_id,
@@ -934,11 +937,41 @@ exports.replaceCertificate = async (req, res) => {
     } = req.body;
 
     // Only student_id is required from the issuer, other info will be auto-fetched
-    if (!student_id || !course_name || !certificate_name) {
+    if (!student_id || !certificate_name) {
       return res.status(400).json({
         error: "Missing required fields",
-        required: ["student_id", "course_name", "certificate_name"],
+        required: ["student_id", "certificate_name"],
         received: req.body,
+      });
+    }
+
+    // Handle course information - use course_id if provided, otherwise course_name
+    let finalCourseName = course_name;
+    let finalCourseId = course_id;
+    
+    if (course_id) {
+      // Fetch course information from database
+      const courseQuery = await db.pool.query(
+        'SELECT id, course_name FROM courses WHERE id = $1',
+        [course_id]
+      );
+      
+      if (courseQuery.rows.length === 0) {
+        return res.status(400).json({
+          error: "Không tìm thấy khóa học",
+          message: `Course với ID ${course_id} không tồn tại trong hệ thống`
+        });
+      }
+      
+      finalCourseName = courseQuery.rows[0].course_name;
+      finalCourseId = courseQuery.rows[0].id;
+    } else if (course_name) {
+      // For backward compatibility, keep the course_name approach
+      finalCourseName = course_name;
+    } else {
+      return res.status(400).json({
+        error: "Missing course information",
+        message: "Either course_id or course_name must be provided"
       });
     }
 
@@ -981,7 +1014,7 @@ exports.replaceCertificate = async (req, res) => {
       attributes: [
         { trait_type: "Issuer", value: issuer_name },
         { trait_type: "Recipient", value: recipient_name },
-        { trait_type: "Course Name", value: course_name },
+        { trait_type: "Course Name", value: finalCourseName },
         { trait_type: "Certificate Name", value: certificate_name },
         { trait_type: "Issued Date", value: issued_date },
         { trait_type: "Expire Date", value: expire_date },
@@ -1000,7 +1033,7 @@ exports.replaceCertificate = async (req, res) => {
         email_hash: "hash-email-tam-thoi",
       },
       certificate: {
-        course_name: course_name,
+        course_name: finalCourseName,
         certificate_name: certificate_name,
         issued_date: new Date(issued_date).toISOString(),
         expire_date: new Date(expire_date).toISOString(),
@@ -1035,7 +1068,7 @@ exports.replaceCertificate = async (req, res) => {
       recipient_wallet,
       metadataURI,
       expireUnix,
-      course_name,
+      finalCourseName,
       student_id.toString(),
       verificationCode,
       certificate_name,
