@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CourseSummary } from "@/components/ai/course-summary"
+import { AISummaryButton } from "@/components/ai/ai-summary-button"
 import {
   Search,
   Upload,
@@ -306,6 +306,10 @@ export default function VerifyPage() {
                     <FileText className="w-5 h-5" />
                     Thông tin khóa học
                   </CardTitle>
+                  <AISummaryButton 
+                    certificateId={verificationResult.certificate.tokenId}
+                    certificateName={verificationResult.certificate.name}
+                  />
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -317,10 +321,6 @@ export default function VerifyPage() {
             </Card>
           )}
 
-          {/* AI Course Summary - Optional */}
-          {verificationResult.isValid && verificationResult.certificate?.course && (
-            <CourseSummary courseData={verificationResult.certificate.course} />
-          )}
 
 
 

@@ -66,10 +66,10 @@ export default function IssueCertificatePage() {
     setIsIssuing(true)
     try {
       // Validate required fields
-      if (!formData.studentId || !formData.certificateName || !formData.courseId || !formData.issueDate) {
+      if (!formData.studentId || !formData.certificateName || !formData.issueDate) {
         toast({
           title: "Thiếu thông tin",
-          description: "Vui lòng điền đầy đủ các trường bắt buộc",
+          description: "Vui lòng điền đầy đủ các trường bắt buộc (Mã học viên, Tên chứng chỉ, Ngày cấp)",
           variant: "destructive",
         })
         return
@@ -89,11 +89,11 @@ export default function IssueCertificatePage() {
       const sha256Hash = `hash_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       const pdfIpfsHash = `Qm${Math.random().toString(36).substr(2, 44)}`
 
-      // Prepare API request body - use course_id instead of course_name
-      const selectedCourse = courses.find(c => c.id.toString() === formData.courseId)
+      // Prepare API request body - use course_id if selected, otherwise course_name as fallback
+      const selectedCourse = (formData.courseId && formData.courseId !== "none") ? courses.find(c => c.id.toString() === formData.courseId) : null
       const requestBody = {
         student_id: formData.studentId,
-        course_id: parseInt(formData.courseId), // Send course ID instead of name
+        ...(formData.courseId && formData.courseId !== "none" && { course_id: parseInt(formData.courseId) }), // Only include course_id if selected and not "none"
         certificate_name: formData.certificateName,
         issuer_name: formData.issuerName,
         issuer_id: formData.issuerId,
@@ -128,7 +128,7 @@ export default function IssueCertificatePage() {
         ipfsHash: result.metadata_uri,
         status: result.status,
         studentId: formData.studentId,
-        courseName: selectedCourse?.course_name || 'Unknown Course',
+        courseName: selectedCourse?.course_name || 'Không có khóa học',
         certificateName: formData.certificateName,
         issueDate: formData.issueDate,
         expiryDate: formData.expiryDate,
@@ -350,12 +350,13 @@ export default function IssueCertificatePage() {
                 />
               </div>
               <div>
-                <Label htmlFor="courseId">Khóa học *</Label>
+                <Label htmlFor="courseId">Khóa học</Label>
                 <Select onValueChange={(value) => handleInputChange("courseId", value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Chọn khóa học" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">-- Không gắn với khóa học nào --</SelectItem>
                     {coursesLoading ? (
                       <div className="p-2 text-sm text-muted-foreground">Đang tải khóa học...</div>
                     ) : courses.length === 0 ? (
@@ -372,11 +373,6 @@ export default function IssueCertificatePage() {
                     )}
                   </SelectContent>
                 </Select>
-                {courses.length === 0 && !coursesLoading && (
-                  <p className="text-sm text-yellow-600 mt-1">
-                    ⚠️ Chưa có khóa học nào. <a href="/dashboard/training/courses" className="underline">Tạo khóa học mới</a>
-                  </p>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -467,7 +463,7 @@ export default function IssueCertificatePage() {
             <Button
               className="w-full"
               onClick={handleIssueCertificate}
-              disabled={isIssuing || !formData.studentId || !formData.certificateName || !formData.courseId || !formData.issueDate || !student || studentLoading}
+              disabled={isIssuing || !formData.studentId || !formData.certificateName || !formData.issueDate || !student || studentLoading}
             >
               {isIssuing ? (
                 <>

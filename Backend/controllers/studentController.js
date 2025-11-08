@@ -202,13 +202,12 @@ exports.updateWalletAddress = async (req, res) => {
       return res.status(401).json({ error: "Unauthorized", details: "User not authenticated" });
     }
     
-    if (!wallet_address) {
-      return res.status(400).json({ error: "Bad Request", details: "wallet_address is required" });
-    }
-    
-    // Validate Ethereum address format
-    if (!/^0x[a-fA-F0-9]{40}$/.test(wallet_address)) {
-      return res.status(400).json({ error: "Bad Request", details: "Invalid Ethereum wallet address format" });
+    // Allow null wallet_address to clear the connection
+    if (wallet_address !== null && wallet_address !== undefined) {
+      // Validate Ethereum address format if provided
+      if (wallet_address && !/^0x[a-fA-F0-9]{40}$/.test(wallet_address)) {
+        return res.status(400).json({ error: "Bad Request", details: "Invalid Ethereum wallet address format" });
+      }
     }
 
     // Check if student exists with this email
@@ -221,15 +220,17 @@ exports.updateWalletAddress = async (req, res) => {
 
     const student = studentResult.rows[0];
     
-    // Check if wallet address is already taken by another student
-    const checkWalletQuery = `SELECT id FROM students WHERE wallet_address = $1 AND id != $2`;
-    const walletResult = await db.pool.query(checkWalletQuery, [wallet_address, student.id]);
-    
-    if (walletResult.rows.length > 0) {
-      return res.status(400).json({ error: "Bad Request", details: "Wallet address is already connected to another account" });
+    // Check if wallet address is already taken by another student (only if not null)
+    if (wallet_address) {
+      const checkWalletQuery = `SELECT id FROM students WHERE wallet_address = $1 AND id != $2`;
+      const walletResult = await db.pool.query(checkWalletQuery, [wallet_address, student.id]);
+      
+      if (walletResult.rows.length > 0) {
+        return res.status(400).json({ error: "Bad Request", details: "Wallet address is already connected to another account" });
+      }
     }
 
-    // Update wallet address
+    // Update wallet address (can be null to clear connection)
     const updateQuery = `
       UPDATE students 
       SET wallet_address = $1 
@@ -244,9 +245,11 @@ exports.updateWalletAddress = async (req, res) => {
 
     const updatedStudent = updateResult.rows[0];
     
+    const message = wallet_address ? "Wallet address updated successfully" : "Wallet address cleared successfully";
+    
     return res.status(200).json({
       success: true,
-      message: "Wallet address updated successfully",
+      message: message,
       student: {
         student_id: updatedStudent.id,
         name: updatedStudent.name,

@@ -142,16 +142,69 @@ export function useWallet() {
     setError(null)
     
     try {
-      // Request account access
-      const accounts = await window.ethereum!.request({
-        method: 'eth_requestAccounts'
-      })
-
-      if (accounts.length === 0) {
-        throw new Error('No accounts found')
+      // Clear any existing wallet state first
+      setWalletInfo(null)
+      
+      // Method 1: Try to use wallet_requestPermissions to force account selection
+      let accounts: string[] = []
+      try {
+        console.log('Attempting to request wallet permissions...')
+        await window.ethereum!.request({
+          method: 'wallet_requestPermissions',
+          params: [{ eth_accounts: {} }]
+        })
+        
+        // After permissions, get accounts
+        accounts = await window.ethereum!.request({
+          method: 'eth_accounts'
+        })
+        
+        console.log('Accounts after permission request:', accounts)
+      } catch (permError: any) {
+        console.log('Wallet permissions request failed:', permError)
+        
+        // Method 2: Fall back to standard request which should still show selection
+        try {
+          accounts = await window.ethereum!.request({
+            method: 'eth_requestAccounts'
+          })
+          console.log('Accounts from standard request:', accounts)
+        } catch (requestError) {
+          console.log('Standard request also failed, trying alternative approach')
+          
+          // Method 3: Try to disconnect first, then reconnect
+          try {
+            // This might help reset the connection
+            await window.ethereum!.request({
+              method: 'eth_accounts'
+            })
+            
+            accounts = await window.ethereum!.request({
+              method: 'eth_requestAccounts'
+            })
+            console.log('Accounts after reset approach:', accounts)
+          } catch (finalError) {
+            throw finalError
+          }
+        }
       }
 
+      if (accounts.length === 0) {
+        throw new Error('No accounts found or selected')
+      }
+
+      console.log('Final selected account:', accounts[0])
+      toast({
+        title: "Đang kết nối...",
+        description: `Kết nối với account: ${accounts[0].slice(0, 8)}...${accounts[0].slice(-4)}`,
+      })
+      
       await updateWalletInfo(accounts[0])
+      
+      // After successful connection, refresh from backend to ensure sync
+      setTimeout(() => {
+        loadWalletFromBackend()
+      }, 1000)
       
     } catch (error: any) {
       console.error('Error connecting wallet:', error)
@@ -161,6 +214,8 @@ export function useWallet() {
         errorMessage = "Kết nối bị từ chối bởi người dùng."
       } else if (error.code === -32002) {
         errorMessage = "Yêu cầu kết nối đang chờ xử lý. Vui lòng kiểm tra MetaMask."
+      } else if (error.code === 4100) {
+        errorMessage = "Account chưa được authorize. Vui lòng mở MetaMask và kết nối account."
       }
       
       setError(errorMessage)
@@ -177,6 +232,12 @@ export function useWallet() {
   const disconnectWallet = useCallback((): void => {
     setWalletInfo(null)
     setError(null)
+    // Clear any cached wallet data in localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('walletconnect')
+      localStorage.removeItem('wagmi.wallet')
+      localStorage.removeItem('WALLET_CONNECT_V2_DEEP_LINK')
+    }
     toast({
       title: "Đã ngắt kết nối ví",
       description: "Ví blockchain đã được ngắt kết nối",
@@ -216,6 +277,39 @@ export function useWallet() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
   }, [])
 
+  const clearWalletFromBackend = useCallback(async (): Promise<boolean> => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/students/me/wallet`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ wallet_address: null }),
+      })
+
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        toast({
+          title: "Đã xóa kết nối ví",
+          description: "Địa chỉ ví đã được xóa khỏi hệ thống.",
+        })
+        return true
+      } else {
+        throw new Error(data.details || data.error || 'Failed to clear wallet address')
+      }
+    } catch (error) {
+      console.error('Error clearing wallet from backend:', error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể xóa địa chỉ ví khỏi hệ thống.",
+        variant: "destructive",
+      })
+      return false
+    }
+  }, [toast])
+
   // Load wallet info from backend on component mount
   const loadWalletFromBackend = useCallback(async (): Promise<void> => {
     try {
@@ -230,14 +324,37 @@ export function useWallet() {
       const data = await response.json()
       
       if (response.ok && data.success && data.student.wallet_address) {
-        // If user has a wallet address in the backend, try to connect to it
-        await checkConnection()
+        console.log('Backend has wallet address:', data.student.wallet_address)
+        
+        // Check if MetaMask is connected to the same address
+        try {
+          const accounts = await window.ethereum?.request({ method: 'eth_accounts' }) || []
+          if (accounts.length > 0) {
+            const currentAccount = accounts[0].toLowerCase()
+            const savedWallet = data.student.wallet_address.toLowerCase()
+            
+            console.log('Current MetaMask account:', currentAccount)
+            console.log('Saved wallet address:', savedWallet)
+            
+            if (currentAccount === savedWallet) {
+              console.log('Addresses match, updating wallet info...')
+              await updateWalletInfo(accounts[0])
+            } else {
+              console.log('Addresses do not match, user needs to connect the correct account')
+            }
+          } else {
+            console.log('No MetaMask accounts connected')
+          }
+        } catch (error) {
+          console.error('Error checking MetaMask accounts:', error)
+        }
+      } else {
+        console.log('No wallet address in backend')
       }
     } catch (error) {
       console.error('Error loading wallet from backend:', error)
-      // Don't show error toast here as this is background loading
     }
-  }, [checkConnection])
+  }, [updateWalletInfo])
 
   // Initialize
   useEffect(() => {
@@ -297,6 +414,11 @@ export function useWallet() {
     }
   }, [isMetaMaskInstalled, isInitialized, loadWalletFromBackend])
 
+  const refreshWalletState = useCallback(async (): Promise<void> => {
+    console.log('Refreshing wallet state...')
+    await loadWalletFromBackend()
+  }, [loadWalletFromBackend])
+
   return {
     walletInfo,
     isConnecting,
@@ -307,6 +429,8 @@ export function useWallet() {
     copyAddress,
     openInExplorer,
     formatAddress,
-    refreshWallet: checkConnection
+    clearWalletFromBackend,
+    refreshWallet: checkConnection,
+    refreshWalletState
   }
 }

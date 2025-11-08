@@ -20,6 +20,9 @@ router.get("/issuer/:issuerId", authenticate, requireRole(["Issuer", "Admin"]), 
 // GET /api/certificates/:id (authenticated users only)
 router.get("/:id", authenticate, certificateController.getCertificateById);
 
+// GET /api/certificates/:id/ai-summary (public access for verification page)
+router.get("/:id/ai-summary", certificateController.getAISummary);
+
 // POST /api/certificates/:id/claim (authenticated students only)
 router.post("/:id/claim", authenticate, certificateController.claimCertificate);
 

@@ -632,9 +632,9 @@ export default function CertificatesPage() {
 
                 return (
                   <Card key={tokenId} className="p-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                       <div className="flex items-center space-x-4">
-                        <Avatar className="h-10 w-10">
+                        <Avatar className="h-10 w-10 flex-shrink-0">
                           <AvatarFallback>
                             {studentName && studentName !== "Unknown Student"
                               ? studentName
@@ -644,33 +644,33 @@ export default function CertificatesPage() {
                               : "??"}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">{courseName}</h3>
+                        <div className="space-y-1 min-w-0 flex-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <h3 className="font-semibold truncate">{courseName}</h3>
                             {getStatusBadge(status)}
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
+                            <span className="truncate">
                               Học viên: <strong>{studentName}</strong>
                             </span>
-                            <span>
+                            <span className="truncate">
                               Token ID: <code className="bg-muted px-1 rounded">{tokenId}</code>
                             </span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4">
-                        <div className="text-right text-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                        <div className="text-sm">
                           <div className="font-medium">Cấp: {issueDate.toLocaleDateString("vi-VN")}</div>
                           <div className="text-muted-foreground">
                             Hết hạn: {expiryDate.toLocaleDateString("vi-VN")}
                           </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <Button variant="outline" size="sm">
-                            <Eye className="w-4 h-4 mr-1" />
-                            Xem
+                            <Eye className="w-4 h-4 sm:mr-1" />
+                            <span className="hidden sm:inline">Xem</span>
                           </Button>
                           <Button 
                             variant="outline" 
@@ -678,12 +678,12 @@ export default function CertificatesPage() {
                             onClick={() => blockchainTx && window.open(`https://sepolia.etherscan.io/address/${blockchainTx}`, '_blank')}
                             disabled={!blockchainTx}
                           >
-                            <ExternalLink className="w-4 h-4 mr-1" />
-                            Blockchain
+                            <ExternalLink className="w-4 h-4 sm:mr-1" />
+                            <span className="hidden sm:inline">Blockchain</span>
                           </Button>
                           <Button variant="outline" size="sm">
-                            <Edit className="w-4 h-4 mr-1" />
-                            Quản lý
+                            <Edit className="w-4 h-4 sm:mr-1" />
+                            <span className="hidden sm:inline">Quản lý</span>
                           </Button>
                           {/* Replace Button - Only show for active and issued certificates */}
                           {(status.toLowerCase() === 'active' || status.toLowerCase() === 'issued_not_claimed') && (
@@ -699,8 +699,8 @@ export default function CertificatesPage() {
                                   size="sm"
                                   onClick={() => setCertificateToReplace(cert)}
                                 >
-                                  <Replace className="w-4 h-4 mr-1" />
-                                  Thay thế
+                                  <Replace className="w-4 h-4 sm:mr-1" />
+                                  <span className="hidden sm:inline">Thay thế</span>
                                 </Button>
                               </DialogTrigger>
                               <DialogContent className="sm:max-w-[600px]">
@@ -738,8 +738,8 @@ export default function CertificatesPage() {
                                   size="sm"
                                   onClick={() => setCertificateToRevoke(cert)}
                                 >
-                                  <Ban className="w-4 h-4 mr-1" />
-                                  Thu hồi
+                                  <Ban className="w-4 h-4 sm:mr-1" />
+                                  <span className="hidden sm:inline">Thu hồi</span>
                                 </Button>
                               </DialogTrigger>
                               <DialogContent className="sm:max-w-[425px]">

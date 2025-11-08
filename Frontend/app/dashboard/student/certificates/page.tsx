@@ -86,6 +86,13 @@ export default function StudentCertificates() {
             Đã thu hồi
           </Badge>
         )
+      case "replaced":
+        return (
+          <Badge variant="secondary" className="bg-purple-100 text-purple-800 border-purple-200">
+            <RefreshCw className="w-3 h-3 mr-1" />
+            Đã thay thế
+          </Badge>
+        )
       default:
         return null
     }
@@ -288,6 +295,7 @@ export default function StudentCertificates() {
               <option value="expiring">Sắp hết hạn</option>
               <option value="expired">Hết hạn</option>
               <option value="revoked">Thu hồi</option>
+              <option value="replaced">Đã thay thế</option>
             </select>
           </div>
         </CardContent>

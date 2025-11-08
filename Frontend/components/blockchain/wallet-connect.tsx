@@ -17,7 +17,9 @@ export function WalletConnect() {
     disconnectWallet,
     copyAddress,
     openInExplorer,
-    formatAddress
+    formatAddress,
+    clearWalletFromBackend,
+    refreshWalletState
   } = useWallet()
 
   // MetaMask not installed warning
@@ -106,6 +108,17 @@ export function WalletConnect() {
             <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Chưa kết nối ví</h3>
             <p className="text-muted-foreground mb-4">Bạn cần kết nối ví blockchain để nhận chứng chỉ NFT</p>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-left">
+              <h4 className="font-semibold text-blue-800 mb-2">💡 Lưu ý quan trọng:</h4>
+              <ul className="text-blue-700 space-y-1 text-xs">
+                <li>• Khi click "Kết nối ví", MetaMask sẽ hiện popup</li>
+                <li>• Hãy chọn account mà bạn muốn sử dụng</li>
+                <li>• Đảm bảo chọn đúng account để nhận chứng chỉ</li>
+                <li>• Nếu cần đổi account, click "Đổi tài khoản" sau khi kết nối</li>
+              </ul>
+            </div>
+            
             <Button onClick={connectWallet} disabled={isConnecting}>
               {isConnecting ? (
                 <>
@@ -119,6 +132,17 @@ export function WalletConnect() {
                 </>
               )}
             </Button>
+            
+            <div className="mt-3">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={refreshWalletState}
+                className="text-xs"
+              >
+                🔄 Tải lại trạng thái
+              </Button>
+            </div>
           </div>
 
           <div className="border-t pt-4">
@@ -194,8 +218,17 @@ export function WalletConnect() {
         </div>
 
         <div className="flex gap-2 pt-2">
+          <Button variant="outline" className="flex-1 bg-transparent" onClick={connectWallet}>
+            Đổi tài khoản
+          </Button>
           <Button variant="outline" className="flex-1 bg-transparent" onClick={disconnectWallet}>
             Ngắt kết nối
+          </Button>
+          <Button variant="outline" className="flex-1 bg-transparent" onClick={async () => {
+            await clearWalletFromBackend()
+            disconnectWallet()
+          }}>
+            Xóa ví
           </Button>
           <Button className="flex-1" onClick={openInExplorer}>Xem trên Explorer</Button>
         </div>

@@ -76,20 +76,15 @@ app.use("/api/students", studentRoutes);
 const courseRoutes = require("./routes/courseRoutes");
 app.use("/api/courses", courseRoutes);
 
-// Auto-sync configuration
-const SYNC_INTERVAL = process.env.SYNC_INTERVAL || 5 * 60 * 1000; // 5 phút mặc định
-let syncInterval;
+const dashboardRoutes = require("./routes/dashboardRoutes");
+app.use("/api/dashboard", dashboardRoutes);
 
-// Function để start auto-sync
-function startAutoSync() {
-  console.log(`🔄 Starting auto-sync every ${SYNC_INTERVAL / 1000} seconds`);
-  
-  // Chạy sync ngay lập tức khi server start
-  runSync();
-  
-  // Sau đó chạy định kỳ
-  syncInterval = setInterval(runSync, SYNC_INTERVAL);
-}
+// Auto-sync blockchain data every 5 minutes (temporarily disabled for testing)
+// console.log('🔄 Starting auto-sync every 300 seconds');
+// const syncInterval = setInterval(runAutoSync, 300000); // 5 minutes
+
+// Run initial sync (temporarily disabled)
+// runAutoSync();
 
 // Function để chạy sync
 async function runSync() {
@@ -104,30 +99,30 @@ async function runSync() {
 
 // Function để stop auto-sync
 function stopAutoSync() {
-  if (syncInterval) {
-    clearInterval(syncInterval);
-    console.log('🛑 Auto-sync stopped');
-  }
+  // if (syncInterval) {
+  //   clearInterval(syncInterval);
+  //   console.log('🛑 Auto-sync stopped');
+  // }
 }
 
-// Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\n🛑 Shutting down gracefully...');
-  stopAutoSync();
-  process.exit(0);
-});
+// Graceful shutdown (temporarily disabled for testing)
+// process.on('SIGINT', () => {
+//   console.log('\n🛑 Shutting down gracefully...');
+//   stopAutoSync();
+//   process.exit(0);
+// });
 
-process.on('SIGTERM', () => {
-  console.log('\n🛑 Shutting down gracefully...');
-  stopAutoSync();
-  process.exit(0);
-});
+// process.on('SIGTERM', () => {
+//   console.log('\n🛑 Shutting down gracefully...');
+//   stopAutoSync();
+//   process.exit(0);
+// });
 
 // Start server
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`✅ Backend chạy trên cổng ${PORT}`);
   
-  // Start auto-sync sau khi server đã sẵn sàng
-  startAutoSync();
+  // Start auto-sync sau khi server đã sẵn sàng (temporarily disabled)
+  // startAutoSync();
 });

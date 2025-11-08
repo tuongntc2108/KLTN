@@ -1,6 +1,10 @@
+"use client"
+
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { useDashboardStats } from "@/hooks/use-dashboard-stats"
 import {
   Users,
   Award,
@@ -12,9 +16,37 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
+  Loader2,
+  XCircle,
+  RefreshCw,
 } from "lucide-react"
 
 export default function TrainingDashboard() {
+  const router = useRouter()
+  const { stats, recentCertificates, recentStudents, loading, error, refreshData } = useDashboardStats()
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="h-8 w-8 text-red-500 mb-2 mx-auto" />
+          <p className="text-red-500">{error}</p>
+          <Button onClick={refreshData} className="mt-2">
+            Thử lại
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -24,11 +56,7 @@ export default function TrainingDashboard() {
           <p className="text-muted-foreground">Chào mừng trở lại! Đây là tổng quan hoạt động của trung tâm đào tạo.</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline">
-            <Calendar className="w-4 h-4 mr-2" />
-            Báo cáo
-          </Button>
-          <Button>
+          <Button onClick={() => router.push('/dashboard/training/certificates/issue')}>
             <Plus className="w-4 h-4 mr-2" />
             Cấp chứng chỉ mới
           </Button>
@@ -43,9 +71,11 @@ export default function TrainingDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,234</div>
+            <div className="text-2xl font-bold">{stats.totalStudents.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+12%</span> so với tháng trước
+              <span className={stats.studentsGrowth >= 0 ? "text-green-600" : "text-red-600"}>
+                {stats.studentsGrowth >= 0 ? '+' : ''}{stats.studentsGrowth}%
+              </span> so với tháng trước
             </p>
           </CardContent>
         </Card>
@@ -56,35 +86,41 @@ export default function TrainingDashboard() {
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">856</div>
+            <div className="text-2xl font-bold">{stats.totalCertificatesIssued.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+8%</span> so với tháng trước
+              <span className={stats.certificatesGrowth >= 0 ? "text-green-600" : "text-red-600"}>
+                {stats.certificatesGrowth >= 0 ? '+' : ''}{stats.certificatesGrowth}%
+              </span> so với tháng trước
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Khóa học đang mở</CardTitle>
+            <CardTitle className="text-sm font-medium">Tổng số khóa học</CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">24</div>
+            <div className="text-2xl font-bold">{stats.totalCourses.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-blue-600">3 khóa mới</span> tuần này
+              <span className={stats.coursesGrowth >= 0 ? "text-blue-600" : "text-red-600"}>
+                {stats.coursesGrowth >= 0 ? '+' : ''}{stats.coursesGrowth}
+              </span> khóa mới tuần này
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tỷ lệ hoàn thành</CardTitle>
+            <CardTitle className="text-sm font-medium">Chứng chỉ đang hoạt động</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">87.5%</div>
+            <div className="text-2xl font-bold">{stats.activeCertificates.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+2.1%</span> so với tháng trước
+              <span className={stats.activeCertificatesGrowth >= 0 ? "text-green-600" : "text-red-600"}>
+                {stats.activeCertificatesGrowth >= 0 ? '+' : ''}{stats.activeCertificatesGrowth}%
+              </span> so với tháng trước
             </p>
           </CardContent>
         </Card>
@@ -99,169 +135,164 @@ export default function TrainingDashboard() {
                 <CardTitle>Chứng chỉ gần đây</CardTitle>
                 <CardDescription>Các chứng chỉ được cấp trong 7 ngày qua</CardDescription>
               </div>
-              <Button variant="ghost" size="sm">
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                {
-                  student: "Nguyễn Văn A",
-                  course: "Tiếng Anh Giao Tiếp",
-                  date: "2 giờ trước",
-                  status: "active",
-                },
-                {
-                  student: "Trần Thị B",
-                  course: "Kỹ năng Thuyết trình",
-                  date: "5 giờ trước",
-                  status: "active",
-                },
-                {
-                  student: "Lê Văn C",
-                  course: "Quản lý Dự án",
-                  date: "1 ngày trước",
-                  status: "pending",
-                },
-                {
-                  student: "Phạm Thị D",
-                  course: "Digital Marketing",
-                  date: "2 ngày trước",
-                  status: "active",
-                },
-              ].map((cert, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/20">
-                      <Award className="h-4 w-4 text-secondary" />
+              {recentCertificates.length > 0 ? (
+                recentCertificates.map((cert) => {
+                  const issueDate = new Date(cert.issue_date)
+                  const now = new Date()
+                  const diffTime = Math.abs(now.getTime() - issueDate.getTime())
+                  const diffHours = Math.floor(diffTime / (1000 * 60 * 60))
+                  const diffDays = Math.floor(diffHours / 24)
+                  
+                  let timeAgo = ''
+                  if (diffDays > 0) {
+                    timeAgo = `${diffDays} ngày trước`
+                  } else if (diffHours > 0) {
+                    timeAgo = `${diffHours} giờ trước`
+                  } else {
+                    timeAgo = 'Vừa mới'
+                  }
+
+                  return (
+                    <div key={cert.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/20">
+                          <Award className="h-4 w-4 text-secondary" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{cert.student_name}</p>
+                          <p className="text-xs text-muted-foreground">{cert.course_name}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {(() => {
+                          switch (cert.status?.toLowerCase()) {
+                            case "active":
+                              return (
+                                <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                  Đã cấp
+                                </Badge>
+                              )
+                            case "pending":
+                              return (
+                                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  Chờ nhận
+                                </Badge>
+                              )
+                            case "expired":
+                              return (
+                                <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200">
+                                  <XCircle className="w-3 h-3 mr-1" />
+                                  Đã hết hạn
+                                </Badge>
+                              )
+                            case "revoked":
+                              return (
+                                <Badge variant="destructive">
+                                  <XCircle className="w-3 h-3 mr-1" />
+                                  Đã thu hồi
+                                </Badge>
+                              )
+                            case "replaced":
+                              return (
+                                <Badge variant="secondary" className="bg-purple-100 text-purple-800 border-purple-200">
+                                  <RefreshCw className="w-3 h-3 mr-1" />
+                                  Đã thay thế
+                                </Badge>
+                              )
+                            default:
+                              return (
+                                <Badge variant="secondary">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  {cert.status}
+                                </Badge>
+                              )
+                          }
+                        })()}
+                        <span className="text-xs text-muted-foreground">{timeAgo}</span>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">{cert.student}</p>
-                      <p className="text-xs text-muted-foreground">{cert.course}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={cert.status === "active" ? "default" : "secondary"}>
-                      {cert.status === "active" ? (
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                      ) : (
-                        <Clock className="w-3 h-3 mr-1" />
-                      )}
-                      {cert.status === "active" ? "Đã cấp" : "Chờ nhận"}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">{cert.date}</span>
-                  </div>
+                  )
+                })
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Award className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>Chưa có chứng chỉ nào được cấp gần đây</p>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Active Courses */}
+        {/* Recent Students */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Khóa học đang diễn ra</CardTitle>
-                <CardDescription>Các khóa học hiện tại và trạng thái</CardDescription>
+                <CardTitle>Học viên mới tạo</CardTitle>
+                <CardDescription>Các học viên đăng ký trong 7 ngày qua</CardDescription>
               </div>
-              <Button variant="ghost" size="sm">
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                {
-                  name: "Tiếng Anh Giao Tiếp - Cơ bản",
-                  students: 28,
-                  progress: 75,
-                  endDate: "15/12/2024",
-                  status: "active",
-                },
-                {
-                  name: "Kỹ năng Thuyết trình",
-                  students: 15,
-                  progress: 45,
-                  endDate: "20/12/2024",
-                  status: "active",
-                },
-                {
-                  name: "Digital Marketing Nâng cao",
-                  students: 22,
-                  progress: 90,
-                  endDate: "10/12/2024",
-                  status: "ending",
-                },
-                {
-                  name: "Quản lý Dự án Agile",
-                  students: 18,
-                  progress: 30,
-                  endDate: "25/12/2024",
-                  status: "active",
-                },
-              ].map((course, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">{course.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {course.students} học viên • Kết thúc {course.endDate}
-                      </p>
+              {recentStudents.length > 0 ? (
+                recentStudents.map((student) => {
+                  const createdDate = new Date(student.created_at)
+                  const now = new Date()
+                  const diffTime = Math.abs(now.getTime() - createdDate.getTime())
+                  const diffHours = Math.floor(diffTime / (1000 * 60 * 60))
+                  const diffDays = Math.floor(diffHours / 24)
+                  
+                  let timeAgo = ''
+                  if (diffDays > 0) {
+                    timeAgo = `${diffDays} ngày trước`
+                  } else if (diffHours > 0) {
+                    timeAgo = `${diffHours} giờ trước`
+                  } else {
+                    timeAgo = 'Vừa mới'
+                  }
+
+                  return (
+                    <div key={student.student_id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                          <Users className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{student.name}</p>
+                          <p className="text-xs text-muted-foreground">{student.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={student.has_wallet ? "default" : "secondary"}>
+                          {student.has_wallet ? (
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                          ) : (
+                            <Clock className="w-3 h-3 mr-1" />
+                          )}
+                          {student.has_wallet ? "Có ví" : "Chưa có ví"}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">{timeAgo}</span>
+                      </div>
                     </div>
-                    <Badge variant={course.status === "ending" ? "destructive" : "default"}>
-                      {course.status === "ending" ? (
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                      ) : (
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                      )}
-                      {course.status === "ending" ? "Sắp kết thúc" : "Đang diễn ra"}
-                    </Badge>
-                  </div>
-                  <div className="w-full bg-secondary/20 rounded-full h-2">
-                    <div
-                      className="bg-secondary h-2 rounded-full transition-all"
-                      style={{ width: `${course.progress}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground text-right">{course.progress}% hoàn thành</p>
+                  )
+                })
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>Chưa có học viên mới nào đăng ký gần đây</p>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Thao tác nhanh</CardTitle>
-          <CardDescription>Các tác vụ thường dùng trong quản lý đào tạo</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Button variant="outline" className="h-20 flex-col gap-2 bg-transparent">
-              <Plus className="w-6 h-6" />
-              <span>Thêm học viên mới</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col gap-2 bg-transparent">
-              <BookOpen className="w-6 h-6" />
-              <span>Tạo khóa học</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col gap-2 bg-transparent">
-              <Award className="w-6 h-6" />
-              <span>Cấp chứng chỉ</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col gap-2 bg-transparent">
-              <TrendingUp className="w-6 h-6" />
-              <span>Xem báo cáo</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

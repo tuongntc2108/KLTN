@@ -3,6 +3,7 @@ const { uploadMetadataToPinata } = require("../utils/pinata");
 const { ethers } = require("ethers");
 const { syncCertificateImmediately } = require("../services/sync");
 const db = require("../config/pg");
+const aiSummaryService = require("../services/aiSummaryService");
 
 let certificateCounter = 1000;
 
@@ -37,8 +38,8 @@ exports.mintCertificate = async (req, res) => {
       });
     }
 
-    // Handle course information - use course_id if provided, otherwise course_name
-    let finalCourseName = course_name;
+    // Handle course information - use course_id if provided, otherwise course_name, or allow empty
+    let finalCourseName = course_name || "";
     let finalCourseId = course_id;
     
     if (course_id) {
@@ -60,12 +61,8 @@ exports.mintCertificate = async (req, res) => {
     } else if (course_name) {
       // For backward compatibility, keep the course_name approach
       finalCourseName = course_name;
-    } else {
-      return res.status(400).json({
-        error: "Missing course information",
-        message: "Either course_id or course_name must be provided"
-      });
     }
+    // If neither course_id nor course_name is provided, finalCourseName will default to "Chứng chỉ độc lập"
 
     // Auto-fetch student information based on student_id
     const studentCheck = await db.pool.query(
@@ -295,17 +292,9 @@ exports.getMyCertificates = async (req, res) => {
 
     // Format certificates for frontend
     const formattedCertificates = certificates.map(cert => {
-      // Map status for display
-      let displayStatus = cert.computed_status;
-      if (cert.computed_status === 'issued_not_claimed' || cert.computed_status === 'issued' || cert.computed_status === 'pending') {
-        displayStatus = 'pending';
-      } else if (cert.computed_status === 'active') {
-        displayStatus = 'active';
-      } else if (cert.computed_status === 'expired') {
-        displayStatus = 'expired';
-      } else if (cert.computed_status === 'revoked') {
-        displayStatus = 'revoked';
-      }
+      // Use computed_status directly (already calculated in SQL query)
+      // No need for additional mapping as SQL query handles all cases correctly
+      const displayStatus = cert.computed_status;
 
       return {
         id: cert.id,
@@ -945,8 +934,8 @@ exports.replaceCertificate = async (req, res) => {
       });
     }
 
-    // Handle course information - use course_id if provided, otherwise course_name
-    let finalCourseName = course_name;
+    // Handle course information - use course_id if provided, otherwise course_name, or allow empty
+    let finalCourseName = course_name || "Chứng chỉ độc lập";
     let finalCourseId = course_id;
     
     if (course_id) {
@@ -968,12 +957,8 @@ exports.replaceCertificate = async (req, res) => {
     } else if (course_name) {
       // For backward compatibility, keep the course_name approach
       finalCourseName = course_name;
-    } else {
-      return res.status(400).json({
-        error: "Missing course information",
-        message: "Either course_id or course_name must be provided"
-      });
     }
+    // If neither course_id nor course_name is provided, finalCourseName will default to "Chứng chỉ độc lập"
 
     // Auto-fetch student information based on student_id
     const studentCheck = await db.pool.query(
@@ -1107,6 +1092,88 @@ exports.replaceCertificate = async (req, res) => {
     }
 
     return res.status(500).json({ error: "Không thể thay thế chứng chỉ", details: err.message });
+  }
+};
+
+// ========================
+// GET /api/certificates/:id/ai-summary - Get AI summary for certificate
+// ========================
+exports.getAISummary = async (req, res) => {
+  try {
+    const tokenId = req.params.id;
+
+    // Get certificate information from database
+    const certificateQuery = await db.pool.query(
+      `SELECT c.*, co.course_name, co.duration, co.course_description, co.training_content
+       FROM certificates c
+       LEFT JOIN courses co ON c.course_id = co.id
+       WHERE c.token_id = $1`,
+      [tokenId]
+    );
+
+    if (certificateQuery.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Certificate not found"
+      });
+    }
+
+    const certificate = certificateQuery.rows[0];
+
+    // If certificate is not linked to any course
+    if (!certificate.course_name) {
+      return res.status(200).json({
+        success: true,
+        ai_summary: "Không có thông tin về khóa học của chứng chỉ."
+      });
+    }
+
+    // If AI summary already exists in database, return it
+    if (certificate.ai_summary) {
+      return res.status(200).json({
+        success: true,
+        ai_summary: certificate.ai_summary
+      });
+    }
+
+    // Generate AI summary using Gemini
+    try {
+      const courseData = {
+        course_name: certificate.course_name,
+        duration: certificate.duration,
+        course_description: certificate.course_description,
+        training_content: certificate.training_content
+      };
+
+      const aiSummary = await aiSummaryService.generateCertificateSummary(courseData);
+
+      // Save AI summary to database
+      await db.pool.query(
+        'UPDATE certificates SET ai_summary = $1 WHERE token_id = $2',
+        [aiSummary, tokenId]
+      );
+
+      return res.status(200).json({
+        success: true,
+        ai_summary: aiSummary
+      });
+
+    } catch (aiError) {
+      console.error('Error generating AI summary:', aiError);
+      return res.status(500).json({
+        success: false,
+        error: "Không thể tạo tóm tắt AI",
+        details: aiError.message
+      });
+    }
+
+  } catch (error) {
+    console.error('Error in getAISummary:', error);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+      details: error.message
+    });
   }
 };
 
