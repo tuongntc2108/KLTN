@@ -363,7 +363,7 @@ export default function StudentsPage() {
             <DialogHeader>
               <DialogTitle>Thêm học viên mới</DialogTitle>
               <DialogDescription>
-                Nhập thông tin của học viên mới. Địa chỉ ví có thể để trống và cập nhật sau.
+                Nhập thông tin của học viên mới.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -404,22 +404,7 @@ export default function StudentsPage() {
                   onChange={(e) => handleInputChange('email', e.target.value)}
                 />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="student-wallet" className="text-right">
-                  Địa chỉ ví
-                </Label>
-                <div className="col-span-3">
-                  <Input
-                    id="student-wallet"
-                    placeholder="VD: 0x742d35Cc6644C0532925a3b8D51C8123Af14b3e3"
-                    value={newStudent.wallet_address}
-                    onChange={(e) => handleInputChange('wallet_address', e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Tuỳ chọn - học viên có thể kết nối ví sau
-                  </p>
-                </div>
-              </div>
+              
             </div>
             <DialogFooter>
               <Button 

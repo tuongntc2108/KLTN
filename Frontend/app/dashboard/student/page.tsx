@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useStudentDashboard } from "@/hooks/use-student-dashboard"
+import Link from "next/link"
 import {
   Award,
   Wallet,
@@ -18,6 +19,7 @@ import {
   Loader2,
   RefreshCw,
   XCircle,
+  Upload,
 } from "lucide-react"
 
 export default function StudentDashboard() {

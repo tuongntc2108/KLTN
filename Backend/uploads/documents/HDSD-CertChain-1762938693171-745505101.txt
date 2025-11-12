@@ -1,0 +1,122 @@
+﻿Tài liệu Hướng dẫn sử dụng Hệ thống cấp chứng chỉ số CertChain
+1. Giới thiệu hệ thống
+CertChain là nền tảng cấp và xác minh chứng chỉ số ứng dụng công nghệ Blockchain và NFT.
+Hệ thống hỗ trợ ba nhóm người dùng chính:
+* Đơn vị đào tạo: tạo và quản lý chứng chỉ số cho học viên.
+* Sinh viên / Người học: nhận, lưu trữ, và chia sẻ chứng chỉ số của mình.
+* Nhà tuyển dụng / Bên xác minh: kiểm tra và xác thực tính hợp lệ của chứng chỉ.
+________________
+
+
+2. Hướng dẫn cho Đơn vị đào tạo
+   1. Đăng nhập & quản lý tài khoản
+* Truy cập trang. 
+* Đăng nhập bằng tài khoản Google.
+   1. Quản lý khóa học
+      1. Tạo khóa học mới
+* Vào menu Khóa học → chọn Thêm khóa học mới.
+* Nhập thông tin:
+   * Tên khóa học
+   * Mô tả khóa học
+   * Thời lượng
+   * Nội dung chương trình đào tạo
+* Chọn Tạo khóa học để hoàn tất. 
+      1. Sửa khóa học đã tạo
+* Vào menu Khóa học → tìm khóa học cần sửa và chọn Sửa.
+* Sửa các thông tin:
+   * Tên khóa học
+   * Mô tả khóa học
+   * Thời lượng
+   * Nội dung chương trình đào tạo
+* Chọn Cập nhật để hoàn tất. 
+      1. Xóa khóa học đã tạo
+* Vào menu Khóa học → tìm khóa học cần sửa và chọn Xóa.
+* Chọn Xóa để hoàn tất. 
+* Lưu ý: chỉ những khóa học không liên kết với chứng chỉ nào mới được phép xóa.
+   1. Quản lý học viên
+      1. Tạo học viên mới
+* Vào menu Học viên → chọn Thêm học viên.
+* Nhập thông tin:
+   * Mã sinh viên
+   * Họ và tên
+   * Email
+* Chọn Thêm học viên để hoàn tất. 
+      1. Sửa học viên đã tạo
+* Vào menu Khóa học → tìm khóa học cần sửa và chọn Sửa.
+* Sửa các thông tin:
+   * Mã sinh viên
+   * Họ và tên
+   * Email
+* Chọn Cập nhật để hoàn tất. 
+      1. Xóa khóa học đã tạo
+* Vào menu Học viên → tìm học viên cần sửa và chọn Xóa.
+* Chọn Xóa để hoàn tất. 
+* Lưu ý: chỉ những học viên không có chứng chỉ nào mới được phép xóa.
+   1. Quản lý chứng chỉ
+      1. Cấp chứng chỉ mới
+* Vào menu Chứng chỉ → chọn Cấp chứng chỉ mới.
+* Điền thông tin:
+   * Mã học viên
+   * Tên chứng chỉ
+   * Khóa học (tùy chọn)
+   * Ngày cấp
+   * Ngày hết hạn
+* Hệ thống sẽ:
+
+   * Tạo chứng chỉ dưới dạng NFT (non-transferable token).
+   * Lưu thông tin lên Blockchain để đảm bảo không thể chỉnh sửa.
+   1. Thay thế chứng chỉ đã có
+   * Vào menu Chứng chỉ → tìm chứng chỉ cần thay thế và chọn Thay thế.
+   * Sửa các thông tin:
+   * Tên chứng chỉ
+   * Khóa học
+   * Ngày cấp
+   * Ngày hết hạn
+   * Chọn Cấp chứng chỉ NFT để hoàn tất. 
+   1. Thu hồi chứng chỉ
+   * Vào menu Chứng chỉ → tìm chứng chỉ cần thu hồi và chọn Thu hồi.
+   * Nhập lý do thu hồi
+   * Chọn Xác nhận thu hồi.
+________________
+
+
+   3. Hướng dẫn cho Sinh viên / Người học
+   1. Đăng nhập
+   * Truy cập trang.
+   * Đăng nhập bằng tài khoản email của sinh viên.
+   1. Kết nối ví Metamask
+   * Vào menu Ví Blockchain → chọn Kết nối ví.
+   * Chọn Connect.
+   * Lưu ý: phải đảm báo cài extension Metamask và có tài khoản ví trước khi thực hiện.
+   1. Nhận chứng chỉ
+   * Vào menu Chứng chỉ của tôi → tìm chứng chỉ đang chờ nhận và chọn Nhận chứng chỉ.
+   * Xác nhận giao dịch.
+   * Lưu ý: phải đảm bảo ví Metamask có số dư SepoliaETH trước khi thực hiện.
+________________
+
+
+   4. Hướng dẫn cho Nhà tuyển dụng / Bên xác minh
+   1. Xác minh chứng chỉ
+   * Truy cập trang.
+   * Nhập Token ID hoặc mã chứng chỉ
+   * Hệ thống hiển thị thông tin về chứng chỉ
+   1. Tóm tắt chứng chỉ bằng AI
+   * Sau khi xác minh chứng chỉ, có thể chọn Tóm tắt chứng chỉ bằng AI để nhận thông tin tóm tắt về khóa học của chứng chỉ bằng AI
+________________
+
+
+   5. Câu hỏi thường gặp (FAQ)
+Q1: Học viên cần chuẩn bị những gì để nhận chứng chỉ?
+→ Học viên cần có ví Metamask có ít nhất 0.01 SepoliaETH để nhận chứng chỉ.
+Q2: Làm thế nào để nạp SepoliaETH vào ví Metamask?
+→ Vào đường link sau, dán địa chỉ ví vào và xác nhận nhận SepoliaETH: https://cloud.google.com/application/web3/faucet/ethereum/sepolia.
+Q3: Nhà tuyển dụng có thể làm giả chứng chỉ không?
+→ Không thể. Mỗi chứng chỉ được ghi trên blockchain với hash duy nhất, không thể chỉnh sửa.
+Q4: Hệ thống có thu phí khi xác minh không?
+→ Không. Việc xác minh chứng chỉ hoàn toàn miễn phí.
+________________
+
+
+   6. Liên hệ hỗ trợ
+   * 📧 Email: 22021207@vnu.edu.vn
+   * ☎️ Hotline: 0365313355
