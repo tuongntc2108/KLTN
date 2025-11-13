@@ -1,9 +1,29 @@
 const fs = require('fs').promises;
 const path = require('path');
-const pdfParse = require('pdf-parse');
-const mammoth = require('mammoth');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const db = require('../config/pg');
+
+// Import PDF and DOCX parsers with error handling
+let pdfParse;
+let mammoth;
+
+try {
+  const pdfModule = require('pdf-parse');
+  pdfParse = pdfModule.default || pdfModule;
+  console.log('✅ PDF parser loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load PDF parser:', error.message);
+}
+
+try {
+  const mammothModule = require('mammoth');
+  mammoth = mammothModule.default || mammothModule;
+  console.log('✅ Mammoth DOCX parser loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load DOCX parser:', error.message);
+}
+
+
 
 /**
  * Document Ingestion Service
@@ -153,17 +173,36 @@ class DocumentIngestionService {
    * @param {string} filePath - Path to PDF file
    * @returns {Promise<string>} Extracted text
    */
+  /**
+   * Extract text from PDF file
+   * @param {string} filePath - Path to PDF file
+   * @returns {Promise<string>} Extracted text
+   */
   async extractFromPDF(filePath) {
     console.log('📖 Extracting text from PDF...');
-    const dataBuffer = await fs.readFile(filePath);
-    const data = await pdfParse(dataBuffer);
     
-    if (!data.text || data.text.trim().length === 0) {
-      throw new Error('No text content found in PDF');
+    if (!pdfParse) {
+      throw new Error('PDF parser not available. Please install pdf-parse module.');
     }
     
-    console.log(`📖 Extracted ${data.text.length} characters from PDF`);
-    return data.text;
+    try {
+      const dataBuffer = await fs.readFile(filePath);
+      console.log(`📖 Read PDF file: ${dataBuffer.length} bytes`);
+      
+      // Call pdfParse function
+      const data = await pdfParse(dataBuffer);
+      
+      if (!data || !data.text || data.text.trim().length === 0) {
+        throw new Error('No text content found in PDF');
+      }
+      
+      console.log(`📖 Extracted ${data.text.length} characters from PDF`);
+      return data.text;
+      
+    } catch (error) {
+      console.error('❌ PDF parsing error:', error);
+      throw new Error(`Failed to extract text from PDF: ${error.message}`);
+    }
   }
 
   /**
@@ -173,15 +212,26 @@ class DocumentIngestionService {
    */
   async extractFromDOCX(filePath) {
     console.log('📝 Extracting text from DOCX...');
-    const dataBuffer = await fs.readFile(filePath);
-    const result = await mammoth.extractRawText({ buffer: dataBuffer });
     
-    if (!result.value || result.value.trim().length === 0) {
-      throw new Error('No text content found in DOCX');
+    if (!mammoth) {
+      throw new Error('DOCX parser not available. Please install mammoth module.');
     }
     
-    console.log(`📝 Extracted ${result.value.length} characters from DOCX`);
-    return result.value;
+    try {
+      const dataBuffer = await fs.readFile(filePath);
+      const result = await mammoth.extractRawText({ buffer: dataBuffer });
+      
+      if (!result.value || result.value.trim().length === 0) {
+        throw new Error('No text content found in DOCX');
+      }
+      
+      console.log(`📝 Extracted ${result.value.length} characters from DOCX`);
+      return result.value;
+      
+    } catch (error) {
+      console.error('❌ DOCX parsing error:', error);
+      throw new Error(`Failed to extract text from DOCX: ${error.message}`);
+    }
   }
 
   /**
