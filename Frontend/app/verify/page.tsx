@@ -299,26 +299,10 @@ export default function VerifyPage() {
 
           {/* Course Information */}
           {verificationResult.isValid && verificationResult.certificate?.course && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Thông tin khóa học
-                  </CardTitle>
-                  <AISummaryButton 
+            <AISummaryButton 
                     certificateId={verificationResult.certificate.tokenId}
                     certificateName={verificationResult.certificate.name}
                   />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h4 className="font-semibold mb-2">{verificationResult.certificate.course.name}</h4>
-                  <p className="text-muted-foreground mb-3">{verificationResult.certificate.course.description}</p>
-                </div>
-              </CardContent>
-            </Card>
           )}
 
 

@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
-import { AIChatbot } from "@/components/ai/chatbot"
+import ChatbotWidget from "@/components/ChatbotWidget"
 import { Toaster } from "@/components/ui/toaster"
 import { Providers } from "@/components/providers"
 import "./globals.css"
@@ -30,7 +30,7 @@ export default function RootLayout({
       <body className={`font-sans ${inter.variable} ${GeistMono.variable}`}>
         <Providers>
           {children}
-          <AIChatbot />
+          <ChatbotWidget />
           <Toaster />
           <Analytics />
         </Providers>

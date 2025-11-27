@@ -7,6 +7,18 @@ class ChatbotService {
     constructor() {
         this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        this.safeFallbackMessage = "Hiện mình chưa có thông tin chi tiết về nội dung này. Bạn mô tả thêm để mình hỗ trợ kỹ hơn nhé!";
+        this.responseBanList = [
+            'không tìm thấy trong tài liệu',
+            'tài liệu không cung cấp',
+            'hãy xem tài liệu',
+            'hãy truy cập vào tài liệu',
+            'không có trong tài liệu',
+            'không được cung cấp',
+            'tài liệu hiện có',
+            'không có đường link',
+            'liên hệ trực tiếp'
+        ];
         
         // Database connection
         this.pool = new Pool({
@@ -28,6 +40,7 @@ class ChatbotService {
             console.log('Generating response for:', { userMessage, sessionId, userEmail });
 
             // 1. Get relevant documents using vector similarity search
+            const domainGuidance = this.getKnowledgeBaseGuidance(userMessage);
             const relevantDocs = await documentIngestionService.searchSimilarDocuments(
                 userMessage,
                 5, // limit
@@ -37,7 +50,7 @@ class ChatbotService {
             console.log('Found relevant documents:', relevantDocs.length);
 
             // 2. Build context from relevant documents
-            const context = this.buildContextFromDocuments(relevantDocs);
+            const context = this.buildContextFromDocuments(relevantDocs, domainGuidance);
 
             // 3. Get system prompt and configuration
             const systemPrompt = this.getDefaultSystemPrompt();
@@ -55,6 +68,7 @@ class ChatbotService {
             });
 
             const response = result.response.text();
+            const finalResponse = this.sanitizeResponse(response, userMessage, domainGuidance);
             const responseTime = Date.now() - startTime;
 
             // 5. Store conversation in database
@@ -63,7 +77,7 @@ class ChatbotService {
                 userEmail,
                 userRole,
                 userMessage,
-                botResponse: response,
+                botResponse: finalResponse,
                 contextDocuments: relevantDocs.map(doc => ({ id: doc.id, similarity: doc.similarity })),
                 responseTime
             });
@@ -72,7 +86,7 @@ class ChatbotService {
             await this.updateAnalytics(userEmail, responseTime);
 
             return {
-                response,
+                response: finalResponse,
                 responseTime,
                 contextUsed: relevantDocs.length > 0,
                 documentCount: relevantDocs.length,
@@ -110,17 +124,23 @@ class ChatbotService {
     /**
      * Build context string from relevant documents
      */
-    buildContextFromDocuments(documents) {
+    buildContextFromDocuments(documents, supplementalGuidance = null) {
+        let context = '';
+
         if (documents.length === 0) {
-            return 'Không có tài liệu liên quan được tìm thấy trong cơ sở dữ liệu.';
+            context = 'Hiện chưa có đoạn văn bản nào trùng khớp trong cơ sở dữ liệu. Ưu tiên kiến thức nội bộ bên dưới.\n\n';
+        } else {
+            context = 'Thông tin liên quan từ tài liệu hướng dẫn:\n\n';
+            
+            documents.forEach((doc, index) => {
+                context += `${index + 1}. Từ "${doc.title}" (độ liên quan: ${(doc.similarity * 100).toFixed(1)}%):\n`;
+                context += `${doc.content_chunk}\n\n`;
+            });
         }
 
-        let context = 'Thông tin liên quan từ tài liệu hướng dẫn:\n\n';
-        
-        documents.forEach((doc, index) => {
-            context += `${index + 1}. Từ "${doc.title}" (độ liên quan: ${(doc.similarity * 100).toFixed(1)}%):\n`;
-            context += `${doc.content_chunk}\n\n`;
-        });
+        if (supplementalGuidance) {
+            context += `HƯỚNG DẪN BỔ SUNG TỪ KIẾN THỨC NỘI BỘ:\n${supplementalGuidance}\n`;
+        }
 
         return context;
     }
@@ -140,7 +160,7 @@ ${context}
 
 CÂUHỎI CỦA NGƯỜI DÙNG: ${userMessage}
 
-Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu thông tin không đủ để trả lời, hãy thông báo rằng bạn cần thêm thông tin hoặc gợi ý người dùng liên hệ bộ phận hỗ trợ. Trả lời bằng tiếng Việt một cách thân thiện và hữu ích.`;
+Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu thông tin chưa đủ, hãy xin thêm chi tiết từ người dùng theo cách lịch sự, sử dụng mẫu: "${this.safeFallbackMessage}". Tuyệt đối không yêu cầu người dùng truy cập tài liệu hay đường link nội bộ. Trả lời bằng tiếng Việt một cách thân thiện và hữu ích.`;
     }
 
     /**
@@ -161,7 +181,7 @@ Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu th�
      * Get default system prompt
      */
     getDefaultSystemPrompt() {
-        return `Bạn là trợ lý AI hỗ trợ người dùng sử dụng hệ thống quản lý chứng chỉ blockchain. 
+        return `Bạn là trợ lý AI nội bộ của hệ thống quản lý chứng chỉ blockchain. 
 
 Hệ thống này có các chức năng chính:
 - Đăng nhập/đăng ký tài khoản
@@ -171,7 +191,14 @@ Hệ thống này có các chức năng chính:
 - Xác minh chứng chỉ
 - Quản lý profile và thông tin cá nhân
 
-Hãy trả lời câu hỏi một cách hữu ích, chính xác và thân thiện. Sử dụng thông tin từ tài liệu hướng dẫn được cung cấp để đưa ra câu trả lời phù hợp.`;
+QUY TẮC TUÂN THỦ:
+- Người dùng không có quyền truy cập tài liệu nội bộ. Tuyệt đối không yêu cầu họ xem tài liệu hay truy cập link từ tài liệu.
+- Ưu tiên diễn giải quy trình theo từng bước cụ thể dựa trên ngữ cảnh đã cung cấp.
+- Nếu thông tin chưa rõ, hãy xin thêm dữ liệu và sử dụng thông điệp thân thiện: "${this.safeFallbackMessage}".
+- Không từ chối vì khác biệt nhỏ về từ khóa; hãy suy luận các cụm tương đương như “chứng chỉ” và “chứng chỉ NFT”.
+- Giữ giọng điệu tích cực và thực tế.
+
+Hãy trả lời câu hỏi một cách hữu ích, chính xác và thân thiện.`;
     }
 
     /**
@@ -332,7 +359,64 @@ Hãy trả lời câu hỏi một cách hữu ích, chính xác và thân thiệ
             throw error;
         }
     }
+
+    sanitizeResponse(responseText, userMessage, fallbackGuidance = null) {
+        if (!responseText) {
+            return this.safeFallbackMessage;
+        }
+
+        const normalized = responseText.toLowerCase();
+        const containsBannedPhrase = this.responseBanList.some(phrase => normalized.includes(phrase.toLowerCase()));
+
+        if (containsBannedPhrase) {
+            if (fallbackGuidance) {
+                return fallbackGuidance;
+            }
+            return `${this.safeFallbackMessage}\nNếu bạn có thêm thông tin về "${userMessage}", hãy chia sẻ để mình hỗ trợ chi tiết hơn.`;
+        }
+
+        return responseText;
+    }
+
+    getKnowledgeBaseGuidance(userMessage) {
+        const normalized = this.normalizeUserText(userMessage);
+
+        if (normalized.includes('chung chi') || normalized.includes('chungchi') || normalized.includes('certificate')) {
+            return `Quy trình nhận chứng chỉ trên CertChain:
+1. Đăng nhập tài khoản và hoàn thành đầy đủ nội dung khóa học được giao.
+2. Khi hoàn tất, Issuer sẽ kiểm tra và phê duyệt chứng chỉ cho bạn.
+3. Mở mục "Bảng điều khiển" → "Chứng chỉ của tôi" (dashboard/student/certificates) để xem danh sách chứng chỉ đã sẵn sàng.
+4. Chọn chứng chỉ cần nhận, nhấn "Nhận chứng chỉ" (Claim SBT) và xác nhận giao dịch ví (nếu được yêu cầu).
+5. Sau khi duyệt thành công, chứng chỉ sẽ hiển thị trong ví và bạn có thể tải file PDF hoặc chia sẻ đường dẫn xác thực.
+Hệ thống sẽ lưu mọi thao tác trong lịch sử để bạn tiện tra cứu.`;
+        }
+
+        if (
+            normalized.includes('nap tien') ||
+            normalized.includes('nap sepolia') ||
+            normalized.includes('faucet') ||
+            normalized.includes('metamask') ||
+            normalized.includes('eth')
+        ) {
+            return `Các bước nạp SepoliaETH vào ví MetaMask:
+1. Mở MetaMask, chọn mạng Sepolia Testnet và sao chép địa chỉ ví.
+2. Truy cập một faucet Sepolia (ví dụ: https://faucet.quicknode.com/ethereum/sepolia hoặc https://sepoliafaucet.com).
+3. Dán địa chỉ ví, xác minh captcha nếu có và bấm "Send"/"Request".
+4. Chờ 1-2 phút, mở lại MetaMask để kiểm tra số dư. Nếu chưa thấy, nhấn "Refresh list" hoặc thêm lại mạng.
+5. Khi có đủ SepoliaETH, bạn có thể thực hiện các giao dịch như ký phát chứng chỉ hoặc xác nhận SBT.
+Nếu faucet giới hạn lượt, hãy thử faucet khác hoặc liên hệ hỗ trợ để được cấp token test nhanh hơn.`;
+        }
+
+        return null;
+    }
+
+    normalizeUserText(text = '') {
+        return text
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9\s]/g, ' ');
+    }
 }
 
 module.exports = ChatbotService;
-

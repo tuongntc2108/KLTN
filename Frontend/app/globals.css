@@ -124,3 +124,32 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Chat widget animations and components */
+@layer utilities {
+  @keyframes chatFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-chat-fade {
+    animation: chatFadeIn 280ms ease both;
+  }
+
+  .chat-bg-soft {
+    background-color: #F7F9FC;
+  }
+
+  .chat-bubble-user {
+    background-color: #3B82F6;
+    color: white;
+    border-radius: 14px;
+  }
+
+  .chat-bubble-bot {
+    background-color: white;
+    border: 1px solid #E5E7EB;
+    color: #0F172A; /* slate-900 */
+    border-radius: 14px;
+  }
+}

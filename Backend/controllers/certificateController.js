@@ -162,7 +162,7 @@ exports.mintCertificate = async (req, res) => {
       recipient_wallet,
       metadataURI,
       expireUnix,
-      finalCourseName,
+      finalCourseId ? finalCourseId.toString() : finalCourseName, // Use course_id if available, otherwise course_name
       student_id.toString(),
       verificationCode,
       certificate_name,
@@ -1053,7 +1053,7 @@ exports.replaceCertificate = async (req, res) => {
       recipient_wallet,
       metadataURI,
       expireUnix,
-      finalCourseName,
+      finalCourseId ? finalCourseId.toString() : finalCourseName, // Use course_id if available, otherwise course_name
       student_id.toString(),
       verificationCode,
       certificate_name,
@@ -1104,7 +1104,11 @@ exports.getAISummary = async (req, res) => {
 
     // Get certificate information from database
     const certificateQuery = await db.pool.query(
-      `SELECT c.*, co.course_name, co.duration, co.course_description, co.training_content
+      `SELECT c.*, 
+       COALESCE(co.course_name, c.course_name) as final_course_name,
+       co.duration, 
+       co.course_description, 
+       co.training_content
        FROM certificates c
        LEFT JOIN courses co ON c.course_id = co.id
        WHERE c.token_id = $1`,
@@ -1120,11 +1124,21 @@ exports.getAISummary = async (req, res) => {
 
     const certificate = certificateQuery.rows[0];
 
-    // If certificate is not linked to any course
-    if (!certificate.course_name) {
+    console.log('🔍 Certificate data for AI summary:', {
+      tokenId,
+      course_name: certificate.course_name,
+      final_course_name: certificate.final_course_name,
+      course_id: certificate.course_id,
+      certificate_name: certificate.certificate_name
+    });
+
+    // Check if we have course information (either from join or certificate table)
+    const courseName = certificate.final_course_name || certificate.course_name;
+    
+    if (!courseName || courseName.trim() === '') {
       return res.status(200).json({
         success: true,
-        ai_summary: "Không có thông tin về khóa học của chứng chỉ."
+        ai_summary: "Chứng chỉ này chưa được liên kết với khóa học cụ thể. Đây có thể là chứng chỉ độc lập hoặc chứng chỉ đặc biệt do tổ chức cấp phát."
       });
     }
 
@@ -1139,11 +1153,13 @@ exports.getAISummary = async (req, res) => {
     // Generate AI summary using Gemini
     try {
       const courseData = {
-        course_name: certificate.course_name,
-        duration: certificate.duration,
-        course_description: certificate.course_description,
-        training_content: certificate.training_content
+        course_name: courseName,
+        duration: certificate.duration || 'Không có thông tin',
+        course_description: certificate.course_description || 'Không có mô tả',
+        training_content: certificate.training_content || 'Không có thông tin chi tiết'
       };
+
+      console.log('🤖 Generating AI summary with data:', courseData);
 
       const aiSummary = await aiSummaryService.generateCertificateSummary(courseData);
 

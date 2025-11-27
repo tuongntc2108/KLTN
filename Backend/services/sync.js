@@ -48,8 +48,8 @@ async function upsertCertificateFromStruct(tokenId, cert) {
   const q = `
     INSERT INTO certificates (
       token_id, metadata_uri, holder, issuer, issued_date, expire_date, status,
-      course_name, student_id, verification_code, certificate_name, recipient_name, updated_at
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW())
+      course_name, course_id, student_id, verification_code, certificate_name, recipient_name, updated_at
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW())
     ON CONFLICT (token_id) DO UPDATE SET
       metadata_uri=EXCLUDED.metadata_uri,
       holder=EXCLUDED.holder,
@@ -58,12 +58,40 @@ async function upsertCertificateFromStruct(tokenId, cert) {
       expire_date=EXCLUDED.expire_date,
       status=EXCLUDED.status,
       course_name=EXCLUDED.course_name,
+      course_id=EXCLUDED.course_id,
       student_id=EXCLUDED.student_id,
       verification_code=EXCLUDED.verification_code,
       certificate_name=EXCLUDED.certificate_name,
       recipient_name=EXCLUDED.recipient_name,
       updated_at=NOW();
   `;
+  // Normalize course_id and course_name: if courseId is numeric, look up name from courses table
+  let courseIdInt = null;
+  let courseName = null;
+
+  if (cert.courseId !== undefined && cert.courseId !== null) {
+    const asNum = Number(cert.courseId);
+    if (!Number.isNaN(asNum) && Number.isFinite(asNum)) {
+      courseIdInt = parseInt(asNum);
+      try {
+        const r = await db.query('SELECT id, course_name FROM courses WHERE id=$1 LIMIT 1', [courseIdInt]);
+        console.log('[SYNC] Lookup courseId:', courseIdInt, 'Result:', r.rows);
+        if (r.rows && r.rows.length > 0) {
+          courseName = r.rows[0].course_name;
+        } else {
+          courseName = "Không rõ";
+        }
+      } catch (err) {
+        console.warn('Could not fetch course name for id', courseIdInt, err.message);
+        courseName = null;
+      }
+    } else {
+      // courseId is a string name (not numeric)
+      courseName = cert.courseId;
+      courseIdInt = null;
+    }
+  }
+
   const params = [
     tokenId,
     cert.metadataURI,
@@ -72,12 +100,14 @@ async function upsertCertificateFromStruct(tokenId, cert) {
     toDate(cert.issuedDate),
     toDate(cert.expireDate),
     STATUS[Number(cert.status)] || "Issued",
-    cert.courseId,
+    courseName,
+    courseIdInt,
     cert.studentId,
     cert.verificationCode,
     cert.certificateName,
     cert.recipientName
   ];
+
   await db.query(q, params);
 }
 

@@ -471,12 +471,16 @@ class DocumentIngestionService {
    */
   async searchSimilarDocuments(queryText, limit = 5, threshold = 0.7) {
     try {
-      // Generate embedding for query
-      const queryEmbedding = await this.embeddingModel.embedContent(queryText);
+      const normalizedQuery = this.normalizeTextForSearch(queryText);
+      const expandedQuery = this.expandQueryWithSynonyms(queryText);
+      const normalizedThreshold = Math.min(threshold, 0.5);
+
+      // Generate embedding for query (with synonym expansion)
+      const queryEmbedding = await this.embeddingModel.embedContent(expandedQuery);
       const embeddingVector = `[${queryEmbedding.embedding.values.join(',')}]`;
       
       // Search for similar documents using cosine similarity
-      const query = `
+      const vectorQuery = `
         SELECT 
           id, title, content_chunk, source_file, source_type, metadata,
           1 - (embedding <=> $1::vector) as similarity_score
@@ -486,13 +490,141 @@ class DocumentIngestionService {
         LIMIT $3
       `;
       
-      const result = await db.pool.query(query, [embeddingVector, threshold, limit]);
-      return result.rows;
+      const vectorResult = await db.pool.query(vectorQuery, [embeddingVector, normalizedThreshold, limit]);
+      let results = vectorResult.rows;
+
+      if (results.length >= limit) {
+        return results;
+      }
+
+      const keywords = this.extractKeywords(normalizedQuery);
+      const slotsRemaining = limit - results.length;
+
+      if (slotsRemaining > 0 && keywords.length > 0) {
+        const keywordFallback = await this.keywordFallbackSearch(keywords, slotsRemaining);
+        results = results.concat(keywordFallback);
+      }
+
+      if (results.length > limit) {
+        results = results.slice(0, limit);
+      }
+
+      return results;
       
     } catch (error) {
       console.error('❌ Error searching documents:', error);
       throw new Error(`Failed to search documents: ${error.message}`);
     }
+  }
+
+  expandQueryWithSynonyms(queryText = '') {
+    const normalized = this.normalizeTextForSearch(queryText);
+    const expansions = [];
+
+    const rules = [
+      {
+        keywords: ['chung chi', 'chứng chỉ', 'certificate'],
+        expansions: [
+          'hướng dẫn nhận chứng chỉ',
+          'cấp chứng chỉ NFT',
+          'claim SBT',
+          'nhận certificate cho học viên',
+          'quy trình nhận chứng chỉ'
+        ]
+      },
+      {
+        keywords: ['nhan', 'nhận', 'nhan duoc'],
+        expansions: [
+          'cách nhận',
+          'hướng dẫn nhận',
+          'làm sao để nhận',
+          'thủ tục nhận'
+        ]
+      },
+      {
+        keywords: ['metamask', 'vi', 'ví', 'wallet'],
+        expansions: [
+          'kết nối metamask',
+          'nạp tiền metamask',
+          'faucet metamask',
+          'sepolia testnet wallet'
+        ]
+      },
+      {
+        keywords: ['nap tien', 'nạp tiền', 'faucet', 'sepolia', 'eth'],
+        expansions: [
+          'cách nạp SepoliaETH',
+          'lấy Sepolia faucet',
+          'nhận ETH testnet',
+          'fund metamask wallet'
+        ]
+      }
+    ];
+
+    for (const rule of rules) {
+      const matched = rule.keywords.some(keyword => normalized.includes(keyword));
+      if (matched) {
+        expansions.push(...rule.expansions);
+      }
+    }
+
+    const uniqueExpansions = [...new Set(expansions)];
+    if (uniqueExpansions.length === 0) {
+      return queryText;
+    }
+
+    return `${queryText}\n${uniqueExpansions.join(' ')}`;
+  }
+
+  normalizeTextForSearch(text = '') {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\u0041-\u024f\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  extractKeywords(normalizedText) {
+    if (!normalizedText) return [];
+
+    const words = normalizedText.split(' ');
+    const seen = new Set();
+    const keywords = [];
+
+    for (const word of words) {
+      if (word.length <= 2) continue;
+      if (seen.has(word)) continue;
+      seen.add(word);
+      keywords.push(word);
+      if (keywords.length >= 6) break;
+    }
+
+    return keywords;
+  }
+
+  async keywordFallbackSearch(keywords, limit) {
+    if (limit <= 0 || keywords.length === 0) {
+      return [];
+    }
+
+    const conditions = keywords.map((_, idx) => `content_chunk ILIKE $${idx + 1}`).join(' OR ');
+    const query = `
+      SELECT
+        id, title, content_chunk, source_file, source_type, metadata,
+        0.45 as similarity_score
+      FROM chatbot_documents
+      WHERE ${conditions}
+      ORDER BY updated_at DESC
+      LIMIT $${keywords.length + 1}
+    `;
+
+    const values = keywords.map(keyword => `%${keyword}%`);
+    values.push(limit);
+
+    const result = await db.pool.query(query, values);
+    return result.rows;
   }
 
   /**

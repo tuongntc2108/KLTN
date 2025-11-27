@@ -85,6 +85,10 @@ app.use("/api/documents", documentRoutes);
 const chatbotRoutes = require("./routes/chatbotRoutes");
 app.use("/api/chatbot", chatbotRoutes);
 
+// New lightweight chat API (RAG-focused) mounted at /api/chat
+const chatRoutes = require("./routes/chatRoutes");
+app.use("/api/chat", chatRoutes);
+
 // Auto-sync configuration
 const SYNC_INTERVAL = process.env.SYNC_INTERVAL || 5 * 60 * 1000; // 5 phút mặc định
 let syncInterval;
