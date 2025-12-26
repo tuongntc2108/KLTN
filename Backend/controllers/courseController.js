@@ -12,7 +12,7 @@ async function getIssuerIdFromEmail(email) {
         AND table_name = 'issuers'
       )
     `);
-    
+    /** Bảng đã có sẵn bảng issuers, không cần tạo lại
     if (!tableCheck.rows[0].exists) {
       // Create issuers table if it doesn't exist
       await db.pool.query(`
@@ -29,7 +29,7 @@ async function getIssuerIdFromEmail(email) {
       `);
       console.log('✅ Created issuers table');
     }
-    
+    */
     // Now check if issuer exists
     const query = `SELECT id FROM issuers WHERE email = $1`;
     const result = await db.pool.query(query, [email.toLowerCase()]);
@@ -41,6 +41,7 @@ async function getIssuerIdFromEmail(email) {
         VALUES ($1, $2, $3, $4)
         RETURNING id
       `;
+      //email issuer hiện tại đang là @vnpay.vn nên tạm hardcode như sau
       const issuerName = email.includes('vnpay') ? 'VNU Training Center' : 'Training Institution';
       const walletAddress = process.env.ISSUER_WALLET || '0x4B879e08e8Bbd2517741E9C2b9786764E7fFae9e';
       const organization = email.includes('vnpay') ? 'Vietnam National University' : 'Training Organization';
@@ -116,7 +117,7 @@ exports.createCourse = async (req, res) => {
   } catch (error) {
     console.error("❌ Create course error:", error.message);
     
-    if (error.code === '23505') { // unique_violation
+    if (error.code === '23505') { // check lỗi unique_violation (vi phạm ràng buộc duy nhất)
       return res.status(400).json({ 
         success: false,
         error: "Course name already exists for this issuer" 
@@ -200,6 +201,7 @@ exports.getCourseById = async (req, res) => {
     const issuerId = await getIssuerIdFromEmail(userEmail);
 
     // Query specific course with certificate count
+    //lọc cả id course và issuer để ràng buộc quyền sở hữu, tránh lộ thông tin khóa học của issuer khác
     const query = `
       SELECT 
         c.id,

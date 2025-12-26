@@ -27,7 +27,7 @@ router.get("/:id/ai-summary", certificateController.getAISummary);
 router.post("/:id/claim", authenticate, certificateController.claimCertificate);
 
 // POST /api/certificates/:id/sync-status (authenticated students only)
-router.post("/:id/sync-status", authenticate, certificateController.syncCertificateStatus);
+//router.post("/:id/sync-status", authenticate, certificateController.syncCertificateStatus);
 
 // PUT /api/certificates/:id/revoke (Issuer, Admin only)
 router.put("/:id/revoke", authenticate, requireRole(["Issuer", "Admin"]), certificateController.revokeCertificate);

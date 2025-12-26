@@ -59,6 +59,7 @@ exports.mintCertificate = async (req, res) => {
       finalCourseName = courseQuery.rows[0].course_name;
       finalCourseId = courseQuery.rows[0].id;
     } else if (course_name) {
+      //Trước đây hệ thống dùng course_name để định danh khóa học, để an toàn thì vẫn giữ lại đoạn mã này
       // For backward compatibility, keep the course_name approach
       finalCourseName = course_name;
     }
@@ -94,7 +95,7 @@ exports.mintCertificate = async (req, res) => {
     const recipient_email = student.email;
     const recipient_wallet = student.wallet_address;
 
-    // Generate tokenId giả lập từ counter
+    // Generate tokenId giả lập từ counter để phục vụ external_url và metadata trước khi mint
     certificateCounter++;
     const tokenIdStr = certificateCounter.toString();
 
@@ -306,7 +307,7 @@ exports.getMyCertificates = async (req, res) => {
         tokenId: cert.token_id,
         description: `Chứng nhận hoàn thành khóa học ${cert.course_name || 'N/A'}`,
         course: cert.course_name || "N/A",
-        grade: "Đạt", // Default grade since we don't have grade in DB
+        grade: "Đạt", // Default grade 
         recipient_name: cert.recipient_name,
         metadata_uri: cert.metadata_uri
       };
@@ -390,7 +391,8 @@ exports.claimCertificate = async (req, res) => {
     const certificate = certQuery.rows[0];
     
     // Check if certificate is in claimable status
-    if (certificate.status.toLowerCase() !== 'issued' && certificate.status.toLowerCase() !== 'pending') {
+    //pending là trạng thái tương đương issued chưa claim, Là computed_status được map từ 'Issued' khi trả về API. check 'pending' để handle trường hợp frontend gửi computed status (vì frontend thấy là 'pending'). Thực tế check pending là không cần thiết nhưng để an toàn nên giữ lại
+    if (certificate.status.toLowerCase() !== 'issued' && certificate.status.toLowerCase() !== 'pending') { 
       return res.status(400).json({
         success: false,
         error: "Certificate not claimable",
@@ -511,7 +513,9 @@ exports.getCertificateById = async (req, res) => {
 
 // ========================
 // POST /api/certificates/:id/sync-status - Sync certificate status after blockchain claim
-// ========================
+// ======================== 
+// hàm này để hỗ trợ frontend claim trực tiếp qua metamask, sau khi claim xong frontend gọi API này để backend cập nhật trạng thái chứng chỉ, hiện tại chưa cần thiết
+/** 
 exports.syncCertificateStatus = async (req, res) => {
   try {
     const tokenId = req.params.id;
@@ -591,6 +595,7 @@ exports.syncCertificateStatus = async (req, res) => {
     });
   }
 };
+*/
 
 // ========================
 // PUT /api/certificates/:id/revoke
@@ -990,12 +995,16 @@ exports.replaceCertificate = async (req, res) => {
     const recipient_email = student.email;
     const recipient_wallet = student.wallet_address;
 
+    // Generate tokenId giả lập từ counter để phục vụ external_url và metadata trước khi mint
+    certificateCounter++;
+    const tokenIdStr = certificateCounter.toString();
+
     // Build metadata JSON for new certificate
     const metadata = {
       name: `${certificate_name} - ${recipient_name}`,
       description: `${certificate_name} do ${issuer_name} cấp cho học viên ${recipient_name}.`,
       image: "ipfs://QmHashOfImageFile", // TODO
-      external_url: `https://certify.example.org/certificate/NEW`,
+      external_url: `https://certify.example.org/certificate/${tokenIdStr}`,
       attributes: [
         { trait_type: "Issuer", value: issuer_name },
         { trait_type: "Recipient", value: recipient_name },
@@ -1004,6 +1013,7 @@ exports.replaceCertificate = async (req, res) => {
         { trait_type: "Issued Date", value: issued_date },
         { trait_type: "Expire Date", value: expire_date },
         { trait_type: "Status", value: "active" },
+        { trait_type: "Token ID", value: tokenIdStr },
         { trait_type: "Blockchain", value: "Sepolia" },
         { trait_type: "Smart Contract", value: process.env.CONTRACT_ADDRESS },
       ],
@@ -1029,6 +1039,7 @@ exports.replaceCertificate = async (req, res) => {
         pdf_url: `ipfs://${pdf_ipfs_hash}`,
       },
       verification: {
+        token_id: tokenIdStr,
         smart_contract: process.env.CONTRACT_ADDRESS,
         blockchain: "Sepolia",
         chain_id: 11155111,
