@@ -1,6 +1,7 @@
 const { contract } = require("../config/blockchain");
 const { ethers } = require("ethers");
 const axios = require('axios');
+const db = require("../config/pg");
 
 // Helper function to parse metadata and extract issuer and file hash info
 async function parseMetadata(metadataURI, functionName = '') {
@@ -82,6 +83,26 @@ async function parseMetadata(metadataURI, functionName = '') {
   return { issuerInfo, fileHash };
 }
 
+// Helper function to get revocation reason from certificate_events
+async function getRevocationReason(tokenId) {
+  try {
+    const result = await db.query(
+      `SELECT reason FROM certificate_events 
+       WHERE token_id = $1 AND event_type = 'Revoked' 
+       ORDER BY block_number DESC LIMIT 1`,
+      [tokenId?.toString()]
+    );
+    
+    if (result.rows && result.rows.length > 0) {
+      return result.rows[0].reason;
+    }
+  } catch (error) {
+    console.warn('Failed to get revocation reason:', error.message);
+  }
+  
+  return null;
+}
+
 exports.verifyByCode = async (req, res) => {
   try {
     const { verificationCode } = req.params;
@@ -118,6 +139,12 @@ exports.verifyByCode = async (req, res) => {
 
     // Use the helper function to parse metadata
     const { issuerInfo, fileHash } = await parseMetadata(cert.metadataURI, 'verifyByCode');
+    
+    // Get revocation reason if cert is revoked
+    let revocationReason = null;
+    if (Number(cert.status) === 3) {
+      revocationReason = await getRevocationReason(tokenId);
+    }
 
     // Format dates
     const issueDate = new Date(Number(cert.issuedDate) * 1000).toISOString();
@@ -162,6 +189,7 @@ exports.verifyByCode = async (req, res) => {
           token_id: tokenId,
           status: status,
           metadata_uri: cert.metadataURI,
+          revocation_reason: revocationReason,
           
           issuer: issuerInfo,
           
@@ -260,6 +288,12 @@ exports.verifyByTokenId = async (req, res) => {
 
     // Use the helper function to parse metadata
     const { issuerInfo, fileHash } = await parseMetadata(cert.metadataURI, 'verifyByTokenId');
+    
+    // Get revocation reason if cert is revoked
+    let revocationReason = null;
+    if (Number(cert.status) === 3) {
+      revocationReason = await getRevocationReason(tokenId);
+    }
 
     // Format dates
     const issueDate = new Date(Number(cert.issuedDate) * 1000).toISOString();
@@ -304,6 +338,7 @@ exports.verifyByTokenId = async (req, res) => {
           token_id: tokenId,
           status: status,
           metadata_uri: cert.metadataURI,
+          revocation_reason: revocationReason,
           
           issuer: issuerInfo,
           

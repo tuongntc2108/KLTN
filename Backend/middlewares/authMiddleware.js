@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-
+//Xác thực quyền của người dùng
 // Authentication middleware - verify JWT token from cookies or Authorization header
 module.exports.authenticate = function(req, res, next) {
   try {

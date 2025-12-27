@@ -1,4 +1,5 @@
 // config/passport.js
+//Hỗ trợ xác thực người dùng qua Google OAuth 2.0
 require('dotenv').config();
 const passport = require('passport');
 const jwt = require('jsonwebtoken');
@@ -39,12 +40,12 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET &&
   console.warn('   You can use development login mode for testing.');
 }
 
-// Serialize user for session
+// Serialize user for session: Lưu thông tin user vào session khi login
 passport.serializeUser((user, done) => {
   done(null, user);
 });
 
-// Deserialize user from session
+// Deserialize user from session: Lấy thông tin user từ session trên những request sau
 passport.deserializeUser((user, done) => {
   done(null, user);
 });

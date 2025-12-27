@@ -64,7 +64,7 @@ export default function VerifyPage() {
       const isValid = data.success && data.data?.verified
       const certificate = data.data?.certificate
       
-      if (!isValid || !certificate) {
+      if (!certificate) {
         setVerificationResult({
           isValid: false,
           message: data.message || 'Chứng chỉ không hợp lệ'
@@ -112,6 +112,7 @@ export default function VerifyPage() {
           tokenId: certificate.token_id,
           blockchainNetwork: "Sepolia Testnet",
           verificationCode: certificate.verification_code || certificate.token_id,
+          revocation_reason: certificate.revocation_reason || null,
           course: {
             name: courseName,
             description: metadata?.description || 'Mô tả khóa học chưa có sẵn',
@@ -198,15 +199,26 @@ export default function VerifyPage() {
           ) : (
             <Card className="border-red-200 bg-red-50/50">
               <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full">
+                <div className="flex items-start gap-4">
+                  <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full flex-shrink-0">
                     <CheckCircle className="w-6 h-6 text-red-600" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className="text-lg font-semibold text-red-800">Chứng chỉ không hợp lệ</h3>
-                    <p className="text-red-900">{verificationResult.message || 'Không thể xác minh chứng chỉ'}</p>
+                    <p className="text-red-900 font-semibold mt-1">
+                      {verificationResult.certificate?.status === 'expired' && '⏰ Chứng chỉ đã hết hạn'}
+                      {verificationResult.certificate?.status === 'revoked' && '🚫 Chứng chỉ đã bị thu hồi'}
+                      {verificationResult.certificate?.status === 'replaced' && '🔄 Chứng chỉ đã được thay thế bằng chứng chỉ khác'}
+                      {!verificationResult.certificate?.status && '❌ Không thể xác minh chứng chỉ'}
+                    </p>
+                    <p className="text-red-800 text-sm mt-2">
+                      {verificationResult.certificate?.status === 'expired' && `Chứng chỉ này đã vượt quá ngày hết hạn vào ${verificationResult.certificate?.expiryDate} và không còn có hiệu lực.`}
+                      {verificationResult.certificate?.status === 'revoked' && `Chứng chỉ này đã bị thu hồi bởi đơn vị cấp và không còn giá trị. Lý do: ${verificationResult.certificate?.revocation_reason || 'Không có thông tin'}`}
+                      {verificationResult.certificate?.status === 'replaced' && `Chứng chỉ này đã được thay thế bằng một chứng chỉ mới. Vui lòng sử dụng chứng chỉ mới thay vào.`}
+                      {!verificationResult.certificate?.status && verificationResult.message}
+                    </p>
                   </div>
-                  <Badge className="ml-auto bg-red-100 text-red-800 border-red-200">
+                  <Badge className="bg-red-100 text-red-800 border-red-200 flex-shrink-0">
                     Không hợp lệ
                   </Badge>
                 </div>
@@ -215,13 +227,22 @@ export default function VerifyPage() {
           )}
 
           {/* Certificate Details */}
-          {verificationResult.isValid && verificationResult.certificate && (
+          {verificationResult.certificate && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Award className="w-5 h-5" />
-                  Thông tin chứng chỉ
-                </CardTitle>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <Award className="w-5 h-5" />
+                    <div>
+                      <CardTitle>Thông tin chứng chỉ</CardTitle>
+                      {!verificationResult.isValid && (
+                        <p className="text-sm text-red-700 font-semibold mt-1">
+                          ⚠️ {verificationResult.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
@@ -293,6 +314,17 @@ export default function VerifyPage() {
                     Xem trên Blockchain Explorer
                   </Button>
                 </div>
+
+                {/* Revocation Reason Section - Only for revoked certificates */}
+                {!verificationResult.isValid && verificationResult.certificate?.status === 'revoked' && verificationResult.certificate?.revocation_reason && (
+                  <div className="border-t pt-4 mt-4">
+                    <h4 className="font-semibold mb-3 text-red-800">Lý do thu hồi</h4>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="text-red-900 font-medium">{verificationResult.certificate.revocation_reason}</p>
+                    </div>
+                  </div>
+                )}
+
               </CardContent>
             </Card>
           )}

@@ -2,7 +2,7 @@ require("dotenv").config();
 const { ethers } = require("ethers");
 const db = require("../config/pg");
 const path = require("path");
-const MySBT = require(path.join(__dirname, "..", "..", "SmartContract", "artifacts", "contracts", "MySBT.sol", "MySBT.json")); // ABI của bạn
+const MySBT = require(path.join(__dirname, "..", "..", "SmartContract", "artifacts", "contracts", "MySBT.sol", "MySBT.json")); // ABI snartcontract
 
 const STATUS = ["Issued","Active","Expired","Revoked","Replaced"];
 const JOB = "mysbt-sync";
@@ -25,6 +25,7 @@ async function retryOperation(operation, maxRetries = MAX_RETRIES) {
       if (i === maxRetries - 1) throw error;
       
       // Check if it's a rate limit error
+      // Đây là lỗi từ Ethereum RPC provider (ví dụ: Infura, Alchemy) khi gửi quá nhiều requests trong thời gian ngắn
       if (error.code === 'BAD_DATA' && error.value && error.value.some(v => v.code === -32005)) {
         console.log(`Rate limited, waiting ${RETRY_DELAY * (i + 1)}ms before retry ${i + 1}/${maxRetries}`);
         await delay(RETRY_DELAY * (i + 1));
@@ -268,7 +269,7 @@ async function checkAndUpdateExpiredCertificates() {
           [cert.token_id]
         );
         
-        // Gọi smart contract để cập nhật trạng thái (nếu cần)
+        // Gọi smart contract để cập nhật trạng thái 
         try {
           // Tạo wallet từ private key để có thể gọi contract
           const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
