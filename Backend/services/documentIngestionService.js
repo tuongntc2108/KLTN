@@ -173,11 +173,6 @@ class DocumentIngestionService {
    * @param {string} filePath - Path to PDF file
    * @returns {Promise<string>} Extracted text
    */
-  /**
-   * Extract text from PDF file
-   * @param {string} filePath - Path to PDF file
-   * @returns {Promise<string>} Extracted text
-   */
   async extractFromPDF(filePath) {
     console.log('📖 Extracting text from PDF...');
     
@@ -263,8 +258,6 @@ class DocumentIngestionService {
     const cleaned = text
       // Remove excessive whitespace but preserve single spaces
       .replace(/\s+/g, ' ')
-      // Remove URLs (but keep other text)
-      .replace(/https?:\/\/[^\s]+/g, ' ')
       // Remove excessive line breaks
       .replace(/\n\s*\n\s*\n/g, '\n\n')
       // Trim whitespace

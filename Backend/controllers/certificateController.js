@@ -565,10 +565,11 @@ exports.syncCertificateStatus = async (req, res) => {
       ['Active', tokenId]
     );
 
-    // Log the claim event
+    // Log the claim event (skip if already exists)
     await db.pool.query(
       `INSERT INTO certificate_events (token_id, event_type, holder, block_number, tx_hash) 
-       VALUES ($1, $2, $3, $4, $5)`,
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (token_id, event_type) DO NOTHING`,
       [tokenId, 'Claimed', student.wallet_address, blockNumber || null, transactionHash]
     );
 

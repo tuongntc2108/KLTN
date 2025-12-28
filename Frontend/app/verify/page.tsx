@@ -113,6 +113,7 @@ export default function VerifyPage() {
           blockchainNetwork: "Sepolia Testnet",
           verificationCode: certificate.verification_code || certificate.token_id,
           revocation_reason: certificate.revocation_reason || null,
+          events: Array.isArray(certificate.events) ? certificate.events : [],
           course: {
             name: courseName,
             description: metadata?.description || 'Mô tả khóa học chưa có sẵn',
@@ -337,6 +338,58 @@ export default function VerifyPage() {
                   />
           )}
 
+          {/* Certificate History */}
+          {verificationResult.certificate?.events && verificationResult.certificate.events.length > 0 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  <CardTitle>Lịch sử chứng chỉ</CardTitle>
+                </div>
+                <CardDescription>Nhật ký sự kiện từ blockchain và hệ thống</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {verificationResult.certificate.events.map((ev: any) => {
+                    const dateStr = ev.created_at ? new Date(ev.created_at).toLocaleString('vi-VN') : 'Chưa xác định'
+                    const type = ev.type || 'Unknown'
+                    const reason = ev.reason
+                    const related = ev.related_token
+                    const block = ev.block_number
+                    const tx = ev.tx_hash
+                    return (
+                      <div key={`${ev.id}-${tx}`} className="flex items-start gap-3">
+                        <div className="mt-1">
+                          {type === 'Issued' && <Award className="w-5 h-5 text-blue-600" />}
+                          {type === 'Claimed' && <CheckCircle className="w-5 h-5 text-green-600" />}
+                          {type === 'Revoked' && <Shield className="w-5 h-5 text-red-600" />}
+                          {type === 'Expired' && <Calendar className="w-5 h-5 text-orange-600" />}
+                          {type === 'Replaced' && <Sparkles className="w-5 h-5 text-purple-600" />}
+                          {!(['Issued','Claimed','Revoked','Expired','Replaced'].includes(type)) && <Shield className="w-5 h-5 text-muted-foreground" />}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="capitalize">{type.toLowerCase()}</Badge>
+                            <span className="text-sm text-muted-foreground">{dateStr}</span>
+                          </div>
+                          {reason && (
+                            <p className="text-sm mt-1">Lý do: <span className="font-medium">{reason}</span></p>
+                          )}
+                          {related && (
+                            <p className="text-sm mt-1">Thay thế bởi Token: <span className="font-mono">{related}</span></p>
+                          )}
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {block && <span>Block: {block}</span>}
+                            {tx && <span className="ml-2">Tx: {tx}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
 
 

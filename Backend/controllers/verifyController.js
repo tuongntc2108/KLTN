@@ -103,6 +103,38 @@ async function getRevocationReason(tokenId) {
   return null;
 }
 
+// Helper function to get full event history from certificate_events
+async function getCertificateEvents(tokenId) {
+  try {
+    const result = await db.query(
+      `SELECT id, token_id, event_type, issuer, holder, reason, related_token, block_number, tx_hash, created_at
+       FROM certificate_events
+       WHERE token_id = $1
+       ORDER BY created_at ASC, block_number ASC`,
+      [tokenId?.toString()]
+    );
+
+    // Map to a client-friendly format
+    const events = (result.rows || []).map((ev) => ({
+      id: ev.id,
+      token_id: ev.token_id?.toString?.() || String(ev.token_id),
+      type: ev.event_type,
+      issuer: ev.issuer,
+      holder: ev.holder,
+      reason: ev.reason || null,
+      related_token: ev.related_token ? (ev.related_token?.toString?.() || String(ev.related_token)) : null,
+      block_number: ev.block_number ? Number(ev.block_number) : null,
+      tx_hash: ev.tx_hash,
+      created_at: ev.created_at ? new Date(ev.created_at).toISOString() : null,
+    }));
+
+    return events;
+  } catch (error) {
+    console.warn('Failed to get certificate events:', error.message);
+    return [];
+  }
+}
+
 exports.verifyByCode = async (req, res) => {
   try {
     const { verificationCode } = req.params;
@@ -180,6 +212,8 @@ exports.verifyByCode = async (req, res) => {
         message = "Trạng thái chứng chỉ không xác định.";
     }
 
+    const events = await getCertificateEvents(tokenId);
+
     const responseData = {
       success: isValid,
       message: message,
@@ -190,6 +224,7 @@ exports.verifyByCode = async (req, res) => {
           status: status,
           metadata_uri: cert.metadataURI,
           revocation_reason: revocationReason,
+          events,
           
           issuer: issuerInfo,
           
@@ -329,6 +364,8 @@ exports.verifyByTokenId = async (req, res) => {
         message = "Trạng thái chứng chỉ không xác định.";
     }
 
+    const events = await getCertificateEvents(tokenId);
+
     const responseData = {
       success: isValid,
       message: message,
@@ -339,6 +376,7 @@ exports.verifyByTokenId = async (req, res) => {
           status: status,
           metadata_uri: cert.metadataURI,
           revocation_reason: revocationReason,
+          events,
           
           issuer: issuerInfo,
           

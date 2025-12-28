@@ -113,6 +113,20 @@ async function upsertCertificateFromStruct(tokenId, cert) {
 }
 
 async function insertEvent({ tokenId, type, issuer, holder, reason, relatedToken, blockNumber, txHash }) {
+  // Kiểm tra xem event đã tồn tại chưa (unique theo token_id + event_type)
+  const checkQuery = `
+    SELECT id FROM certificate_events 
+    WHERE token_id = $1 AND event_type = $2
+    LIMIT 1
+  `;
+  const existing = await db.query(checkQuery, [tokenId?.toString(), type]);
+  
+  if (existing.rows.length > 0) {
+    console.log(`⚠️ Event ${type} for token ${tokenId} already exists, skipping insert`);
+    return;
+  }
+  
+  // Nếu chưa tồn tại, insert mới
   const q = `
     INSERT INTO certificate_events
       (token_id, event_type, issuer, holder, reason, related_token, block_number, tx_hash)
@@ -123,6 +137,7 @@ async function insertEvent({ tokenId, type, issuer, holder, reason, relatedToken
     reason || null, relatedToken ? relatedToken.toString() : null,
     blockNumber, txHash
   ]);
+  console.log(`✅ Inserted ${type} event for token ${tokenId}`);
 }
 
 async function setCursor(block) {

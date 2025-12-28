@@ -90,7 +90,10 @@ CREATE TABLE IF NOT EXISTS certificate_events (
     related_token BIGINT,                      -- token mới nếu Replaced
     block_number BIGINT NOT NULL,
     tx_hash VARCHAR(100) NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW(),
+    
+    -- Unique constraint: mỗi token chỉ có 1 event của mỗi loại
+    CONSTRAINT unique_token_event UNIQUE (token_id, event_type)
 );
 
 CREATE INDEX IF NOT EXISTS idx_ce_token ON certificate_events(token_id);
