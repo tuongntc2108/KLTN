@@ -763,6 +763,16 @@ exports.revokeCertificate = async (req, res) => {
     const tx = await contract.revokeCertificate(tokenId, reason);
     const receipt = await tx.wait();
 
+    // Immediately sync the certificate to database
+    console.log(`🔄 [REVOKE] Starting immediate sync for certificate ${tokenId}...`);
+    try {
+      await syncCertificateImmediately(tokenId);
+      console.log(`✅ [REVOKE] Certificate ${tokenId} synced to database immediately`);
+    } catch (syncError) {
+      console.error(`❌ [REVOKE] Failed to sync certificate ${tokenId} immediately:`, syncError.message);
+      // Don't fail the whole operation if sync fails
+    }
+
     // Send email notification to student
     if (certInfo) {
       console.log(`📧 Attempting to send revoke notification for certificate ${tokenId} to ${certInfo.email}...`);
@@ -1172,6 +1182,21 @@ exports.replaceCertificate = async (req, res) => {
     const recipient_email = student.email;
     const recipient_wallet = student.wallet_address;
 
+    // Get old certificate information for email notification
+    const oldCertQuery = await db.pool.query(
+      'SELECT certificate_name, course_name FROM certificates WHERE token_id = $1',
+      [oldTokenId]
+    );
+
+    if (oldCertQuery.rows.length === 0) {
+      return res.status(404).json({
+        error: "Chứng chỉ cũ không tồn tại",
+        message: `Certificate với token ID ${oldTokenId} không tìm thấy trong hệ thống`
+      });
+    }
+
+    const oldCertificate = oldCertQuery.rows[0];
+
     // Generate tokenId giả lập từ counter để phục vụ external_url và metadata trước khi mint
     certificateCounter++;
     const tokenIdStr = certificateCounter.toString();
@@ -1264,6 +1289,22 @@ exports.replaceCertificate = async (req, res) => {
 
     const newTokenId = replacedEvent?.args?.newTokenId?.toString();
 
+    // Immediately sync both certificates to database
+    console.log(`🔄 [REPLACE] Starting immediate sync for certificates ${oldTokenId} and ${newTokenId}...`);
+    try {
+      await syncCertificateImmediately(oldTokenId);
+      console.log(`✅ [REPLACE] Old certificate ${oldTokenId} synced to database immediately`);
+    } catch (syncError) {
+      console.error(`❌ [REPLACE] Failed to sync old certificate ${oldTokenId}:`, syncError.message);
+    }
+    
+    try {
+      await syncCertificateImmediately(newTokenId);
+      console.log(`✅ [REPLACE] New certificate ${newTokenId} synced to database immediately`);
+    } catch (syncError) {
+      console.error(`❌ [REPLACE] Failed to sync new certificate ${newTokenId}:`, syncError.message);
+    }
+
     // Send email notification to student
     try {
       await emailNotificationService.notifyCertificateReplaced(
@@ -1271,7 +1312,7 @@ exports.replaceCertificate = async (req, res) => {
         recipient_name,
         {
           token_id: oldTokenId,
-          certificate_name: certificate_name
+          certificate_name: oldCertificate.certificate_name
         },
         {
           token_id: newTokenId,

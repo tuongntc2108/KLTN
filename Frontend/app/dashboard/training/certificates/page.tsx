@@ -707,12 +707,12 @@ export default function CertificatesPage() {
                                 <DialogHeader>
                                   <DialogTitle>Thay thế chứng chỉ</DialogTitle>
                                   <DialogDescription>
-                                    Bạn đang thay thế chứng chỉ với mã token <strong>{tokenId}</strong> của học viên <strong>{studentName}</strong>.
+                                    Bạn đang thay thế chứng chỉ với mã token <strong>{certificateToReplace?.certificate?.token_id || 'N/A'}</strong> của học viên <strong>{certificateToReplace?.certificate?.recipient?.full_name || 'Unknown'}</strong>.
                                     Mã sinh viên sẽ được tự động điền sẵn và không thể sửa.
                                   </DialogDescription>
                                 </DialogHeader>
                                 <ReplaceCertificateForm 
-                                  certificate={cert}
+                                  certificate={certificateToReplace}
                                   onReplace={handleReplaceCertificate}
                                   isReplacing={isReplacing}
                                   onCancel={() => {
@@ -746,7 +746,7 @@ export default function CertificatesPage() {
                                 <DialogHeader>
                                   <DialogTitle>Thu hồi chứng chỉ</DialogTitle>
                                   <DialogDescription>
-                                    Bạn đang thu hồi chứng chỉ với mã token <strong>{tokenId}</strong> của học viên <strong>{studentName}</strong>.
+                                    Bạn đang thu hồi chứng chỉ với mã token <strong>{certificateToRevoke?.certificate?.token_id || 'N/A'}</strong> của học viên <strong>{certificateToRevoke?.certificate?.recipient?.full_name || 'Unknown'}</strong>.
                                     Vui lòng nhập lý do thu hồi bên dưới.
                                   </DialogDescription>
                                 </DialogHeader>
