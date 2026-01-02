@@ -4,6 +4,7 @@ const { ethers } = require("ethers");
 const { syncCertificateImmediately } = require("../services/sync");
 const db = require("../config/pg");
 const aiSummaryService = require("../services/aiSummaryService");
+const emailNotificationService = require("../services/emailNotificationService");
 
 let certificateCounter = 1000;
 
@@ -207,6 +208,25 @@ exports.mintCertificate = async (req, res) => {
       console.error('Sync error details:', syncError);
     }
 
+    // Send email notification to student
+    try {
+      await emailNotificationService.notifyCertificateIssued(
+        recipient_email,
+        recipient_name,
+        {
+          token_id: tokenId,
+          certificate_name: certificate_name,
+          course_name: finalCourseName,
+          issued_date: issued_date,
+          expire_date: expire_date
+        }
+      );
+      console.log(`📧 Email notification sent for certificate ${tokenId}`);
+    } catch (emailError) {
+      console.error(`❌ Failed to send email notification:`, emailError.message);
+      // Don't fail the operation if email fails
+    }
+
     return res.status(201).json({
       success: true,
       certificate_id: certificateCounter,
@@ -227,11 +247,11 @@ exports.mintCertificate = async (req, res) => {
 exports.getMyCertificates = async (req, res) => {
   try {
     const userEmail = req.user?.email;
-    console.log(`🔍 Debug getMyCertificates - Raw user object:`, req.user);
-    console.log(`🔍 Debug getMyCertificates - User email: ${userEmail}`);
+    // console.log(`🔍 Debug getMyCertificates - Raw user object:`, req.user);
+    // console.log(`🔍 Debug getMyCertificates - User email: ${userEmail}`);
     
     if (!userEmail) {
-      console.log(`❌ Debug getMyCertificates - No user email found`);
+      // console.log(`❌ Debug getMyCertificates - No user email found`);
       return res.status(401).json({ error: "Unauthorized: User not authenticated" });
     }
 
@@ -241,11 +261,11 @@ exports.getMyCertificates = async (req, res) => {
       [userEmail.toLowerCase()]
     );
 
-    console.log(`🔍 Debug getMyCertificates - Student query for email: ${userEmail.toLowerCase()}`);
-    console.log(`🔍 Debug getMyCertificates - Student query result:`, studentQuery.rows);
+    // console.log(`🔍 Debug getMyCertificates - Student query for email: ${userEmail.toLowerCase()}`);
+    // console.log(`🔍 Debug getMyCertificates - Student query result:`, studentQuery.rows);
 
     if (studentQuery.rows.length === 0) {
-      console.log(`❌ Debug getMyCertificates - No student found for email: ${userEmail}`);
+      // console.log(`❌ Debug getMyCertificates - No student found for email: ${userEmail}`);
       return res.status(200).json({
         success: true,
         message: "No student record found. Please connect your wallet first.",
@@ -254,11 +274,11 @@ exports.getMyCertificates = async (req, res) => {
     }
 
     const student = studentQuery.rows[0];
-    console.log(`🔍 Debug getMyCertificates - Found student:`, student);
+    // console.log(`🔍 Debug getMyCertificates - Found student:`, student);
     
     // If student doesn't have a wallet address, return empty certificates
     if (!student.wallet_address) {
-      console.log(`❌ Debug getMyCertificates - Student has no wallet address`);
+      // console.log(`❌ Debug getMyCertificates - Student has no wallet address`);
       return res.status(200).json({
         success: true,
         message: "Please connect your wallet to view certificates.",
@@ -288,8 +308,8 @@ exports.getMyCertificates = async (req, res) => {
     const result = await db.pool.query(query, [student.wallet_address]);
     const certificates = result.rows;
 
-    console.log(`🔍 Debug getMyCertificates - Certificates query for wallet ${student.wallet_address}:`, certificates.length, "certificates found");
-    console.log(`🔍 Debug getMyCertificates - Sample certificates:`, certificates.slice(0, 2));
+    // console.log(`🔍 Debug getMyCertificates - Certificates query for wallet ${student.wallet_address}:`, certificates.length, "certificates found");
+    // console.log(`🔍 Debug getMyCertificates - Sample certificates:`, certificates.slice(0, 2));
 
     // Format certificates for frontend
     const formattedCertificates = certificates.map(cert => {
@@ -337,12 +357,19 @@ exports.getMyCertificates = async (req, res) => {
 // ========================
 // POST /api/certificates/:id/claim - Claim a certificate
 // ========================
+// NOTE: This function is currently NOT used in the frontend flow.
+// Frontend claims directly via MetaMask, then calls sync-status API.
+// This function is kept for potential future use (e.g., admin/backend claiming).
+/*
 exports.claimCertificate = async (req, res) => {
+  console.log('🔵 [CLAIM] Starting claimCertificate function (NOTE: This is not used in current frontend flow)');
   try {
     const tokenId = req.params.id;
     const userEmail = req.user?.email;
+    console.log(`🔵 [CLAIM] Token ID: ${tokenId}, User Email: ${userEmail}`);
 
     if (!userEmail) {
+      console.log('🔵 [CLAIM] No user email, returning 401');
       return res.status(401).json({ 
         success: false,
         error: "Authentication required" 
@@ -350,12 +377,14 @@ exports.claimCertificate = async (req, res) => {
     }
 
     // Get student info based on authenticated user's email
+    console.log(`🔵 [CLAIM] Querying student with email: ${userEmail.toLowerCase()}`);
     const studentQuery = await db.pool.query(
       'SELECT id, email, wallet_address, name FROM students WHERE email = $1',
       [userEmail.toLowerCase()]
     );
 
     if (studentQuery.rows.length === 0) {
+      console.log('🔵 [CLAIM] Student not found, returning 404');
       return res.status(404).json({
         success: false,
         error: "Student not found",
@@ -364,9 +393,11 @@ exports.claimCertificate = async (req, res) => {
     }
 
     const student = studentQuery.rows[0];
+    console.log(`🔵 [CLAIM] Student found: ${student.name}, Wallet: ${student.wallet_address}`);
     
     // Check if student has a wallet address
     if (!student.wallet_address) {
+      console.log('🔵 [CLAIM] Student has no wallet, returning 400');
       return res.status(400).json({
         success: false,
         error: "Wallet not connected",
@@ -375,12 +406,14 @@ exports.claimCertificate = async (req, res) => {
     }
 
     // Check if certificate exists and belongs to this student
+    console.log(`🔵 [CLAIM] Querying certificate ${tokenId} for wallet ${student.wallet_address}`);
     const certQuery = await db.pool.query(
       'SELECT * FROM certificates WHERE token_id = $1 AND LOWER(holder) = LOWER($2)',
       [tokenId, student.wallet_address]
     );
 
     if (certQuery.rows.length === 0) {
+      console.log('🔵 [CLAIM] Certificate not found, returning 404');
       return res.status(404).json({
         success: false,
         error: "Certificate not found",
@@ -389,10 +422,12 @@ exports.claimCertificate = async (req, res) => {
     }
 
     const certificate = certQuery.rows[0];
+    console.log(`🔵 [CLAIM] Certificate found, status: ${certificate.status}`);
     
     // Check if certificate is in claimable status
     //pending là trạng thái tương đương issued chưa claim, Là computed_status được map từ 'Issued' khi trả về API. check 'pending' để handle trường hợp frontend gửi computed status (vì frontend thấy là 'pending'). Thực tế check pending là không cần thiết nhưng để an toàn nên giữ lại
-    if (certificate.status.toLowerCase() !== 'issued' && certificate.status.toLowerCase() !== 'pending') { 
+    if (certificate.status.toLowerCase() !== 'issued' && certificate.status.toLowerCase() !== 'pending') {
+      console.log(`🔵 [CLAIM] Certificate not claimable, status: ${certificate.status}, returning 400`);
       return res.status(400).json({
         success: false,
         error: "Certificate not claimable",
@@ -406,26 +441,68 @@ exports.claimCertificate = async (req, res) => {
       gasPrice: ethers.parseUnits("25", "gwei")
     };
 
-    console.log(`🔄 Claiming certificate ${tokenId} for wallet ${student.wallet_address}...`);
+    console.log(`🔵 [CLAIM] Calling blockchain contract to claim certificate ${tokenId}...`);
     const tx = await contract.claimCertificate(tokenId, gasOptions);
+    console.log(`🔵 [CLAIM] Transaction sent, waiting for receipt...`);
     const receipt = await tx.wait();
 
-    console.log(`✅ Certificate ${tokenId} claimed successfully. Transaction: ${receipt.transactionHash}`);
+    console.log(`🔵 [CLAIM] ✅ Certificate ${tokenId} claimed successfully. Transaction: ${receipt.transactionHash}`);
 
     // Update the certificate status in database
+    console.log(`🔵 [CLAIM] Updating certificate status in database...`);
     await db.pool.query(
       'UPDATE certificates SET status = $1, updated_at = NOW() WHERE token_id = $2',
       ['Active', tokenId]
     );
+    console.log(`🔵 [CLAIM] Database updated successfully`);
 
     // Immediately sync the certificate to ensure status is updated
+    console.log(`🔵 [CLAIM] Starting sync...`);
     try {
       await syncCertificateImmediately(tokenId);
-      console.log(`✅ Certificate ${tokenId} synced after claiming`);
+      console.log(`🔵 [CLAIM] ✅ Certificate ${tokenId} synced after claiming`);
     } catch (syncError) {
-      console.error(`❌ Failed to sync certificate ${tokenId} after claiming:`, syncError.message);
+      console.error(`🔵 [CLAIM] ❌ Failed to sync certificate ${tokenId} after claiming:`, syncError.message);
+      console.error(`🔵 [CLAIM] Sync error stack:`, syncError.stack);
     }
 
+    // Send email notification to student
+    console.log(`🔵 [CLAIM] 📧 Attempting to send claim notification for certificate ${tokenId} to ${student.email}...`);
+    console.log(`🔵 [CLAIM] Student email: ${student.email}, Student name: ${student.name}`);
+    console.log(`🔵 [CLAIM] Certificate data:`, {
+      token_id: tokenId,
+      certificate_name: certificate.certificate_name,
+      course_name: certificate.course_name,
+      issued_date: certificate.issued_date,
+      expire_date: certificate.expire_date,
+      transaction_hash: receipt.transactionHash
+    });
+    
+    try {
+      const emailResult = await emailNotificationService.notifyCertificateClaimed(
+        student.email,
+        student.name,
+        {
+          token_id: tokenId,
+          certificate_name: certificate.certificate_name,
+          course_name: certificate.course_name,
+          issued_date: certificate.issued_date,
+          expire_date: certificate.expire_date,
+          transaction_hash: receipt.transactionHash
+        }
+      );
+      console.log(`🔵 [CLAIM] Email service returned:`, emailResult);
+      if (emailResult) {
+        console.log(`🔵 [CLAIM] ✅ Claim notification sent successfully for certificate ${tokenId}`);
+      } else {
+        console.warn(`🔵 [CLAIM] ⚠️ Claim notification returned false for certificate ${tokenId}`);
+      }
+    } catch (emailError) {
+      console.error(`🔵 [CLAIM] ❌ Failed to send claim notification for certificate ${tokenId}:`, emailError.message);
+      console.error(`🔵 [CLAIM] ❌ Email error stack:`, emailError.stack);
+    }
+
+    console.log(`🔵 [CLAIM] Returning success response`);
     return res.status(200).json({
       success: true,
       message: "Certificate claimed successfully",
@@ -465,6 +542,7 @@ exports.claimCertificate = async (req, res) => {
     });
   }
 };
+*/
 
 // ========================
 // GET /api/certificates/:id
@@ -514,15 +592,18 @@ exports.getCertificateById = async (req, res) => {
 // ========================
 // POST /api/certificates/:id/sync-status - Sync certificate status after blockchain claim
 // ======================== 
-// hàm này để hỗ trợ frontend claim trực tiếp qua metamask, sau khi claim xong frontend gọi API này để backend cập nhật trạng thái chứng chỉ, hiện tại chưa cần thiết
-/** 
+// hàm này để hỗ trợ frontend claim trực tiếp qua metamask, sau khi claim xong frontend gọi API này để backend cập nhật trạng thái chứng chỉ và gửi email
 exports.syncCertificateStatus = async (req, res) => {
+  console.log('🟢 [SYNC-STATUS] Starting syncCertificateStatus function');
   try {
     const tokenId = req.params.id;
     const { transactionHash, blockNumber } = req.body;
     const userEmail = req.user?.email;
 
+    console.log(`🟢 [SYNC-STATUS] Token ID: ${tokenId}, User Email: ${userEmail}, Transaction Hash: ${transactionHash}`);
+
     if (!userEmail) {
+      console.log('🟢 [SYNC-STATUS] No user email, returning 401');
       return res.status(401).json({ 
         success: false,
         error: "Authentication required" 
@@ -530,12 +611,14 @@ exports.syncCertificateStatus = async (req, res) => {
     }
 
     // Get student info
+    console.log(`🟢 [SYNC-STATUS] Querying student with email: ${userEmail.toLowerCase()}`);
     const studentQuery = await db.pool.query(
       'SELECT id, email, wallet_address, name FROM students WHERE email = $1',
       [userEmail.toLowerCase()]
     );
 
     if (studentQuery.rows.length === 0) {
+      console.log('🟢 [SYNC-STATUS] Student not found, returning 404');
       return res.status(404).json({
         success: false,
         error: "Student not found"
@@ -543,14 +626,17 @@ exports.syncCertificateStatus = async (req, res) => {
     }
 
     const student = studentQuery.rows[0];
+    console.log(`🟢 [SYNC-STATUS] Student found: ${student.name}, Wallet: ${student.wallet_address}`);
 
     // Verify the certificate belongs to this student
+    console.log(`🟢 [SYNC-STATUS] Querying certificate ${tokenId} for wallet ${student.wallet_address}`);
     const certQuery = await db.pool.query(
       'SELECT * FROM certificates WHERE token_id = $1 AND LOWER(holder) = LOWER($2)',
       [tokenId, student.wallet_address]
     );
 
     if (certQuery.rows.length === 0) {
+      console.log('🟢 [SYNC-STATUS] Certificate not found, returning 404');
       return res.status(404).json({
         success: false,
         error: "Certificate not found or not assigned to your wallet"
@@ -558,22 +644,63 @@ exports.syncCertificateStatus = async (req, res) => {
     }
 
     const certificate = certQuery.rows[0];
+    console.log(`🟢 [SYNC-STATUS] Certificate found, current status: ${certificate.status}`);
 
     // Update certificate status to Active
+    console.log(`🟢 [SYNC-STATUS] Updating certificate status to Active...`);
     await db.pool.query(
       'UPDATE certificates SET status = $1, updated_at = NOW() WHERE token_id = $2',
       ['Active', tokenId]
     );
+    console.log(`🟢 [SYNC-STATUS] Database updated successfully`);
 
-    // Log the claim event (skip if already exists)
-    await db.pool.query(
-      `INSERT INTO certificate_events (token_id, event_type, holder, block_number, tx_hash) 
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (token_id, event_type) DO NOTHING`,
-      [tokenId, 'Claimed', student.wallet_address, blockNumber || null, transactionHash]
-    );
+    // Immediately sync the certificate to ensure status is updated
+    console.log(`🟢 [SYNC-STATUS] Starting sync...`);
+    try {
+      await syncCertificateImmediately(tokenId);
+      console.log(`🟢 [SYNC-STATUS] ✅ Certificate ${tokenId} synced after claiming`);
+    } catch (syncError) {
+      console.error(`🟢 [SYNC-STATUS] ❌ Failed to sync certificate ${tokenId} after claiming:`, syncError.message);
+      console.error(`🟢 [SYNC-STATUS] Sync error stack:`, syncError.stack);
+    }
 
-    console.log(`✅ Certificate ${tokenId} status synced to Active after blockchain claim`);
+    // Send email notification to student
+    console.log(`🟢 [SYNC-STATUS] 📧 Attempting to send claim notification for certificate ${tokenId} to ${student.email}...`);
+    console.log(`🟢 [SYNC-STATUS] Student email: ${student.email}, Student name: ${student.name}`);
+    console.log(`🟢 [SYNC-STATUS] Certificate data:`, {
+      token_id: tokenId,
+      certificate_name: certificate.certificate_name,
+      course_name: certificate.course_name,
+      issued_date: certificate.issued_date,
+      expire_date: certificate.expire_date,
+      transaction_hash: transactionHash
+    });
+    
+    try {
+      const emailResult = await emailNotificationService.notifyCertificateClaimed(
+        student.email,
+        student.name,
+        {
+          token_id: tokenId,
+          certificate_name: certificate.certificate_name,
+          course_name: certificate.course_name,
+          issued_date: certificate.issued_date,
+          expire_date: certificate.expire_date,
+          transaction_hash: transactionHash
+        }
+      );
+      console.log(`🟢 [SYNC-STATUS] Email service returned:`, emailResult);
+      if (emailResult) {
+        console.log(`🟢 [SYNC-STATUS] ✅ Claim notification sent successfully for certificate ${tokenId}`);
+      } else {
+        console.warn(`🟢 [SYNC-STATUS] ⚠️ Claim notification returned false for certificate ${tokenId}`);
+      }
+    } catch (emailError) {
+      console.error(`🟢 [SYNC-STATUS] ❌ Failed to send claim notification for certificate ${tokenId}:`, emailError.message);
+      console.error(`🟢 [SYNC-STATUS] ❌ Email error stack:`, emailError.stack);
+    }
+
+    console.log(`🟢 [SYNC-STATUS] ✅ Certificate ${tokenId} status synced to Active after blockchain claim`);
 
     return res.status(200).json({
       success: true,
@@ -587,7 +714,8 @@ exports.syncCertificateStatus = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ Error syncing certificate status:", err);
+    console.error("🟢 [SYNC-STATUS] ❌ Error syncing certificate status:", err);
+    console.error("🟢 [SYNC-STATUS] ❌ Error stack:", err.stack);
     return res.status(500).json({ 
       success: false,
       error: "Failed to sync certificate status",
@@ -596,7 +724,6 @@ exports.syncCertificateStatus = async (req, res) => {
     });
   }
 };
-*/
 
 // ========================
 // PUT /api/certificates/:id/revoke
@@ -610,9 +737,58 @@ exports.revokeCertificate = async (req, res) => {
       return res.status(400).json({ error: "Revoke reason is required" });
     }
 
+    // Get certificate and student info for notification
+    // Use LOWER() for case-insensitive comparison to match other queries
+    const certQuery = await db.pool.query(
+      'SELECT c.*, s.email, s.name FROM certificates c JOIN students s ON LOWER(c.holder) = LOWER(s.wallet_address) WHERE c.token_id = $1',
+      [tokenId]
+    );
+    
+    const certInfo = certQuery.rows.length > 0 ? certQuery.rows[0] : null;
+    
+    // Log if certInfo is not found for debugging
+    if (!certInfo) {
+      console.warn(`⚠️ Certificate ${tokenId} found but student info not found for email notification`);
+      // Try to get certificate info without student join as fallback
+      const certOnlyQuery = await db.pool.query(
+        'SELECT * FROM certificates WHERE token_id = $1',
+        [tokenId]
+      );
+      if (certOnlyQuery.rows.length > 0) {
+        console.warn(`⚠️ Certificate exists but no matching student found for wallet: ${certOnlyQuery.rows[0].holder}`);
+      }
+    }
+
     // Gọi smart contract để thu hồi
     const tx = await contract.revokeCertificate(tokenId, reason);
     const receipt = await tx.wait();
+
+    // Send email notification to student
+    if (certInfo) {
+      console.log(`📧 Attempting to send revoke notification for certificate ${tokenId} to ${certInfo.email}...`);
+      try {
+        const emailResult = await emailNotificationService.notifyCertificateRevoked(
+          certInfo.email,
+          certInfo.name,
+          {
+            token_id: tokenId,
+            certificate_name: certInfo.certificate_name,
+            course_name: certInfo.course_name
+          },
+          reason
+        );
+        if (emailResult) {
+          console.log(`✅ Revoke notification sent successfully for certificate ${tokenId}`);
+        } else {
+          console.warn(`⚠️ Revoke notification returned false for certificate ${tokenId}`);
+        }
+      } catch (emailError) {
+        console.error(`❌ Failed to send revoke notification for certificate ${tokenId}:`, emailError.message);
+        console.error(`❌ Email error stack:`, emailError.stack);
+      }
+    } else {
+      console.warn(`⚠️ Cannot send revoke notification: certInfo is null for certificate ${tokenId}`);
+    }
 
     return res.status(200).json({
       message: "Certificate revoked",
@@ -1087,6 +1263,28 @@ exports.replaceCertificate = async (req, res) => {
       .filter((e) => e && e.name === "CertificateReplaced")[0];
 
     const newTokenId = replacedEvent?.args?.newTokenId?.toString();
+
+    // Send email notification to student
+    try {
+      await emailNotificationService.notifyCertificateReplaced(
+        recipient_email,
+        recipient_name,
+        {
+          token_id: oldTokenId,
+          certificate_name: certificate_name
+        },
+        {
+          token_id: newTokenId,
+          certificate_name: certificate_name,
+          course_name: finalCourseName,
+          issued_date: issued_date,
+          expire_date: expire_date
+        }
+      );
+      console.log(`📧 Replace notification sent for certificates ${oldTokenId} -> ${newTokenId}`);
+    } catch (emailError) {
+      console.error(`❌ Failed to send replace notification:`, emailError.message);
+    }
 
     return res.status(200).json({
       new_certificate_id: newTokenId || "unknown",
