@@ -1,6 +1,9 @@
 const path = require('path');
 const fs = require('fs').promises;
-const documentIngestionService = require('../services/documentIngestionService');
+const DocumentLoaderService = require('../rag/loadDocuments');
+const PostgreSQLVectorStore = require('../rag/vectorStore');
+const { GoogleGenerativeAIEmbeddings } = require('@langchain/google-genai');
+const db = require('../config/pg');
 
 /**
  * Test Document Ingestion Pipeline
@@ -164,8 +167,30 @@ A: Có, trong trang Profile:
       description: 'Tài liệu hướng dẫn sử dụng hệ thống'
     };
 
-    console.log('🔄 Processing documents...');
-    const results = await documentIngestionService.ingestDocuments(testFiles, metadata);
+    console.log('🔄 Processing documents with LangChain...');
+    
+    // Initialize embeddings and document loader
+    const embeddings = new GoogleGenerativeAIEmbeddings({
+      model: 'text-embedding-004',
+      apiKey: process.env.GEMINI_API_KEY,
+    });
+    
+    const documentLoader = new DocumentLoaderService();
+    const vectorStore = PostgreSQLVectorStore.fromEmbeddings(embeddings, { pool: db.pool });
+    
+    // Load documents using LangChain
+    const loadedDocs = await documentLoader.loadDocuments(testFiles);
+    
+    // Add documents to vector store with embeddings
+    const documentIds = await vectorStore.addDocuments(loadedDocs);
+    
+    // Prepare results in the same format as the old service
+    const results = testFiles.map((file, index) => ({
+      filename: file.originalName,
+      status: 'success',
+      documentIds: [documentIds[index]], // Assuming each file maps to one or more document IDs
+      chunkCount: loadedDocs.filter(doc => doc.metadata.sourceFile === file.originalName).length
+    }));
 
     console.log('📊 Ingestion Results:');
     results.forEach((result, index) => {
@@ -191,7 +216,28 @@ A: Có, trong trang Profile:
     for (const query of searchQueries) {
       console.log(`🔍 Searching: "${query}"`);
       try {
-        const searchResults = await documentIngestionService.searchSimilarDocuments(query, 3, 0.5);
+        // Initialize embeddings and vector store for search
+        const embeddings = new GoogleGenerativeAIEmbeddings({
+          model: 'text-embedding-004',
+          apiKey: process.env.GEMINI_API_KEY,
+        });
+        
+        const vectorStore = PostgreSQLVectorStore.fromEmbeddings(embeddings, { pool: db.pool });
+        
+        // Perform similarity search using LangChain vector store
+        const docs = await vectorStore.similaritySearch(query, 3);
+        
+        // Convert LangChain documents to the expected format
+        const searchResults = docs.map(doc => ({
+          id: doc.metadata.id,
+          title: doc.metadata.title,
+          content_chunk: doc.pageContent,
+          source_file: doc.metadata.sourceFile,
+          source_type: doc.metadata.sourceType,
+          similarity_score: doc.metadata.similarityScore,
+          metadata: doc.metadata
+        }));
+        
         console.log(`  Found ${searchResults.length} relevant documents:`);
         
         searchResults.forEach((doc, index) => {
@@ -207,7 +253,24 @@ A: Có, trong trang Profile:
     // Test 5: Get statistics
     console.log('📋 Test 5: Document Statistics');
     try {
-      const stats = await documentIngestionService.getDocumentStats();
+      // Get document statistics directly from the database
+      const query = `
+        SELECT 
+          COUNT(*) as total_documents,
+          COUNT(DISTINCT source_file) as unique_files,
+          AVG(LENGTH(content_chunk)) as avg_chunk_length,
+          MIN(created_at) as oldest_document,
+          MAX(created_at) as newest_document,
+          source_type,
+          COUNT(*) as count_by_type
+        FROM chatbot_documents
+        GROUP BY source_type
+        ORDER BY count_by_type DESC
+      `;
+      
+      const result = await db.pool.query(query);
+      const stats = result.rows;
+      
       console.log('📊 Document Statistics:');
       stats.forEach(stat => {
         console.log(`  ${stat.source_type}: ${stat.count_by_type} documents`);

@@ -82,11 +82,8 @@ app.use("/api/dashboard", dashboardRoutes);
 const documentRoutes = require("./routes/documentRoutes");
 app.use("/api/documents", documentRoutes);
 
-const chatbotRoutes = require("./routes/chatbotRoutes");
-app.use("/api/chatbot", chatbotRoutes);
-
-// New lightweight chat API (RAG-focused) mounted at /api/chat
-const chatRoutes = require("./routes/chatRoutes");
+// New LangChain RAG chat API mounted at /api/chat
+const chatRoutes = require("./routes/chat");
 app.use("/api/chat", chatRoutes);
 
 // Auto-sync configuration

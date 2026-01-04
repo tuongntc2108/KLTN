@@ -1,7 +1,10 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
-const documentIngestionService = require('../services/documentIngestionService');
+const DocumentLoaderService = require('../rag/loadDocuments');
+const PostgreSQLVectorStore = require('../rag/vectorStore');
+const { GoogleGenerativeAIEmbeddings } = require('@langchain/google-genai');
+const db = require('../config/pg');
 
 /**
  * Document Upload Controller
@@ -107,9 +110,31 @@ class DocumentController {
         size: file.size
       }));
 
-      // Process documents through ingestion service
-      console.log('🔄 Starting document ingestion...');
-      const results = await documentIngestionService.ingestDocuments(files, metadata);
+      // Process documents through LangChain ingestion service
+      console.log('🔄 Starting document ingestion with LangChain...');
+      
+      // Initialize embeddings and document loader
+      const embeddings = new GoogleGenerativeAIEmbeddings({
+        model: 'text-embedding-004',
+        apiKey: process.env.GEMINI_API_KEY,
+      });
+      
+      const documentLoader = new DocumentLoaderService();
+      const vectorStore = PostgreSQLVectorStore.fromEmbeddings(embeddings, { pool: db.pool });
+      
+      // Load documents using LangChain
+      const loadedDocs = await documentLoader.loadDocuments(files);
+      
+      // Add documents to vector store with embeddings
+      const documentIds = await vectorStore.addDocuments(loadedDocs);
+      
+      // Prepare results in the same format as the old service
+      const results = files.map((file, index) => ({
+        filename: file.originalName,
+        status: 'success',
+        documentIds: [documentIds[index]], // Assuming each file maps to one or more document IDs
+        chunkCount: loadedDocs.filter(doc => doc.metadata.sourceFile === file.originalName).length
+      }));
 
       // Clean up uploaded files after processing
       await cleanupUploadedFiles(files);
@@ -174,11 +199,27 @@ class DocumentController {
 
       console.log(`🔍 Searching documents with query: "${query}"`);
 
-      const results = await documentIngestionService.searchSimilarDocuments(
-        query,
-        parseInt(limit),
-        parseFloat(threshold)
-      );
+      // Initialize embeddings and vector store for search
+      const embeddings = new GoogleGenerativeAIEmbeddings({
+        model: 'text-embedding-004',
+        apiKey: process.env.GEMINI_API_KEY,
+      });
+      
+      const vectorStore = PostgreSQLVectorStore.fromEmbeddings(embeddings, { pool: db.pool });
+      
+      // Perform similarity search using LangChain vector store
+      const docs = await vectorStore.similaritySearch(query, parseInt(limit));
+      
+      // Convert LangChain documents to the expected format
+      const results = docs.map(doc => ({
+        id: doc.metadata.id,
+        title: doc.metadata.title,
+        content_chunk: doc.pageContent,
+        source_file: doc.metadata.sourceFile,
+        source_type: doc.metadata.sourceType,
+        similarity_score: doc.metadata.similarityScore,
+        metadata: doc.metadata
+      }));
 
       res.status(200).json({
         message: `Found ${results.length} relevant documents`,
@@ -212,7 +253,23 @@ class DocumentController {
     try {
       console.log('📊 Getting document statistics...');
       
-      const stats = await documentIngestionService.getDocumentStats();
+      // Get document statistics directly from the database
+      const query = `
+        SELECT 
+          COUNT(*) as total_documents,
+          COUNT(DISTINCT source_file) as unique_files,
+          AVG(LENGTH(content_chunk)) as avg_chunk_length,
+          MIN(created_at) as oldest_document,
+          MAX(created_at) as newest_document,
+          source_type,
+          COUNT(*) as count_by_type
+        FROM chatbot_documents
+        GROUP BY source_type
+        ORDER BY count_by_type DESC
+      `;
+      
+      const result = await db.pool.query(query);
+      const stats = result.rows;
 
       res.status(200).json({
         message: 'Document statistics retrieved successfully',

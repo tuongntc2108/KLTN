@@ -146,7 +146,7 @@ export function ChatbotWidget() {
     setLoading(true);
 
     try {
-      const res = await fetch(process.env.NEXT_PUBLIC_CHAT_API_URL || DEFAULT_API, {
+      const res = await fetch(String(process.env.NEXT_PUBLIC_CHAT_API_URL || DEFAULT_API), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text, sessionId }),
