@@ -1,11 +1,11 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { OpenAI } = require('openai');
 
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Initialize OpenAI
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 class AISummaryService {
   constructor() {
-    this.model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    this.modelName = "gpt-3.5-turbo";
   }
 
   async generateCertificateSummary(courseData) {
@@ -22,9 +22,14 @@ Chương trình đào tạo: ${training_content || 'Không có thông tin'}
 
 Yêu cầu: Trả về nội dung tóm tắt 2–3 câu, không cần JSON, chỉ văn bản thuần.`;
 
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const summary = response.text().trim();
+      const response = await openai.chat.completions.create({
+        model: this.modelName,
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 150,
+        temperature: 0.5,
+      });
+      
+      const summary = response.choices[0].message.content.trim();
       
       return summary;
     } catch (error) {

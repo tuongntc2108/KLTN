@@ -1,7 +1,8 @@
-const { ChatGoogleGenerativeAI } = require('@langchain/google-genai');
+const { ChatOpenAI } = require('@langchain/openai');
 const { PromptTemplate } = require('@langchain/core/prompts');
 const { StringOutputParser } = require('@langchain/core/output_parsers');
 const { RunnableSequence, RunnablePassthrough } = require('@langchain/core/runnables');
+const { classifyQueryMetadata } = require('./metadataClassification');
 
 /**
  * RAG Chain Service using LangChain
@@ -9,11 +10,11 @@ const { RunnableSequence, RunnablePassthrough } = require('@langchain/core/runna
  */
 class RAGChainService {
   constructor(options = {}) {
-    // Initialize Gemini model for response generation
-    this.model = new ChatGoogleGenerativeAI({
-      model: options.modelName || 'gemini-2.5-flash',
-      apiKey: process.env.GEMINI_API_KEY,
-      maxOutputTokens: options.maxOutputTokens || 3000,
+    // Initialize OpenAI model for response generation
+    this.model = new ChatOpenAI({
+      modelName: options.modelName || 'gpt-3.5-turbo',
+      openAIApiKey: process.env.OPENAI_API_KEY,
+      maxTokens: options.maxOutputTokens || 3000,
       temperature: options.temperature || 0.5,
     });
 
@@ -54,8 +55,15 @@ Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu th�
     // Format documents for context
     const formatDocuments = (docs) => {
       if (!docs || docs.length === 0) {
+        console.log('📄 [RAG] No relevant documents found in vector store');
         return 'Hiện chưa có đoạn văn bản nào trùng khớp trong cơ sở dữ liệu.';
       }
+      
+      console.log(`📄 [RAG] Retrieved ${docs.length} relevant documents:`);
+      docs.forEach((doc, index) => {
+        console.log(`  ${index + 1}. [${doc.metadata.title || 'Unknown'}] Similarity: ${((doc.metadata.similarityScore || 0) * 100).toFixed(1)}%`);
+        console.log(`     Content preview: ${doc.pageContent.substring(0, 100)}...`);
+      });
       
       return docs.map((doc, index) => 
         `${index + 1}. Từ "${doc.metadata.title || 'Unknown'}" (độ liên quan: ${((doc.metadata.similarityScore || 0) * 100).toFixed(1)}%):\n${doc.pageContent}`
@@ -73,21 +81,80 @@ Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu th�
     // Create the RAG chain
     const chain = RunnableSequence.from([
       {
-        context: (input) => {
+        context: async (input) => {
           // Validate vector store again before use
-          if (!localVectorStore || typeof localVectorStore.similaritySearch !== 'function') {
+          if (!localVectorStore || typeof localVectorStore.similaritySearchVectorWithScore !== 'function') {
             console.error('Vector store validation failed in context function');
-            return Promise.resolve('Hiện chưa có đoạn văn bản nào trùng khớp trong cơ sở dữ liệu.');
+            return 'Hiện chưa có đoạn văn bản nào trùng khớp trong cơ sở dữ liệu.';
           }
           
-          // Perform similarity search and format documents
-          return localVectorStore
-            .similaritySearch(input.question, 5) // Retrieve top 5 most similar documents
-            .then(formatDocuments)
-            .catch(error => {
-              console.error('Error in similarity search:', error);
+          try {
+            // Classify query metadata to filter relevant documents
+            const queryMetadata = await classifyQueryMetadata(input.question);
+            
+            console.log(`🎯 [METADATA FILTER] Inferred metadata from question:`, queryMetadata);
+            
+            // Perform similarity search with metadata filters
+            const docs = await localVectorStore.similaritySearchVectorWithScore(
+              input.question, 
+              5, // Retrieve top 5 most similar documents
+              queryMetadata // Apply metadata filters
+            );
+            
+            // Extract documents from results (each result is [document, similarity_score])
+            const documents = docs.map(([doc, score]) => ({
+              ...doc,
+              metadata: {
+                ...doc.metadata,
+                similarityScore: score
+              }
+            }));
+            
+            // Check if documents were found and have adequate similarity scores
+            if (documents.length === 0) {
+              console.log('📄 [RAG] No relevant documents found with metadata filters');
+              
+              // Fallback: try without filters
+              const fallbackDocs = await localVectorStore.similaritySearch(input.question, 5);
+              if (fallbackDocs.length === 0) {
+                return 'Hiện chưa có đoạn văn bản nào trùng khớp trong cơ sở dữ liệu.';
+              }
+              
+              console.log(`📄 [RAG] Fallback search returned ${fallbackDocs.length} documents`);
+              return formatDocuments(fallbackDocs);
+            }
+            
+            // Check if similarity scores are adequate
+            const adequateScoreThreshold = 0.3; // Lower threshold for filtered results
+            const adequateDocs = documents.filter(doc => 
+              (doc.metadata.similarityScore || 0) >= adequateScoreThreshold
+            );
+            
+            if (adequateDocs.length === 0) {
+              console.log(`📄 [RAG] No documents found with similarity score >= ${adequateScoreThreshold}`);
+              
+              // Low confidence fallback: try unfiltered search
+              const fallbackDocs = await localVectorStore.similaritySearch(input.question, 5);
+              if (fallbackDocs.length === 0) {
+                return 'Hiện chưa có đoạn văn bản nào trùng khớp trong cơ sở dữ liệu.';
+              }
+              
+              console.log(`📄 [RAG] Fallback search returned ${fallbackDocs.length} documents`);
+              return formatDocuments(fallbackDocs);
+            }
+            
+            return formatDocuments(adequateDocs);
+          } catch (error) {
+            console.error('Error in similarity search with metadata filters:', error);
+            // Fallback to unfiltered search
+            try {
+              const fallbackDocs = await localVectorStore.similaritySearch(input.question, 5);
+              return formatDocuments(fallbackDocs);
+            } catch (fallbackError) {
+              console.error('Error in fallback similarity search:', fallbackError);
               return 'Hiện chưa có đoạn văn bản nào trùng khớp trong cơ sở dữ liệu.';
-            });
+            }
+          }
         },
         question: (input) => input.question,
       },
@@ -107,8 +174,18 @@ Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu th�
    */
   async executeRAG(vectorStore, question) {
     try {
+      console.log('\n🚀 [RAG] Starting RAG execution...');
+      console.log(`❓ [RAG] User Question: "${question}"`);
+      
       const chain = this.createRAGChain(vectorStore);
+      console.log('⚙️  [RAG] Chain created, executing...');
+      
       const result = await chain.invoke({ question });
+      
+      console.log('✅ [RAG] LLM Response received:');
+      console.log(`📝 Response (${result.length} characters): ${result}`);
+      console.log('---');
+      
       return result;
     } catch (error) {
       console.error('❌ Error in RAG execution:', error);
@@ -131,17 +208,61 @@ Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu th�
    */
   async getRelevantDocuments(vectorStore, question, k = 5) {
     try {
-      // Validate vector store before use
-      if (!vectorStore || typeof vectorStore.similaritySearch !== 'function') {
-        console.error('Invalid vector store in getRelevantDocuments');
-        return [];
+      // Classify query metadata to filter relevant documents
+      const queryMetadata = await classifyQueryMetadata(question);
+      
+      console.log(`🎯 [METADATA FILTER] Inferred metadata from question:`, queryMetadata);
+      
+      // Perform similarity search with metadata filters
+      const docs = await vectorStore.similaritySearchVectorWithScore(
+        question, 
+        k,
+        queryMetadata // Apply metadata filters
+      );
+      
+      // Extract documents from results (each result is [document, similarity_score])
+      const documents = docs.map(([doc, score]) => ({
+        ...doc,
+        metadata: {
+          ...doc.metadata,
+          similarityScore: score
+        }
+      }));
+      
+      // Check if documents were found and have adequate similarity scores
+      if (documents.length === 0) {
+        console.log('📄 [RAG] No relevant documents found with metadata filters');
+        
+        // Fallback: try without filters
+        const fallbackDocs = await vectorStore.similaritySearch(question, k);
+        return fallbackDocs;
       }
       
-      const documents = await vectorStore.similaritySearch(question, k);
-      return documents;
+      // Check if similarity scores are adequate
+      const adequateScoreThreshold = 0.3; // Lower threshold for filtered results
+      const adequateDocs = documents.filter(doc => 
+        (doc.metadata.similarityScore || 0) >= adequateScoreThreshold
+      );
+      
+      if (adequateDocs.length === 0) {
+        console.log(`📄 [RAG] No documents found with similarity score >= ${adequateScoreThreshold}`);
+        // Fallback to unfiltered search
+        const fallbackDocs = await vectorStore.similaritySearch(question, k);
+        return fallbackDocs;
+      }
+      
+      return adequateDocs;
     } catch (error) {
       console.error('❌ Error retrieving relevant documents:', error);
-      return [];
+      
+      // Fallback to unfiltered search
+      try {
+        const fallbackDocs = await vectorStore.similaritySearch(question, k);
+        return fallbackDocs;
+      } catch (fallbackError) {
+        console.error('❌ Error in fallback retrieval:', fallbackError);
+        return [];
+      }
     }
   }
 }

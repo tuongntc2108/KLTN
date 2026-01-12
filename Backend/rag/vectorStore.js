@@ -95,23 +95,75 @@ class PostgreSQLVectorStore {
    */
   async similaritySearchVectorWithScore(query, k = 5, filter = {}) {
     try {
+      console.log('\n🔍 [VECTOR STORE] Similarity Search Started');
+      console.log(`   Query: "${query}"`);
+      console.log(`   Looking for top ${k} documents`);
+      
       // Generate embedding for the query
       const queryEmbedding = await this.embeddings.embedQuery(query);
+      console.log(`✅ Query embedding generated: ${queryEmbedding.length} dimensions`);
+      
       const embeddingVector = `[${queryEmbedding.join(',')}]`;
       
-      // Search for similar documents using cosine similarity
+      // First, get ALL similarity scores to analyze distribution
+      const allDocsQuery = `
+        SELECT 
+          id, title, content_chunk, source_file,
+          1 - (embedding <=> $1::vector) as similarity_score
+        FROM ${this.tableName}
+        ORDER BY embedding <=> $1::vector
+      `;
+      
+      const allDocsResult = await this.pool.query(allDocsQuery, [embeddingVector]);
+      const allDocs = allDocsResult.rows;
+      
+      console.log(`\n📊 [SIMILARITY DISTRIBUTION] Total documents in database: ${allDocs.length}`);
+      console.log(`   Top 10 similarity scores:`);
+      allDocs.slice(0, 10).forEach((row, index) => {
+        console.log(`   ${index + 1}. Score: ${(row.similarity_score * 100).toFixed(2)}% | ${row.title} | ${row.content_chunk.substring(0, 60)}...`);
+      });
+      
+      const SIMILARITY_THRESHOLD = 0.5; // Adjustable threshold
+      
+      // Build dynamic WHERE clause for metadata filtering
+      const { whereClause, filterValues } = this.buildMetadataFilter(filter, 4); // Parameter positions after embeddingVector, k, SIMILARITY_THRESHOLD
+      
+      // The actual parameter positions in the query will be:
+      // $1: embeddingVector
+      // $2: k (limit)
+      // $3: SIMILARITY_THRESHOLD
+      // $4+: filter values
+      
       const vectorQuery = `
         SELECT 
           id, title, content_chunk, source_file, source_type, metadata,
           1 - (embedding <=> $1::vector) as similarity_score
         FROM ${this.tableName}
-        WHERE 1 - (embedding <=> $1::vector) > 0.0  -- Minimum similarity threshold
+        WHERE 1 - (embedding <=> $1::vector) > $3  -- Similarity threshold
+        ${whereClause ? `AND ${whereClause}` : ''}
         ORDER BY embedding <=> $1::vector
         LIMIT $2
       `;
       
-      const vectorResult = await this.pool.query(vectorQuery, [embeddingVector, k]);
+      // Parameters in order: embeddingVector, k, SIMILARITY_THRESHOLD, filter values
+      const queryValues = [embeddingVector, k, SIMILARITY_THRESHOLD, ...filterValues];
+      
+      console.log(`\n🔎 [FILTERING] Similarity threshold: ${(SIMILARITY_THRESHOLD * 100).toFixed(1)}%`);
+      if (Object.keys(filter).length > 0) {
+        console.log(`   Applied metadata filters:`, filter);
+      }
+      
+      const vectorResult = await this.pool.query(vectorQuery, queryValues);
       const results = vectorResult.rows;
+      
+      console.log(`\n📍 [FILTERED RESULTS] Found ${results.length} documents with score > ${(SIMILARITY_THRESHOLD * 100).toFixed(1)}%`);
+      results.forEach((row, index) => {
+        console.log(`\n   ${index + 1}. ID: ${row.id}`);
+        console.log(`      Title: ${row.title}`);
+        console.log(`      Similarity Score: ${(row.similarity_score * 100).toFixed(2)}%`);
+        console.log(`      Source: ${row.source_file}`);
+        console.log(`      Content Preview: ${row.content_chunk.substring(0, 80)}...`);
+      });
       
       // Convert results to LangChain format: [document, similarity_score]
       return results.map(row => [
@@ -167,6 +219,43 @@ class PostgreSQLVectorStore {
    */
   static fromEmbeddings(embeddings, options = {}) {
     return new PostgreSQLVectorStore(embeddings, options);
+  }
+  
+  /**
+   * Build WHERE clause for metadata filtering
+   * @param {Object} filter - Metadata filter conditions
+   * @param {number} paramOffset - Starting parameter index for query values
+   * @returns {Object} Object containing WHERE clause, filter values, and next parameter index
+   */
+  buildMetadataFilter(filter, paramOffset = 1) {
+    const conditions = [];
+    const values = [];
+    let currentParam = paramOffset;
+    
+    for (const [key, value] of Object.entries(filter)) {
+      if (value !== undefined && value !== null) {
+        if (Array.isArray(value)) {
+          // Handle array values with ANY operator
+          const placeholders = [];
+          for (let i = 0; i < value.length; i++) {
+            placeholders.push(`$${currentParam++}`);
+          }
+          conditions.push(`metadata->>'${key}' = ANY(ARRAY[${placeholders.join(',')}]::text[])`);
+          values.push(...value);
+        } else {
+          // Handle single value
+          conditions.push(`metadata->>'${key}' = $${currentParam}`);
+          values.push(value);
+          currentParam++;
+        }
+      }
+    }
+    
+    return {
+      whereClause: conditions.length > 0 ? conditions.join(' AND ') : '',
+      filterValues: values,
+      paramOffset: currentParam
+    };
   }
 }
 

@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const DocumentLoaderService = require('../rag/loadDocuments');
 const PostgreSQLVectorStore = require('../rag/vectorStore');
-const { GoogleGenerativeAIEmbeddings } = require('@langchain/google-genai');
+const { OpenAIEmbeddings } = require('@langchain/openai');
 const db = require('../config/pg');
 
 /**
@@ -114,9 +114,9 @@ class DocumentController {
       console.log('🔄 Starting document ingestion with LangChain...');
       
       // Initialize embeddings and document loader
-      const embeddings = new GoogleGenerativeAIEmbeddings({
-        model: 'text-embedding-004',
-        apiKey: process.env.GEMINI_API_KEY,
+      const embeddings = new OpenAIEmbeddings({
+        modelName: 'text-embedding-3-small',
+        openAIApiKey: process.env.OPENAI_API_KEY,
       });
       
       const documentLoader = new DocumentLoaderService();
@@ -200,9 +200,9 @@ class DocumentController {
       console.log(`🔍 Searching documents with query: "${query}"`);
 
       // Initialize embeddings and vector store for search
-      const embeddings = new GoogleGenerativeAIEmbeddings({
-        model: 'text-embedding-004',
-        apiKey: process.env.GEMINI_API_KEY,
+      const embeddings = new OpenAIEmbeddings({
+        modelName: 'text-embedding-3-small',
+        openAIApiKey: process.env.OPENAI_API_KEY,
       });
       
       const vectorStore = PostgreSQLVectorStore.fromEmbeddings(embeddings, { pool: db.pool });
@@ -377,7 +377,7 @@ class DocumentController {
   async healthCheck(req, res) {
     try {
       // Check if Gemini API key is configured
-      const hasGeminiKey = !!process.env.GEMINI_API_KEY;
+      const hasGeminiKey = !!process.env.OPENAI_API_KEY;
       
       // Check database connection
       const db = require('../config/pg');
@@ -387,7 +387,7 @@ class DocumentController {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         services: {
-          geminiApi: hasGeminiKey ? 'configured' : 'missing',
+          openaiApi: hasGeminiKey ? 'configured' : 'missing',
           database: dbCheck.rows.length > 0 ? 'connected' : 'error',
           uploadDirectory: 'ready'
         }

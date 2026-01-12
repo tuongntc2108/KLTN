@@ -225,3 +225,18 @@ COMMENT ON TABLE chatbot_uploads IS 'Manages file uploads for knowledge base';
 COMMENT ON TABLE chatbot_conversations IS 'Stores chat conversation history';
 COMMENT ON TABLE chatbot_config IS 'Configuration settings for chatbot behavior';
 COMMENT ON TABLE chatbot_analytics IS 'Analytics and metrics for chatbot usage';
+
+DROP INDEX IF EXISTS chatbot_documents_embedding_idx;
+
+-- Alter the table to increase the vector dimension size
+ALTER TABLE chatbot_documents ALTER COLUMN embedding TYPE VECTOR(1536);
+
+-- Recreate the index with the new dimension
+CREATE INDEX chatbot_documents_embedding_idx
+ON chatbot_documents USING ivfflat (embedding vector_l2_ops) WITH (lists = 100);
+
+-- Verify the change
+SELECT atttypmod 
+FROM pg_attribute 
+WHERE attrelid = 'chatbot_documents'::regclass 
+AND attname = 'embedding';

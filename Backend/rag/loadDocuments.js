@@ -1,4 +1,6 @@
 const { RecursiveCharacterTextSplitter } = require('@langchain/textsplitters');
+const { MarkdownHeaderTextSplitter } = require('@langchain/textsplitters');
+const { classifyChunkMetadata, classifyMultipleChunkMetadata } = require('./metadataClassification');
 
 // Dynamically import document loaders based on file type
 async function getDocumentLoader(fileType, filePath) {
@@ -8,8 +10,23 @@ async function getDocumentLoader(fileType, filePath) {
       return new PDFLoader(filePath, { splitPages: true });
       
     case 'docx':
-      const { DocxLoader } = await import('@langchain/community/document_loaders/fs/docx');
-      return new DocxLoader(filePath);
+      try {
+        // Try to import DocxLoader from the standard path
+        const { DocxLoader } = await import('@langchain/community/document_loaders/fs/docx');
+        return new DocxLoader(filePath);
+      } catch (error) {
+        // Fallback: treat DOCX as text by converting with alternative loader
+        console.log(`⚠️ DocxLoader not available, using UnstructuredLoader as fallback for DOCX`);
+        try {
+          const { UnstructuredLoader } = await import('@langchain/community/document_loaders/fs/unstructured');
+          return new UnstructuredLoader(filePath);
+        } catch (fallbackError) {
+          // Final fallback: just read the file as text
+          console.log(`⚠️ UnstructuredLoader not available, reading DOCX as raw text`);
+          const { TextLoader } = await import('@langchain/community/document_loaders/fs/text');
+          return new TextLoader(filePath);
+        }
+      }
       
     case 'txt':
     case 'md':
@@ -29,7 +46,7 @@ class DocumentLoaderService {
   constructor() {
     // Configuration for text processing
     this.config = {
-      chunkSize: 400, // Target characters per chunk
+      chunkSize: 300, // Target characters per chunk
       chunkOverlap: 50, // Characters to overlap between chunks
       maxFileSize: 10 * 1024 * 1024, // 10MB max file size
       supportedTypes: ['pdf', 'docx', 'txt', 'md'],
@@ -57,17 +74,36 @@ class DocumentLoaderService {
         // Load document based on file type
         const loadedDocs = await this.loadDocumentByType(file);
         
-        // Add metadata to documents
-        const docsWithMetadata = loadedDocs.map(doc => ({
-          ...doc,
-          metadata: {
-            ...doc.metadata,
-            sourceFile: file.originalName,
-            sourceType: this.getFileExtension(file.originalName).toLowerCase(),
-            originalSize: doc.pageContent.length,
-            wordCount: doc.pageContent.split(/\s+/).length
-          }
+        // Prepare chunks for batch classification
+        const chunksToClassify = loadedDocs.map(doc => ({
+          content: doc.pageContent,
+          title: doc.metadata.title || file.originalName
         }));
+        
+        // Classify all chunks in batch
+        const allChunkMetadata = await classifyMultipleChunkMetadata(chunksToClassify);
+        
+        // Add metadata to documents
+        const docsWithMetadata = loadedDocs.map((doc, index) => {
+          const chunkMetadata = allChunkMetadata[index];
+          
+          return {
+            ...doc,
+            metadata: {
+              ...doc.metadata,
+              sourceFile: file.originalName,
+              sourceType: this.getFileExtension(file.originalName).toLowerCase(),
+              originalSize: doc.pageContent.length,
+              wordCount: doc.pageContent.split(/\s+/).length,
+              // Add business metadata
+              user_role: chunkMetadata.user_role,
+              section: chunkMetadata.section,
+              topic: chunkMetadata.topic,
+              action: chunkMetadata.action,
+              chunkTitle: chunkMetadata.title
+            }
+          };
+        });
         
         documents.push(...docsWithMetadata);
         console.log(`✅ Successfully loaded ${loadedDocs.length} chunks from ${file.originalName}`);
@@ -124,16 +160,82 @@ class DocumentLoaderService {
     // Load the documents
     const loadedDocs = await loader.load();
     
-    // Split documents into chunks if they are too large
-    const splitter = new RecursiveCharacterTextSplitter({
-      chunkSize: this.config.chunkSize,
-      chunkOverlap: this.config.chunkOverlap,
-    });
-
-    const splitDocs = await splitter.splitDocuments(loadedDocs);
-    console.log(`✂️ Split into ${splitDocs.length} chunks`);
+    let splitDocs = [];
     
+    // For Markdown and Text files, try to split by headers/sections
+    if (extension === 'md' || extension === 'txt') {
+      console.log(`🏷️ Attempting to split ${extension.toUpperCase()} by sections/headings...`);
+      splitDocs = await this.splitBySection(loadedDocs);
+    } else {
+      // For PDF, DOCX, use regular character-based splitting
+      console.log(`⛓️ Using character-based splitting for ${extension.toUpperCase()}...`);
+      const splitter = new RecursiveCharacterTextSplitter({
+        chunkSize: this.config.chunkSize,
+        chunkOverlap: this.config.chunkOverlap,
+      });
+      splitDocs = await splitter.splitDocuments(loadedDocs);
+    }
+    
+    console.log(`✂️ Split into ${splitDocs.length} chunks`);
     return splitDocs;
+  }
+
+  /**
+   * Split documents by markdown headers and sections
+   * @param {Array} docs - Array of documents to split
+   * @returns {Promise<Array>} Array of documents split by sections
+   */
+  async splitBySection(docs) {
+    try {
+      const splitter = new MarkdownHeaderTextSplitter({
+        headers_to_split_on: [
+          { level: 1, name: "Header 1" },
+          { level: 2, name: "Header 2" },
+          { level: 3, name: "Header 3" },
+        ]
+      });
+
+      let allSplitDocs = [];
+      
+      for (const doc of docs) {
+        try {
+          const sectionDocs = await splitter.splitText(doc.pageContent);
+          
+          // Add back original metadata and enhance with section info
+          const docsWithMetadata = sectionDocs.map((sectionDoc, index) => ({
+            pageContent: sectionDoc.pageContent,
+            metadata: {
+              ...doc.metadata,
+              ...sectionDoc.metadata,
+              sectionIndex: index,
+              sectionSize: sectionDoc.pageContent.length
+            }
+          }));
+          
+          allSplitDocs.push(...docsWithMetadata);
+          console.log(`   📚 Section "${sectionDoc.metadata['Header 1'] || 'Root'}" → ${sectionDoc.pageContent.length} chars`);
+        } catch (error) {
+          console.log(`   ⚠️ Section splitting failed for chunk, falling back to character split`);
+          // Fallback to character-based splitting if section splitting fails
+          const fallbackSplitter = new RecursiveCharacterTextSplitter({
+            chunkSize: this.config.chunkSize,
+            chunkOverlap: this.config.chunkOverlap,
+          });
+          const fallbackDocs = await fallbackSplitter.splitDocuments([doc]);
+          allSplitDocs.push(...fallbackDocs);
+        }
+      }
+      
+      return allSplitDocs;
+    } catch (error) {
+      console.log(`⚠️ Section splitting failed overall, falling back to character split`);
+      // Final fallback: use character-based splitting
+      const fallbackSplitter = new RecursiveCharacterTextSplitter({
+        chunkSize: this.config.chunkSize,
+        chunkOverlap: this.config.chunkOverlap,
+      });
+      return await fallbackSplitter.splitDocuments(docs);
+    }
   }
 
   /**

@@ -1,4 +1,4 @@
-const { GoogleGenerativeAIEmbeddings } = require('@langchain/google-genai');
+const { OpenAIEmbeddings } = require('@langchain/openai');
 const PostgreSQLVectorStore = require('../rag/vectorStore');
 const RAGChainService = require('../rag/ragChain');
 const { Pool } = require('pg');
@@ -12,13 +12,13 @@ const { randomUUID } = require('crypto');
 class LangChainChatController {
   constructor() {
     // Initialize components
-    this.embeddings = new GoogleGenerativeAIEmbeddings({
-      model: 'text-embedding-004',
-      apiKey: process.env.GEMINI_API_KEY,
+    this.embeddings = new OpenAIEmbeddings({
+      modelName: 'text-embedding-3-small',
+      openAIApiKey: process.env.OPENAI_API_KEY,
     });
     
     this.ragChainService = new RAGChainService({
-      modelName: 'gemini-2.5-flash'
+      modelName: 'gpt-3.5-turbo'
     });
     this.pool = db.pool;
   }
@@ -34,6 +34,9 @@ class LangChainChatController {
 
       // Support both 'question' and 'message' field names for compatibility
       const userQuestion = question || message;
+      console.log('\n💬 [CHAT] Incoming chat request:');
+      console.log(`   Session ID: ${sessionId}`);
+      console.log(`   User: ${req.user?.email || 'anonymous'}`);
       
       if (!userQuestion || typeof userQuestion !== 'string') {
         return res.status(400).json({ 
@@ -50,13 +53,16 @@ class LangChainChatController {
       const userRole = req.user?.role || 'anonymous';
 
       // Initialize vector store
+      console.log('🗄️  [CHAT] Initializing vector store...');
       const vectorStore = PostgreSQLVectorStore.fromEmbeddings(
         this.embeddings,
         { pool: this.pool }
       );
 
       // Execute RAG chain to get response
+      console.log('🔄 [CHAT] Executing RAG chain...');
       const response = await this.ragChainService.executeRAG(vectorStore, userQuestion);
+      console.log('🏁 [CHAT] RAG execution completed, sending response to client');
 
       // Get relevant documents for context tracking
       const relevantDocs = await this.ragChainService.getRelevantDocuments(vectorStore, userQuestion, 5);
