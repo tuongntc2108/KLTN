@@ -135,7 +135,7 @@ export function ChatbotWidget() {
   const samplePrompts = [
     'Cách nhận chứng chỉ',
     'Cách xác minh chứng chỉ NFT',
-    'Tôi nhận chứng chỉ gặp lỗi'
+    'Tôi gặp lỗi khi nhận chứng chỉ'
   ];
 
   const sendMessage = async (text: string) => {
@@ -149,6 +149,7 @@ export function ChatbotWidget() {
       const res = await fetch(String(process.env.NEXT_PUBLIC_CHAT_API_URL || DEFAULT_API), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ message: text, sessionId }),
       });
 

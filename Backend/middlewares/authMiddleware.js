@@ -55,6 +55,53 @@ module.exports.authenticate = function(req, res, next) {
   }
 };
 
+// Optional authentication middleware - populate req.user if token exists, but don't block if not
+module.exports.optionalAuthenticate = function(req, res, next) {
+  try {
+    // First check if user is already authenticated via Passport session
+    if (req.user) {
+      // User is authenticated via session from Passport.js
+      return next();
+    }
+    
+    let token = null;
+    
+    // Try to get token from cookies first (more secure)
+    if (req.cookies && req.cookies.auth_token) {
+      token = req.cookies.auth_token;
+    }
+    // Fallback to Authorization header
+    else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.slice(7);
+    }
+    
+    if (!token) {
+      // No token provided, continue without user authentication
+      req.user = null;
+      return next();
+    }
+    
+    // Verify JWT token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Set user information in request
+    req.user = {
+      email: decoded.email,
+      fullName: decoded.fullName,
+      avatar: decoded.avatar,
+      role: decoded.role
+    };
+    
+    next();
+  } catch (error) {
+    console.error('Optional authentication error:', error.message);
+    
+    // For optional auth, just set user as null and continue
+    req.user = null;
+    next();
+  }
+};
+
 // Role-based authorization middleware
 module.exports.requireRole = function(allowedRoles = []) {
   return (req, res, next) => {

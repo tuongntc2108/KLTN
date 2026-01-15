@@ -10,6 +10,9 @@ const { classifyQueryMetadata } = require('./metadataClassification');
  */
 class RAGChainService {
   constructor(options = {}) {
+    // Store options for later use
+    this.options = options;
+    
     // Initialize OpenAI model for response generation
     this.model = new ChatOpenAI({
       modelName: options.modelName || 'gpt-3.5-turbo',
@@ -18,8 +21,40 @@ class RAGChainService {
       temperature: options.temperature || 0.5,
     });
 
-    // Define the RAG prompt template
-    this.ragPrompt = PromptTemplate.fromTemplate(`
+    // Determine if this is for authenticated users
+    const isAuthenticatedFlow = options.authenticatedFlow === true;
+    
+    // Define the RAG prompt template based on authentication status
+    if (isAuthenticatedFlow) {
+      // Prompt template for authenticated users - with different fallback message
+      this.ragPrompt = PromptTemplate.fromTemplate(`
+Bạn là trợ lý AI nội bộ của hệ thống quản lý chứng chỉ blockchain.
+
+Hệ thống này có các chức năng chính:
+- Đăng nhập/đăng ký tài khoản
+- Kết nối ví MetaMask 
+- Xem và tham gia khóa học
+- Nhận chứng chỉ blockchain (SBT - Soulbound Token)
+- Xác minh chứng chỉ
+- Quản lý profile và thông tin cá nhân
+
+QUY TẮC TUÂN THỦ:
+- Trả lời câu hỏi dựa TRÊN THÔNG TIN ĐƯỢC CUNG CẤP DƯỚI ĐÂY, không được bịa thông tin
+- Nếu thông tin chưa đủ để trả lời, hãy trả về: "Tôi không rõ thông tin này, câu hỏi đã được gửi đến tư vấn viên. Vui lòng chờ phản hồi qua email"
+- Không từ chối vì khác biệt nhỏ về từ khóa; hãy suy luận các cụm tương đương như "chứng chỉ" và "chứng chỉ NFT"
+- Giữ giọng điệu tích cực và thực tế
+- Trả lời bằng tiếng Việt một cách thân thiện và hữu ích
+
+THÔNG TIN LIÊN QUAN TỪ TÀI LIỆU:
+{context}
+
+CÂU HỎI CỦA NGƯỜI DÙNG: {question}
+
+Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu thông tin chưa đủ, hãy trả về: "Tôi không rõ thông tin này, câu hỏi đã được gửi đến tư vấn viên. Vui lòng chờ phản hồi qua email"
+`);
+    } else {
+      // Original prompt template for non-authenticated users
+      this.ragPrompt = PromptTemplate.fromTemplate(`
 Bạn là trợ lý AI nội bộ của hệ thống quản lý chứng chỉ blockchain. 
 
 Hệ thống này có các chức năng chính:
@@ -44,6 +79,7 @@ CÂU HỎI CỦA NGƯỜI DÙNG: {question}
 
 Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu thông tin chưa đủ, hãy trả về: "Tôi không rõ thông tin này, vui lòng liên hệ với nhà phát triển qua email 22021207@vnu.edu.vn."
 `);
+    }
   }
 
   /**
@@ -52,6 +88,11 @@ Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu th�
    * @returns {Object} Runnable sequence for RAG
    */
   createRAGChain(vectorStore) {
+    // Log the prompt template being used
+    console.log('📝 [PROMPT] Using prompt template for', this.options.authenticatedFlow ? 'AUTHENTICATED' : 'NON-AUTHENTICATED', 'users');
+    console.log('📝 [PROMPT] Fallback message:', this.options.authenticatedFlow ? 
+      '"Tôi không rõ thông tin này, câu hỏi đã được gửi đến tư vấn viên. Vui lòng chờ phản hồi qua email"' : 
+      '"Tôi không rõ thông tin này, vui lòng liên hệ với nhà phát triển qua email 22021207@vnu.edu.vn."');
     // Format documents for context
     const formatDocuments = (docs) => {
       if (!docs || docs.length === 0) {
@@ -82,6 +123,9 @@ Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu th�
     const chain = RunnableSequence.from([
       {
         context: async (input) => {
+          // Log the incoming question
+          console.log('❓ [INPUT] User question received:', input.question);
+          
           // Validate vector store again before use
           if (!localVectorStore || typeof localVectorStore.similaritySearchVectorWithScore !== 'function') {
             console.error('Vector store validation failed in context function');
@@ -117,11 +161,14 @@ Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu th�
               // Fallback: try without filters
               const fallbackDocs = await localVectorStore.similaritySearch(input.question, 5);
               if (fallbackDocs.length === 0) {
+                console.log('📄 [CONTEXT] Returning: No documents found');
                 return 'Hiện chưa có đoạn văn bản nào trùng khớp trong cơ sở dữ liệu.';
               }
               
               console.log(`📄 [RAG] Fallback search returned ${fallbackDocs.length} documents`);
-              return formatDocuments(fallbackDocs);
+              const formattedContext = formatDocuments(fallbackDocs);
+              console.log('📄 [CONTEXT] Formatted context length:', formattedContext.length, 'characters');
+              return formattedContext;
             }
             
             // Check if similarity scores are adequate
@@ -136,14 +183,20 @@ Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu th�
               // Low confidence fallback: try unfiltered search
               const fallbackDocs = await localVectorStore.similaritySearch(input.question, 5);
               if (fallbackDocs.length === 0) {
+                console.log('📄 [CONTEXT] Returning: No documents found');
                 return 'Hiện chưa có đoạn văn bản nào trùng khớp trong cơ sở dữ liệu.';
               }
               
               console.log(`📄 [RAG] Fallback search returned ${fallbackDocs.length} documents`);
-              return formatDocuments(fallbackDocs);
+              const formattedContext = formatDocuments(fallbackDocs);
+              console.log('📄 [CONTEXT] Formatted context length:', formattedContext.length, 'characters');
+              return formattedContext;
             }
             
-            return formatDocuments(adequateDocs);
+            const formattedContext = formatDocuments(adequateDocs);
+            console.log('📄 [CONTEXT] Formatted context length:', formattedContext.length, 'characters');
+            console.log('📄 [CONTEXT] Number of documents used:', adequateDocs.length);
+            return formattedContext;
           } catch (error) {
             console.error('Error in similarity search with metadata filters:', error);
             // Fallback to unfiltered search
@@ -159,6 +212,14 @@ Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu th�
         question: (input) => input.question,
       },
       this.ragPrompt,
+      (input) => {
+        // Log the final prompt being sent to LLM
+        console.log('🤖 [LLM PROMPT] Final prompt sent to LLM:');
+        console.log('Context length:', typeof input.context === 'string' ? input.context.length : 'N/A', 'characters');
+        console.log('Question:', input.question);
+        console.log('--- End of prompt ---');
+        return input;
+      },
       this.model,
       new StringOutputParser(),
     ]);
@@ -183,8 +244,16 @@ Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu th�
       const result = await chain.invoke({ question });
       
       console.log('✅ [RAG] LLM Response received:');
-      console.log(`📝 Response (${result.length} characters): ${result}`);
+      console.log(`📝 Response (${result.length} characters)`);
+      console.log('📝 Response content:', result);
       console.log('---');
+      
+      // Log if fallback response was triggered
+      if (this.options.authenticatedFlow && result.includes('tư vấn viên')) {
+        console.log('⚠️  [RAG] Fallback response triggered for authenticated user - webhook will be sent');
+      } else if (!this.options.authenticatedFlow && result.includes('22021207@vnu.edu.vn')) {
+        console.log('⚠️  [RAG] Fallback response triggered for non-authenticated user');
+      }
       
       return result;
     } catch (error) {
@@ -195,7 +264,12 @@ Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu th�
         return 'Hiện hệ thống đang tạm thời không thể xử lý yêu cầu. Vui lòng thử lại sau.';
       }
       
-      return 'Tôi không rõ thông tin này, vui lòng liên hệ với nhà phát triển qua email 22021207@vnu.edu.vn.';
+      // Return appropriate fallback message based on authentication status
+      if (this.options && this.options.authenticatedFlow) {
+        return 'Tôi không rõ thông tin này, câu hỏi đã được gửi đến tư vấn viên. Vui lòng chờ phản hồi qua email';
+      } else {
+        return 'Tôi không rõ thông tin này, vui lòng liên hệ với nhà phát triển qua email 22021207@vnu.edu.vn.';
+      }
     }
   }
 
