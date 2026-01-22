@@ -3,6 +3,7 @@ const { uploadMetadataToPinata } = require("../utils/pinata");
 const { ethers } = require("ethers");
 const { syncCertificateImmediately } = require("../services/sync");
 const db = require("../config/pg");
+const { getUserRole } = require('../utils/userUtils');
 const aiSummaryService = require("../services/aiSummaryService");
 const emailNotificationService = require("../services/emailNotificationService");
 
@@ -10,9 +11,10 @@ let certificateCounter = 1000;
 
 exports.mintCertificate = async (req, res) => {
   try {
-    // Only issuer (tts.tuongntc@vnpay.vn) can issue certificates
     const userEmail = req.user?.email;
-    if (!userEmail || userEmail !== 'tts.tuongntc@vnpay.vn') {
+    // Check if user is an issuer using new role management system
+    const userRole = await getUserRole(userEmail);
+    if (!userEmail || userRole !== 'Issuer') {
       return res.status(401).json({ error: "Unauthorized: Only designated issuer can issue certificates" });
     }
 
@@ -1097,9 +1099,10 @@ exports.getAllCertificates = async (req, res) => {
 exports.replaceCertificate = async (req, res) => {
   try {
     const oldTokenId = req.params.id;
-    // Only issuer (tts.tuongntc@vnpay.vn) can replace certificates
     const userEmail = req.user?.email;
-    if (!userEmail || userEmail !== 'tts.tuongntc@vnpay.vn') {
+    // Check if user is an issuer using new role management system
+    const userRole = await getUserRole(userEmail);
+    if (!userEmail || userRole !== 'Issuer') {
       return res.status(401).json({ error: "Unauthorized: Only designated issuer can replace certificates" });
     }
 

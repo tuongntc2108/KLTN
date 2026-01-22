@@ -1,4 +1,5 @@
 const db = require("../config/pg");
+const { createStudentWithUser } = require('../utils/userUtils');
 
 // Get student by ID (for issuers when issuing certificates)
 exports.getStudentById = async (req, res) => {
@@ -82,27 +83,26 @@ exports.createStudent = async (req, res) => {
       return res.status(400).json({ error: "Validation error", details: "wallet_address is invalid" });
     }
 
-    // Insert
-    const q = `
-      INSERT INTO students(id, name, email, wallet_address)
-      VALUES($1,$2,$3,$4)
-      RETURNING id, name, email, wallet_address, created_at
-    `;
-    const finalWalletAddress = wallet_address && wallet_address.trim() ? wallet_address.trim() : null;
-    const params = [idNum, name, email.toLowerCase(), finalWalletAddress];
-    const r = await db.pool.query(q, params);
-    const s = r.rows[0];
+    // Create student with user (using new user management system)
+    const studentData = {
+      id: idNum,
+      name: name,
+      email: email.toLowerCase(),
+      wallet_address: wallet_address && wallet_address.trim() ? wallet_address.trim() : null
+    };
+    
+    const newStudent = await createStudentWithUser(studentData);
 
     return res.status(201).json({
-      student_id: s.id,
-      name: s.name,
-      email: s.email,
-      wallet_address: s.wallet_address,
-      created_at: s.created_at,
+      student_id: newStudent.id,
+      name: newStudent.name,
+      email: newStudent.email,
+      wallet_address: newStudent.wallet_address,
+      created_at: newStudent.created_at,
     });
   } catch (err) {
     if (err.code === '23505') { // unique_violation
-      return res.status(400).json({ error: "Validation error", details: "email or wallet_address already exists" });
+      return res.status(400).json({ error: "Validation error", details: "Email hoặc địa chỉ ví đã tồn tại" });
     }
     console.error("❌ createStudent error:", err.message);
     return res.status(500).json({ error: "Internal Server Error" });
@@ -185,7 +185,7 @@ exports.updateStudent = async (req, res) => {
     return res.status(200).json({ message: "Student updated successfully" });
   } catch (err) {
     if (err.code === '23505') {
-      return res.status(400).json({ error: "Bad Request", details: "email or wallet_address already exists" });
+      return res.status(400).json({ error: "Bad Request", details: "Email hoặc địa chỉ ví đã tồn tại" });
     }
     console.error("❌ updateStudent error:", err.message);
     return res.status(500).json({ error: "Internal Server Error" });
@@ -282,19 +282,17 @@ exports.getMyWalletInfo = async (req, res) => {
       try {
         // Generate a unique ID (timestamp-based for now)
         const studentId = Date.now();
-        const insertQuery = `
-          INSERT INTO students(id, name, email, wallet_address) 
-          VALUES($1, $2, $3, $4) 
-          RETURNING id, name, email, wallet_address, created_at
-        `;
-        const insertResult = await db.pool.query(insertQuery, [
-          studentId, 
-          userName || 'Unknown User', 
-          userEmail.toLowerCase(), 
-          null
-        ]);
         
-        const newStudent = insertResult.rows[0];
+        // Create student with user (using new user management system)
+        const studentData = {
+          id: studentId,
+          name: userName || 'Unknown User',
+          email: userEmail.toLowerCase(),
+          wallet_address: null
+        };
+        
+        const newStudent = await createStudentWithUser(studentData);
+        
         return res.status(200).json({
           success: true,
           student: {

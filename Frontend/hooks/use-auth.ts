@@ -37,7 +37,9 @@ export function useAuth() {
 
       if (response.ok) {
         const data = await response.json()
+        console.log('[USE_AUTH] Received user data:', data);
         if (data.success && data.user) {
+          console.log('[USE_AUTH] Setting user with role:', data.user.role);
           setAuthState({
             user: data.user,
             loading: false,

@@ -3,26 +3,17 @@ const express = require('express');
 const passport = require('../config/passport');
 const jwt = require('jsonwebtoken');
 const { authenticate } = require('../middlewares/authMiddleware');
+const { createUserIfNotExists, updateUserLastLogin, getUserRole } = require('../utils/userUtils');
 const router = express.Router();
-
-// Helper function to determine user role
-function getUserRole(email) {
-  if (email === '22021207@vnu.edu.vn') {
-    return 'Admin';
-  } else if (email === 'tts.tuongntc@vnpay.vn') {
-    return 'Issuer';
-  } else {
-    return 'User'; // All other emails are students
-  }
-}
 
 // Helper function to generate JWT token
 function generateToken(user) {
+  console.log(`[GENERATE_TOKEN] User role: ${user.role}`);
   const payload = {
     email: user.email,
     fullName: user.fullName,
     avatar: user.avatar,
-    role: getUserRole(user.email)
+    role: user.role
   };
   
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' });
@@ -41,7 +32,7 @@ router.get('/google', (req, res, next) => {
 });
 
 // Development test login (only for development)
-router.post('/dev-login', (req, res) => {
+router.post('/dev-login', async (req, res) => {
   if (process.env.NODE_ENV === 'production') {
     return res.status(403).json({ success: false, message: 'Development login not available in production' });
   }
@@ -53,14 +44,21 @@ router.post('/dev-login', (req, res) => {
       return res.status(400).json({ success: false, message: 'Email is required' });
     }
     
-    // Allow any email to register (no domain restriction)
-    // Role assignment is handled by getUserRole function
+    // Create user record if not exists (first login)
+    await createUserIfNotExists(email);
+    
+    // Update last login
+    await updateUserLastLogin(email);
+    
+    // Get user role from database
+    const role = await getUserRole(email);
+    console.log(`[DEV LOGIN] Email: ${email}, Role: ${role}`);
     
     const user = {
       email: email,
       fullName: 'Test User (' + email.split('@')[0] + ')',
       avatar: 'https://via.placeholder.com/100',
-      role: getUserRole(email)
+      role: role
     };
     
     const token = generateToken(user);
@@ -98,10 +96,23 @@ router.post('/dev-login', (req, res) => {
 // Google OAuth callback
 router.get('/google/callback', 
   passport.authenticate('google', { failureRedirect: `${process.env.FRONTEND_URL}/auth/login?error=oauth_failed` }),
-  (req, res) => {
+  async (req, res) => {
     try {
       const user = req.user;
-      const userRole = getUserRole(user.email);
+      
+      // Create user record if not exists (first login)
+      await createUserIfNotExists(user.email);
+      
+      // Update last login
+      await updateUserLastLogin(user.email);
+      
+      // Get user role from database
+      const role = await getUserRole(user.email);
+      console.log(`[GOOGLE OAUTH] Email: ${user.email}, Role: ${role}`);
+          
+      // Update user object with role
+      user.role = role;
+      
       const token = generateToken(user);
       
       // Allow any email to register (no domain restriction)
@@ -110,9 +121,9 @@ router.get('/google/callback',
       // Determine redirect URL based on role automatically
       let redirectPath = '/dashboard/student'; // default
       
-      if (userRole === 'Admin') {
+      if (role === 'Admin') {
         redirectPath = '/dashboard/admin';
-      } else if (userRole === 'Issuer') {
+      } else if (role === 'Issuer') {
         redirectPath = '/dashboard/training';
       }
       
@@ -154,11 +165,32 @@ router.post('/logout', (req, res) => {
   }
 });
 
+// Test endpoint to check user role
+router.get('/test-role/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    const role = await getUserRole(email);
+    console.log(`[TEST_ROLE] Email: ${email}, Role: ${role}`);
+    
+    res.json({
+      email: email,
+      role: role
+    });
+  } catch (error) {
+    console.error('Test role error:', error);
+    res.status(500).json({ error: 'Failed to get role' });
+  }
+});
+
 // Get current user info
-router.get('/me', authenticate, (req, res) => {
+router.get('/me', authenticate, async (req, res) => {
   try {
     if (req.user) {
       const { email, fullName, avatar, role } = req.user;
+      
+      // Update last login for the user
+      await updateUserLastLogin(email);
+      
       res.json({
         success: true,
         user: { email, fullName, avatar, role }

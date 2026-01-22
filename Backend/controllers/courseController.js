@@ -1,5 +1,6 @@
 // controllers/courseController.js
 const db = require("../config/pg");
+const { createIssuerWithUser } = require('../utils/userUtils');
 
 // Helper function to get issuer_id from user email
 async function getIssuerIdFromEmail(email) {
@@ -12,49 +13,16 @@ async function getIssuerIdFromEmail(email) {
         AND table_name = 'issuers'
       )
     `);
-    /** Bảng đã có sẵn bảng issuers, không cần tạo lại
-    if (!tableCheck.rows[0].exists) {
-      // Create issuers table if it doesn't exist
-      await db.pool.query(`
-        CREATE TABLE issuers (
-          id SERIAL PRIMARY KEY,
-          name VARCHAR(255) NOT NULL,
-          email VARCHAR(255) UNIQUE NOT NULL,
-          wallet_address VARCHAR(42) UNIQUE NOT NULL,
-          organization VARCHAR(255),
-          website VARCHAR(255),
-          created_at TIMESTAMP DEFAULT NOW(),
-          updated_at TIMESTAMP DEFAULT NOW()
-        )
-      `);
-      console.log('✅ Created issuers table');
-    }
-    */
+    
     // Now check if issuer exists
     const query = `SELECT id FROM issuers WHERE email = $1`;
     const result = await db.pool.query(query, [email.toLowerCase()]);
     
     if (result.rows.length === 0) {
-      // Auto-create issuer if not exists
-      const insertQuery = `
-        INSERT INTO issuers (name, email, wallet_address, organization)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id
-      `;
-      //email issuer hiện tại đang là @vnpay.vn nên tạm hardcode như sau
-      const issuerName = email.includes('vnpay') ? 'VNU Training Center' : 'Training Institution';
-      const walletAddress = process.env.ISSUER_WALLET || '0x4B879e08e8Bbd2517741E9C2b9786764E7fFae9e';
-      const organization = email.includes('vnpay') ? 'Vietnam National University' : 'Training Organization';
-      
-      const insertResult = await db.pool.query(insertQuery, [
-        issuerName,
-        email.toLowerCase(),
-        walletAddress,
-        organization
-      ]);
-      
-      console.log(`✅ Created issuer for ${email} with ID: ${insertResult.rows[0].id}`);
-      return insertResult.rows[0].id;
+      // If issuer doesn't exist, throw an error instead of creating one
+      throw new Error(
+        `Issuer with email ${email} does not exist. Please contact an administrator to create an issuer account.`
+      );
     }
     
     return result.rows[0].id;

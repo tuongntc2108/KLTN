@@ -106,7 +106,7 @@ export default function StudentLayout({
   const { user } = useAuth()
 
   return (
-    <AuthGuard allowedRoles={['User', 'Issuer', 'Admin']}>
+    <AuthGuard allowedRoles={['User', 'Student', 'undefined', 'Issuer', 'Admin']}>
       <div className="flex h-screen bg-background">
         {/* Desktop Sidebar */}
         <div className="hidden lg:flex lg:w-64 lg:flex-col">

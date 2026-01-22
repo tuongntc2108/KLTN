@@ -15,25 +15,16 @@ export const authOptions: AuthOptions = {
       return true
     },
     async session({ session, token }) {
-      // Add role to session based on new policy
-      if (session.user?.email) {
-        const email = session.user.email
-        let role = 'User' // Default to student
-        if (email === '22021207@vnu.edu.vn') {
-          role = 'Admin'
-        } else if (email === 'tts.tuongntc@vnpay.vn') {
-          role = 'Issuer'
-        }
-        
-        // Extend session type to include role
-        ;(session.user as any).role = role
+      // Get role from token which comes from backend API
+      if (token.role) {
+        ;(session.user as any).role = token.role;
       }
       return session
     },
     async jwt({ token, user }) {
-      if (user) {
-        // Extend token type to include role
-        ;(token as any).role = (user as any).role
+      // If user object contains role (from backend API), store it in token
+      if (user && (user as any).role) {
+        ;(token as any).role = (user as any).role;
       }
       return token
     },

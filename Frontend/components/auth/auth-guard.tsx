@@ -31,10 +31,12 @@ export function AuthGuard({ children, allowedRoles = [], fallbackUrl = '/auth/lo
         const roleRedirects = {
           'Admin': '/dashboard/admin',
           'Issuer': '/dashboard/training',
-          'User': '/dashboard/student'
+          'Student': '/dashboard/student',
+          'User': '/dashboard/student',
+          'undefined': '/dashboard/student'
         }
         
-        const redirectPath = roleRedirects[user.role as keyof typeof roleRedirects] || '/auth/login'
+        const redirectPath = roleRedirects[user.role as keyof typeof roleRedirects] || '/dashboard/student'
         router.push(redirectPath)
         return
       }

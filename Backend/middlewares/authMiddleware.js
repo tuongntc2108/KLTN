@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
+const { updateUserLastLogin } = require('../utils/userUtils');
 //Xác thực quyền của người dùng
 // Authentication middleware - verify JWT token from cookies or Authorization header
-module.exports.authenticate = function(req, res, next) {
+module.exports.authenticate = async function(req, res, next) {
   try {
     let token = null;
     
@@ -32,6 +33,9 @@ module.exports.authenticate = function(req, res, next) {
       role: decoded.role
     };
     
+    // Update last login for the user
+    await updateUserLastLogin(decoded.email);
+    
     next();
   } catch (error) {
     console.error('Authentication error:', error.message);
@@ -56,7 +60,7 @@ module.exports.authenticate = function(req, res, next) {
 };
 
 // Optional authentication middleware - populate req.user if token exists, but don't block if not
-module.exports.optionalAuthenticate = function(req, res, next) {
+module.exports.optionalAuthenticate = async function(req, res, next) {
   try {
     // First check if user is already authenticated via Passport session
     if (req.user) {
@@ -91,6 +95,9 @@ module.exports.optionalAuthenticate = function(req, res, next) {
       avatar: decoded.avatar,
       role: decoded.role
     };
+    
+    // Update last login for the user
+    await updateUserLastLogin(decoded.email);
     
     next();
   } catch (error) {
@@ -133,13 +140,3 @@ module.exports.requireRole = function(allowedRoles = []) {
   };
 };
 
-// Helper function to get user role based on email (for backward compatibility)
-function getUserRole(email) {
-  if (email === '22021207@vnu.edu.vn') {
-    return "Admin";
-  } else if (email === 'tts.tuongntc@vnpay.vn') {
-    return "Issuer";
-  } else {
-    return "User"; // All other emails are students
-  }
-}
