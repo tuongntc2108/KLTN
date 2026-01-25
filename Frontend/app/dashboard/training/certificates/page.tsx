@@ -137,8 +137,8 @@ export default function CertificatesPage() {
       setLoading(true)
       setError(null)
       
-      // Get all certificates in the system (as requested)
-      const response = await fetch('/api/certificates/all?limit=100', {
+      // Get certificates for the current issuer
+      const response = await fetch('/api/certificates/issuer/me?limit=100', {
         method: 'GET',
         credentials: 'include', // Include cookies for authentication
         headers: {

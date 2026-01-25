@@ -5,7 +5,10 @@ const { createStudentWithUser } = require('../utils/userUtils');
 exports.getStudentById = async (req, res) => {
   try {
     const studentId = req.params.id;
+    const userEmail = req.user?.email;
+    
     console.log("🔍 Debug getStudentById - Student ID requested:", studentId);
+    console.log("🔍 Debug getStudentById - User email:", userEmail);
     
     if (!studentId) {
       return res.status(400).json({ error: "Bad Request", details: "Student ID is required" });
@@ -19,6 +22,17 @@ exports.getStudentById = async (req, res) => {
       return res.status(400).json({ error: "Bad Request", details: "Student ID must be a positive integer" });
     }
 
+    // Get the authenticated user's issuer information
+    const userIssuerQuery = `SELECT i.id as issuer_id FROM users u JOIN issuers i ON u.user_id = i.user_id WHERE u.email = $1`;
+    const userIssuerResult = await db.pool.query(userIssuerQuery, [userEmail]);
+    
+    if (userIssuerResult.rows.length === 0) {
+      return res.status(403).json({ error: "Forbidden", details: "User is not an issuer" });
+    }
+    
+    const userIssuerId = userIssuerResult.rows[0].issuer_id;
+    console.log("🔍 Debug getStudentById - User issuer ID:", userIssuerId);
+
     const query = `
       SELECT 
         id,
@@ -27,16 +41,16 @@ exports.getStudentById = async (req, res) => {
         wallet_address,
         created_at
       FROM students 
-      WHERE id = $1
+      WHERE id = $1 AND issuer_id = $2
     `;
     
-    console.log("🔍 Debug getStudentById - Executing query for ID:", idNum);
-    const result = await db.pool.query(query, [idNum]);
+    console.log("🔍 Debug getStudentById - Executing query for ID:", idNum, "and issuer ID:", userIssuerId);
+    const result = await db.pool.query(query, [idNum, userIssuerId]);
     console.log("🔍 Debug getStudentById - Query result count:", result.rows.length);
     
     if (result.rows.length === 0) {
-      console.log("❌ Debug getStudentById - No student found with ID:", idNum);
-      return res.status(404).json({ error: "Not Found", details: "Student not found" });
+      console.log("❌ Debug getStudentById - No student found with ID:", idNum, "for issuer:", userIssuerId);
+      return res.status(404).json({ error: "Not Found", details: "Student not found or does not belong to your organization" });
     }
 
     const student = result.rows[0];
@@ -67,6 +81,17 @@ exports.getStudentById = async (req, res) => {
 exports.createStudent = async (req, res) => {
   try {
     const { student_id, id: aliasId, name, email, wallet_address } = req.body;
+    const userEmail = req.user?.email;
+    
+    // Get the authenticated user's issuer information
+    const userIssuerQuery = `SELECT i.id as issuer_id FROM users u JOIN issuers i ON u.user_id = i.user_id WHERE u.email = $1`;
+    const userIssuerResult = await db.pool.query(userIssuerQuery, [userEmail]);
+    
+    if (userIssuerResult.rows.length === 0) {
+      return res.status(403).json({ error: "Forbidden", details: "User is not an issuer" });
+    }
+    
+    const userIssuerId = userIssuerResult.rows[0].issuer_id;
 
     // Validation
     const candidateId = student_id ?? aliasId;
@@ -109,7 +134,8 @@ exports.createStudent = async (req, res) => {
       id: idNum,
       name: name,
       email: email.toLowerCase(),
-      wallet_address: wallet_address && wallet_address.trim() ? wallet_address.trim() : null
+      wallet_address: wallet_address && wallet_address.trim() ? wallet_address.trim() : null,
+      issuer_id: userIssuerId
     };
     
     const newStudent = await createStudentWithUser(studentData);
@@ -132,7 +158,19 @@ exports.createStudent = async (req, res) => {
 
 exports.getStudents = async (req, res) => {
   try {
-    // Get all students with their certificate statistics
+    const userEmail = req.user?.email;
+    
+    // Get the authenticated user's issuer information
+    const userIssuerQuery = `SELECT i.id as issuer_id FROM users u JOIN issuers i ON u.user_id = i.user_id WHERE u.email = $1`;
+    const userIssuerResult = await db.pool.query(userIssuerQuery, [userEmail]);
+    
+    if (userIssuerResult.rows.length === 0) {
+      return res.status(403).json({ error: "Forbidden", details: "User is not an issuer" });
+    }
+    
+    const userIssuerId = userIssuerResult.rows[0].issuer_id;
+    
+    // Get students for the authenticated issuer with their certificate statistics
     const q = `
       SELECT 
         s.id, 
@@ -140,6 +178,7 @@ exports.getStudents = async (req, res) => {
         s.email, 
         s.wallet_address, 
         s.created_at,
+        s.issuer_id,
         COUNT(c.id) as total_certificates,
         COUNT(CASE WHEN c.status = 'active' THEN 1 END) as active_certificates,
         COUNT(CASE WHEN c.status = 'expired' OR c.expire_date < NOW() THEN 1 END) as expired_certificates,
@@ -148,11 +187,12 @@ exports.getStudents = async (req, res) => {
         ARRAY_AGG(DISTINCT c.course_name) FILTER (WHERE c.course_name IS NOT NULL) as courses
       FROM students s
       LEFT JOIN certificates c ON s.wallet_address = c.holder
-      GROUP BY s.id, s.name, s.email, s.wallet_address, s.created_at
+      WHERE s.issuer_id = $1
+      GROUP BY s.id, s.name, s.email, s.wallet_address, s.created_at, s.issuer_id
       ORDER BY s.id ASC
     `;
     
-    const r = await db.pool.query(q);
+    const r = await db.pool.query(q, [userIssuerId]);
     
     const result = r.rows.map(row => ({
       student_id: row.id,
@@ -179,6 +219,8 @@ exports.getStudents = async (req, res) => {
 exports.updateStudent = async (req, res) => {
   try {
     const idParam = Number(req.params.id);
+    const userEmail = req.user?.email;
+    
     if (!Number.isInteger(idParam) || idParam <= 0) {
       return res.status(400).json({ error: "Bad Request", details: "Invalid id in URL" });
     }
@@ -187,17 +229,27 @@ exports.updateStudent = async (req, res) => {
     if (!name || !email) {
       return res.status(400).json({ error: "Bad Request", details: "name and email are required" });
     }
+    
+    // Get the authenticated user's issuer information
+    const userIssuerQuery = `SELECT i.id as issuer_id FROM users u JOIN issuers i ON u.user_id = i.user_id WHERE u.email = $1`;
+    const userIssuerResult = await db.pool.query(userIssuerQuery, [userEmail]);
+    
+    if (userIssuerResult.rows.length === 0) {
+      return res.status(403).json({ error: "Forbidden", details: "User is not an issuer" });
+    }
+    
+    const userIssuerId = userIssuerResult.rows[0].issuer_id;
 
     const q = `
       UPDATE students
       SET name=$1, email=$2
-      WHERE id=$3
+      WHERE id=$3 AND issuer_id=$4
       RETURNING id
     `;
-    const params = [name, String(email).toLowerCase(), idParam];
-    const r = await db.query(q, params);
+    const params = [name, String(email).toLowerCase(), idParam, userIssuerId];
+    const r = await db.pool.query(q, params);
     if (r.rowCount === 0) {
-      return res.status(404).json({ error: "Not Found" });
+      return res.status(404).json({ error: "Not Found", details: "Student not found or does not belong to your organization" });
     }
 
     return res.status(200).json({ message: "Student updated successfully" });
@@ -214,13 +266,25 @@ exports.updateStudent = async (req, res) => {
 exports.deleteStudent = async (req, res) => {
   try {
     const idParam = Number(req.params.id);
+    const userEmail = req.user?.email;
+    
     if (!Number.isInteger(idParam) || idParam <= 0) {
       return res.status(400).json({ error: "Bad Request", details: "Invalid id in URL" });
     }
+    
+    // Get the authenticated user's issuer information
+    const userIssuerQuery = `SELECT i.id as issuer_id FROM users u JOIN issuers i ON u.user_id = i.user_id WHERE u.email = $1`;
+    const userIssuerResult = await db.pool.query(userIssuerQuery, [userEmail]);
+    
+    if (userIssuerResult.rows.length === 0) {
+      return res.status(403).json({ error: "Forbidden", details: "User is not an issuer" });
+    }
+    
+    const userIssuerId = userIssuerResult.rows[0].issuer_id;
 
     // Check if student has any certificates (by both wallet address and student ID)
-    const checkCertificatesByHolderQuery = `SELECT COUNT(*) as count FROM certificates WHERE holder = (SELECT wallet_address FROM students WHERE id = $1)`;
-    const certByHolderResult = await db.pool.query(checkCertificatesByHolderQuery, [idParam]);
+    const checkCertificatesByHolderQuery = `SELECT COUNT(*) as count FROM certificates WHERE holder = (SELECT wallet_address FROM students WHERE id = $1 AND issuer_id = $2)`;
+    const certByHolderResult = await db.pool.query(checkCertificatesByHolderQuery, [idParam, userIssuerId]);
     
     const checkCertificatesByStudentIdQuery = `SELECT COUNT(*) as count FROM certificates WHERE student_id = $1::TEXT`;
     const certByStudentIdResult = await db.pool.query(checkCertificatesByStudentIdQuery, [idParam]);
@@ -231,20 +295,20 @@ exports.deleteStudent = async (req, res) => {
       return res.status(400).json({ error: "Bad Request", details: "Không thể xóa học viên đang có chứng chỉ" });
     }
 
-    // Check if student exists
-    const checkStudentQuery = `SELECT id FROM students WHERE id = $1`;
-    const studentResult = await db.pool.query(checkStudentQuery, [idParam]);
+    // Check if student exists and belongs to the authenticated issuer
+    const checkStudentQuery = `SELECT id FROM students WHERE id = $1 AND issuer_id = $2`;
+    const studentResult = await db.pool.query(checkStudentQuery, [idParam, userIssuerId]);
     
     if (studentResult.rows.length === 0) {
-      return res.status(404).json({ error: "Not Found", details: "Student not found" });
+      return res.status(404).json({ error: "Not Found", details: "Student not found or does not belong to your organization" });
     }
 
     // Delete the student
-    const deleteQuery = `DELETE FROM students WHERE id = $1`;
-    const deleteResult = await db.pool.query(deleteQuery, [idParam]);
+    const deleteQuery = `DELETE FROM students WHERE id = $1 AND issuer_id = $2`;
+    const deleteResult = await db.pool.query(deleteQuery, [idParam, userIssuerId]);
     
     if (deleteResult.rowCount === 0) {
-      return res.status(404).json({ error: "Not Found", details: "Student not found" });
+      return res.status(404).json({ error: "Not Found", details: "Student not found or does not belong to your organization" });
     }
 
     return res.status(200).json({ message: "Student deleted successfully" });
@@ -336,7 +400,7 @@ exports.getMyWalletInfo = async (req, res) => {
       return res.status(401).json({ error: "Unauthorized", details: "User not authenticated" });
     }
 
-    let query = `SELECT id, name, email, wallet_address, created_at FROM students WHERE email = $1`;
+    let query = `SELECT id, name, email, wallet_address, created_at, issuer_id FROM students WHERE email = $1`;
     let result = await db.pool.query(query, [userEmail.toLowerCase()]);
     
     // If student doesn't exist, create one automatically
@@ -345,12 +409,23 @@ exports.getMyWalletInfo = async (req, res) => {
         // Generate a unique ID (timestamp-based for now)
         const studentId = Date.now();
         
+        // Get the authenticated user's issuer information to assign to new student
+        // For students signing up directly, we'll assign them to a default issuer (e.g., issuer_id = 1)
+        const userIssuerQuery = `SELECT i.id as issuer_id FROM users u JOIN issuers i ON u.user_id = i.user_id WHERE u.email = $1`;
+        const userIssuerResult = await db.pool.query(userIssuerQuery, [userEmail]);
+        
+        let issuerId = 1; // Default issuer ID if the user is not an issuer
+        if (userIssuerResult.rows.length > 0) {
+          issuerId = userIssuerResult.rows[0].issuer_id;
+        }
+        
         // Create student with user (using new user management system)
         const studentData = {
           id: studentId,
           name: userName || 'Unknown User',
           email: userEmail.toLowerCase(),
-          wallet_address: null
+          wallet_address: null,
+          issuer_id: issuerId
         };
         
         const newStudent = await createStudentWithUser(studentData);

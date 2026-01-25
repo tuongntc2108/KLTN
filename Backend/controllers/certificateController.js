@@ -833,8 +833,6 @@ exports.revokeCertificate = async (req, res) => {
   }
 };
 
-/*
-// Đây là API lấy danh sách 10 chứng chỉ của 1 issuer, để cho version sau, version đầu tiên chỉ có 1 issuer duy nhất nên sẽ lấy toàn bộ chứng chỉ toàn hệ thống
 // ========================
 // GET /api/certificates/issuer/:issuerId
 // ========================
@@ -842,28 +840,63 @@ exports.getCertificatesByIssuer = async (req, res) => {
   try {
     const { issuerId } = req.params;
     const { status, limit = 50, offset = 0 } = req.query;
-
-    // Map issuer ID to wallet address
-    const issuerMapping = {
-      'VNU-UET-001': '0x4B879e08e8Bbd2517741E9C2b9786764E7fFae9e'
-      // Add more issuer mappings as needed
-    };
-
-    const issuerWalletAddress = issuerMapping[issuerId];
-    if (!issuerWalletAddress) {
-      return res.status(404).json({
+    const userEmail = req.user?.email;
+    
+    // Verify user is authenticated
+    if (!userEmail) {
+      return res.status(401).json({
         success: false,
-        message: `Issuer ${issuerId} not found`
+        message: "Unauthorized: User not authenticated"
       });
     }
-
+    
+    // Get user role to ensure they are authorized to access this endpoint
+    const userRole = await getUserRole(userEmail);
+    if (!['Issuer', 'Admin'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: Only issuers and admins can access this endpoint"
+      });
+    }
+    
+    let issuerWalletAddress;
+    let issuerInfo;
+    
+    // If issuerId is 'me', get the current authenticated issuer
+    if (issuerId === 'me') {
+      // Get issuer information from the database based on the authenticated user
+      const issuerQuery = `SELECT * FROM issuers WHERE user_id = (SELECT user_id FROM users WHERE email = $1)`;
+      const issuerResult = await db.pool.query(issuerQuery, [userEmail]);
+      
+      if (issuerResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Issuer not found for authenticated user"
+        });
+      }
+      
+      issuerInfo = issuerResult.rows[0];
+      issuerWalletAddress = issuerInfo.wallet_address;
+    } else {
+      // For other issuer IDs, we would need to implement a different logic
+      // For now, we'll return an error since we only support 'me' for security reasons
+      return res.status(403).json({
+        success: false,
+        message: "Access denied: Only 'me' parameter is allowed for security reasons"
+      });
+    }
+    
     // Build query with issuer filter
     let query = `
       SELECT 
         c.*,
         CASE 
+          WHEN c.status = 'Revoked' THEN 'revoked'
+          WHEN c.status = 'Replaced' THEN 'replaced'
           WHEN c.expire_date < NOW() THEN 'expired'
-          ELSE c.status
+          WHEN c.status = 'Issued' THEN 'pending'
+          WHEN c.status = 'Active' THEN 'active'
+          ELSE LOWER(c.status)
         END as computed_status
       FROM certificates c 
       WHERE c.issuer = $1
@@ -875,9 +908,23 @@ exports.getCertificatesByIssuer = async (req, res) => {
     if (status) {
       paramCount++;
       if (status === 'expired') {
-        query += ` AND c.expire_date < NOW()`;
+        query += ` AND c.expire_date < NOW() AND c.status != 'Revoked' AND c.status != 'Replaced'`;
+      } else if (status === 'revoked') {
+        query += ` AND c.status = 'Revoked'`;
+      } else if (status === 'replaced') {
+        query += ` AND c.status = 'Replaced'`;
       } else {
-        query += ` AND c.status = $${paramCount}`;
+        query += ` AND (
+          c.status = $${paramCount} OR 
+          CASE 
+            WHEN c.status = 'Revoked' THEN 'revoked'
+            WHEN c.status = 'Replaced' THEN 'replaced'
+            WHEN c.expire_date < NOW() THEN 'expired'
+            WHEN c.status = 'Issued' THEN 'pending'
+            WHEN c.status = 'Active' THEN 'active'
+            ELSE LOWER(c.status)
+          END = $${paramCount}
+        )`;
         params.push(status);
       }
     }
@@ -898,31 +945,20 @@ exports.getCertificatesByIssuer = async (req, res) => {
     const result = await db.pool.query(query, params);
     const certificates = result.rows;
 
-    // Get issuer information from the mapping (moved before formattedCertificates)
-    const issuerInfoMapping = {
-      'VNU-UET-001': {
-        id: 'VNU-UET-001',
-        name: 'VNU-UET',
-        url: 'https://uet.vnu.edu.vn'
-      }
-      // Add more issuer information as needed
-    };
-
-    const issuerInfo = issuerInfoMapping[issuerId] || {
-      id: issuerId,
-      name: "Unknown Issuer",
-      url: "N/A"
-    };
-
     // Map the certificates to the expected response format
     const formattedCertificates = certificates.map(cert => {
+      // Get issuer information from the database record
+      const issuerInfoFromDB = {
+        id: issuerInfo.id.toString(),
+        name: issuerInfo.name,
+        url: issuerInfo.website || "N/A",
+        email: issuerInfo.email,
+        wallet_address: issuerInfo.wallet_address
+      };
+
       // Parse metadata if needed
       let parsedMetadata = {
-        issuer: {
-          name: issuerInfo.name,
-          id: issuerInfo.id,
-          url: issuerInfo.url
-        },
+        issuer: issuerInfoFromDB,
         recipient: {
           full_name: cert.recipient_name || "Unknown",
           wallet_address: cert.holder || "",
@@ -943,13 +979,6 @@ exports.getCertificatesByIssuer = async (req, res) => {
           verified_at: new Date().toISOString()
         }
       };
-      try {
-        // In real scenario, we might fetch metadata from IPFS
-        // For now, we'll construct it from database fields
-        // Additional metadata processing can go here if needed
-      } catch (e) {
-        console.warn("Could not parse metadata for certificate", cert.id);
-      }
 
       return {
         verified: true, // Assuming all certificates in DB are verified
@@ -957,6 +986,7 @@ exports.getCertificatesByIssuer = async (req, res) => {
           token_id: cert.token_id.toString(),
           status: cert.computed_status,
           metadata_uri: cert.metadata_uri,
+          verification_code: cert.verification_code, // Include verification code
           issuer: parsedMetadata.issuer,
           recipient: parsedMetadata.recipient,
           certificate_detail: parsedMetadata.certificate,
@@ -985,7 +1015,6 @@ exports.getCertificatesByIssuer = async (req, res) => {
     });
   }
 };
-*/
 
 // ========================
 // GET /api/certificates/all - Get all certificates in the system

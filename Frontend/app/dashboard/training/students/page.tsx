@@ -145,8 +145,8 @@ export default function StudentsPage() {
       
       const studentsData = await studentsResponse.json()
       
-      // Fetch all certificates to calculate student statistics
-      const certificatesResponse = await fetch(`${baseUrl}/api/certificates/all`, {
+      // Fetch certificates for the current issuer to calculate student statistics
+      const certificatesResponse = await fetch(`${baseUrl}/api/certificates/issuer/me`, {
         method: 'GET',
         credentials: 'include',
         headers: {

@@ -91,15 +91,20 @@ async function createStudentWithUser(studentData) {
     // First create or get user
     const user = await createUserIfNotExists(studentData.email);
     
-    // Create student with the user_id
+    // Get the authenticated user's issuer_id from the request context
+    // For now, we'll need to pass issuerId as part of studentData
+    const issuerId = studentData.issuer_id || null; // Default to issuer ID null if not provided
+    
+    // Create student with the user_id and issuer_id
     const insertStudentQuery = `
-      INSERT INTO students (user_id, id, name, email, wallet_address, created_at) 
-      VALUES ($1, $2, $3, $4, $5, NOW()) 
+      INSERT INTO students (user_id, id, issuer_id, name, email, wallet_address, created_at) 
+      VALUES ($1, $2, $3, $4, $5, $6, NOW()) 
       RETURNING *
     `;
     const insertResult = await pool.query(insertStudentQuery, [
       user.user_id,
       studentData.id,
+      issuerId,
       studentData.name,
       studentData.email,
       studentData.wallet_address || null

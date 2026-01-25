@@ -12,10 +12,8 @@ router.get("/my", authenticate, certificateController.getMyCertificates);
 // GET /api/certificates/all (get all certificates in the system)
 router.get("/all", authenticate, requireRole(["Issuer", "Admin"]), certificateController.getAllCertificates);
 
-/*
 // GET /api/certificates/issuer/:issuerId (put specific routes before parameterized ones)
 router.get("/issuer/:issuerId", authenticate, requireRole(["Issuer", "Admin"]), certificateController.getCertificatesByIssuer);
-*/
 
 // GET /api/certificates/:id (authenticated users only)
 router.get("/:id", authenticate, certificateController.getCertificateById);

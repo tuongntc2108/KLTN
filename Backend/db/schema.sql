@@ -85,16 +85,21 @@ CREATE TABLE IF NOT EXISTS courses (
 CREATE TABLE IF NOT EXISTS students (
     id INTEGER PRIMARY KEY,
     user_id INTEGER,
+    issuer_id INTEGER NOT NULL,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     wallet_address VARCHAR(255) UNIQUE,
     created_at TIMESTAMP DEFAULT NOW(),
     
-    -- Foreign key constraint
+    -- Foreign key constraints
     CONSTRAINT fk_students_user 
         FOREIGN KEY (user_id) 
         REFERENCES users(user_id) 
-        ON DELETE SET NULL
+        ON DELETE SET NULL,
+    CONSTRAINT fk_students_issuer
+        FOREIGN KEY (issuer_id)
+        REFERENCES issuers(id)
+        ON DELETE CASCADE
 );
 
 -- Certificates table: On-chain certificates mirrored in database
