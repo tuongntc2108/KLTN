@@ -229,20 +229,7 @@ export function useWallet() {
     }
   }, [isMetaMaskInstalled, updateWalletInfo, toast])
 
-  const disconnectWallet = useCallback((): void => {
-    setWalletInfo(null)
-    setError(null)
-    // Clear any cached wallet data in localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('walletconnect')
-      localStorage.removeItem('wagmi.wallet')
-      localStorage.removeItem('WALLET_CONNECT_V2_DEEP_LINK')
-    }
-    toast({
-      title: "Đã ngắt kết nối ví",
-      description: "Ví blockchain đã được ngắt kết nối",
-    })
-  }, [toast])
+
 
   const copyAddress = useCallback((): void => {
     if (walletInfo?.address) {
@@ -291,6 +278,10 @@ export function useWallet() {
       const data = await response.json()
       
       if (response.ok && data.success) {
+        // Clear wallet info after successful removal from backend
+        setWalletInfo(null)
+        setError(null)
+        
         toast({
           title: "Đã xóa kết nối ví",
           description: "Địa chỉ ví đã được xóa khỏi hệ thống.",
@@ -372,8 +363,9 @@ export function useWallet() {
     if (window.ethereum) {
       const handleAccountsChanged = (accounts: string[]) => {
         if (accounts.length === 0) {
-          // User disconnected
-          disconnectWallet()
+          // User disconnected - clear wallet info
+          setWalletInfo(null)
+          setError(null)
         } else {
           // Account changed, update wallet info
           updateWalletInfo(accounts[0])
@@ -425,7 +417,6 @@ export function useWallet() {
     error,
     isMetaMaskInstalled,
     connectWallet,
-    disconnectWallet,
     copyAddress,
     openInExplorer,
     formatAddress,

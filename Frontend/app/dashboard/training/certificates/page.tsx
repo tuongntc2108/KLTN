@@ -40,6 +40,7 @@ interface Certificate {
     token_id: string
     status: string
     metadata_uri: string
+    verification_code: string // Add verification code field
     issuer: {
       name: string
       id: string
@@ -668,25 +669,18 @@ export default function CertificatesPage() {
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <Button variant="outline" size="sm">
-                            <Eye className="w-4 h-4 sm:mr-1" />
-                            <span className="hidden sm:inline">Xem</span>
-                          </Button>
                           <Button 
                             variant="outline" 
-                            size="sm"
+                            size="sm" 
                             onClick={() => blockchainTx && window.open(`https://sepolia.etherscan.io/address/${blockchainTx}`, '_blank')}
                             disabled={!blockchainTx}
                           >
                             <ExternalLink className="w-4 h-4 sm:mr-1" />
                             <span className="hidden sm:inline">Blockchain</span>
                           </Button>
-                          <Button variant="outline" size="sm">
-                            <Edit className="w-4 h-4 sm:mr-1" />
-                            <span className="hidden sm:inline">Quản lý</span>
-                          </Button>
+                        
                           {/* Replace Button - Only show for active and issued certificates */}
-                          {(status.toLowerCase() === 'active' || status.toLowerCase() === 'issued_not_claimed') && (
+                          {(status.toLowerCase() === 'active' || status.toLowerCase() === 'issued') && (
                             <Dialog open={replaceDialogOpen} onOpenChange={(open) => {
                               setReplaceDialogOpen(open)
                               if (!open) {
@@ -711,6 +705,7 @@ export default function CertificatesPage() {
                                     Mã sinh viên sẽ được tự động điền sẵn và không thể sửa.
                                   </DialogDescription>
                                 </DialogHeader>
+                                {certificateToReplace && (
                                 <ReplaceCertificateForm 
                                   certificate={certificateToReplace}
                                   onReplace={handleReplaceCertificate}
@@ -720,11 +715,12 @@ export default function CertificatesPage() {
                                     setCertificateToReplace(null)
                                   }}
                                 />
+                                )}
                               </DialogContent>
                             </Dialog>
                           )}
-                          {/* Revoke Button - Only show for active certificates */}
-                          {status.toLowerCase() === 'active' && (
+                          {/* Revoke Button - Show for active and issued certificates */}
+                          {(status.toLowerCase() === 'active' || status.toLowerCase() === 'issued') && (
                             <Dialog open={revokeDialogOpen} onOpenChange={(open) => {
                               setRevokeDialogOpen(open)
                               if (!open) {
@@ -797,10 +793,22 @@ export default function CertificatesPage() {
                     </div>
 
                     <div className="mt-4 pt-4 border-t">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 text-sm">
                         <div>
                           <p className="font-medium mb-1">Loại chứng chỉ:</p>
                           <Badge variant="secondary">{certificateName}</Badge>
+                        </div>
+                        <div>
+                          <p className="font-medium mb-1">Token ID:</p>
+                          <code className="text-xs bg-muted px-2 py-1 rounded block">
+                            {tokenId}
+                          </code>
+                        </div>
+                        <div>
+                          <p className="font-medium mb-1">Mã xác thực:</p>
+                          <code className="text-xs bg-muted px-2 py-1 rounded block">
+                            {certificate?.verification_code || tokenId}
+                          </code>
                         </div>
                         <div>
                           <p className="font-medium mb-1">IPFS Hash:</p>
@@ -836,7 +844,7 @@ export default function CertificatesPage() {
 
 // Replace Certificate Form Component
 interface ReplaceCertificateFormProps {
-  certificate: Certificate
+  certificate: Certificate | null
   onReplace: (data: any) => void
   isReplacing: boolean
   onCancel: () => void
@@ -851,7 +859,7 @@ function ReplaceCertificateForm({ certificate, onReplace, isReplacing, onCancel 
     issuerName: "VNU University",
     issuerId: "VNU-001", 
     issuerUrl: "https://vnu.edu.vn",
-    issueDate: "",
+    issueDate: new Date().toISOString().split('T')[0], // Auto-fill current date
     expiryDate: "",
   })
 
@@ -859,16 +867,18 @@ function ReplaceCertificateForm({ certificate, onReplace, isReplacing, onCancel 
   useEffect(() => {
     if (certificate) {
       const cert = certificate.certificate
-      setFormData({
+      setFormData(prev => ({
+        ...prev,
         studentId: cert.recipient?.student_id || "",
         courseName: cert.certificate_detail?.course_name || "",
         certificateName: cert.certificate_detail?.certificate_name || "",
         issuerName: "VNU University",
         issuerId: "VNU-001",
         issuerUrl: "https://vnu.edu.vn",
-        issueDate: cert.certificate_detail?.issue_date ? new Date(cert.certificate_detail.issue_date).toISOString().split('T')[0] : "",
+        // Keep the auto-filled issue date (today's date) instead of copying from old cert
+        issueDate: new Date().toISOString().split('T')[0], // Auto-fill current date
         expiryDate: cert.certificate_detail?.expire_date ? new Date(cert.certificate_detail.expire_date).toISOString().split('T')[0] : "",
-      })
+      }))
     }
   }, [certificate])
 
@@ -964,7 +974,8 @@ function ReplaceCertificateForm({ certificate, onReplace, isReplacing, onCancel 
             id="issueDate"
             type="date"
             value={formData.issueDate}
-            onChange={(e) => handleInputChange("issueDate", e.target.value)}
+            readOnly
+            className="bg-muted cursor-not-allowed"
           />
         </div>
 

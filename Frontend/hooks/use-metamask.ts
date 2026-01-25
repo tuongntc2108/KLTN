@@ -207,16 +207,7 @@ export function useMetaMask() {
     }
   }
 
-  // Disconnect
-  const disconnect = () => {
-    setState({
-      isConnected: false,
-      account: null,
-      chainId: null,
-      isLoading: false,
-      error: null
-    })
-  }
+
 
   // Check connection status on mount
   useEffect(() => {
@@ -252,7 +243,14 @@ export function useMetaMask() {
       // Listen for account changes
       const handleAccountsChanged = (accounts: string[]) => {
         if (accounts.length === 0) {
-          disconnect()
+          setState(prev => ({
+            ...prev,
+            isConnected: false,
+            account: null,
+            chainId: null,
+            isLoading: false,
+            error: null
+          }))
         } else {
           setState(prev => ({ ...prev, account: accounts[0] }))
         }
@@ -280,7 +278,6 @@ export function useMetaMask() {
   return {
     ...state,
     connect,
-    disconnect,
     switchToSepolia,
     claimCertificate,
     isMetaMaskInstalled: isMetaMaskInstalled()

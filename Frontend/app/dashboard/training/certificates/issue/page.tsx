@@ -28,7 +28,7 @@ export default function IssueCertificatePage() {
     studentId: "",
     courseId: "", // Changed from courseName to courseId
     certificateName: "",
-    issueDate: "",
+    issueDate: new Date().toISOString().split('T')[0], // Auto-fill current date
     expiryDate: "",
     description: "",
     grade: "",
@@ -393,7 +393,8 @@ export default function IssueCertificatePage() {
                     id="issueDate"
                     type="date"
                     value={formData.issueDate}
-                    onChange={(e) => handleInputChange("issueDate", e.target.value)}
+                    readOnly
+                    className="bg-muted cursor-not-allowed"
                   />
                 </div>
                 <div>

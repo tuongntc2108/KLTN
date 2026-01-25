@@ -32,6 +32,13 @@ exports.mintCertificate = async (req, res) => {
       pdf_ipfs_hash,
     } = req.body;
 
+    // Auto-set issued date to current date if not provided
+    const currentDate = new Date().toISOString();
+    const finalIssuedDate = issued_date || currentDate;
+    
+    // Allow expire_date to be null/undefined for certificates without expiration
+    const finalExpireDate = expire_date || null;
+
     // Only student_id is required from the issuer, other info will be auto-fetched
     if (!student_id || !certificate_name) {
       return res.status(400).json({
@@ -113,8 +120,8 @@ exports.mintCertificate = async (req, res) => {
         { trait_type: "Recipient", value: recipient_name },
         { trait_type: "Course Name", value: finalCourseName },
         { trait_type: "Certificate Name", value: certificate_name },
-        { trait_type: "Issued Date", value: issued_date },
-        { trait_type: "Expire Date", value: expire_date },
+        { trait_type: "Issued Date", value: finalIssuedDate },
+        { trait_type: "Expire Date", value: finalExpireDate || "Never Expires" },
         { trait_type: "Status", value: "active" },
         { trait_type: "Token ID", value: tokenIdStr },
         { trait_type: "Blockchain", value: "Sepolia" },
@@ -133,8 +140,8 @@ exports.mintCertificate = async (req, res) => {
       certificate: {
         course_name: finalCourseName,
         certificate_name: certificate_name,
-        issued_date: new Date(issued_date).toISOString(),
-        expire_date: new Date(expire_date).toISOString(),
+        issued_date: new Date(finalIssuedDate).toISOString(),
+        expire_date: finalExpireDate ? new Date(finalExpireDate).toISOString() : null,
         status: "active",
       },
       file_hash: {
@@ -153,7 +160,10 @@ exports.mintCertificate = async (req, res) => {
     const metadataURI = await uploadMetadataToPinata(metadata);
 
     // Gọi smart contract
-    const expireUnix = Math.floor(new Date(expire_date).getTime() / 1000);
+    // Convert expiration date to Unix timestamp, use far future date for "never expires"
+    const expireUnix = finalExpireDate 
+      ? Math.floor(new Date(finalExpireDate).getTime() / 1000)
+      : Math.floor(new Date('9999-12-31').getTime() / 1000);
     const verificationCode = sha256_hash.slice(0, 16) + Date.now();
 
     // Sử dụng gas options để tránh lỗi replacement transaction underpriced
@@ -327,6 +337,7 @@ exports.getMyCertificates = async (req, res) => {
         expiryDate: new Date(cert.expire_date).toLocaleDateString('vi-VN'),
         status: displayStatus,
         tokenId: cert.token_id,
+        verificationCode: cert.verification_code, // Include verification code, fallback to token_id
         description: `Chứng nhận hoàn thành khóa học ${cert.course_name || 'N/A'}`,
         course: cert.course_name || "N/A",
         grade: "Đạt", // Default grade 
@@ -1068,6 +1079,7 @@ exports.getAllCertificates = async (req, res) => {
           token_id: cert.token_id.toString(),
           status: cert.computed_status,
           metadata_uri: cert.metadata_uri,
+          verification_code: cert.verification_code, // Include verification code
           issuer: parsedMetadata.issuer,
           recipient: parsedMetadata.recipient,
           certificate_detail: parsedMetadata.certificate,
@@ -1119,6 +1131,13 @@ exports.replaceCertificate = async (req, res) => {
       sha256_hash,
       pdf_ipfs_hash,
     } = req.body;
+
+    // Auto-set issued date to current date if not provided
+    const currentDate = new Date().toISOString();
+    const finalIssuedDate = issued_date || currentDate;
+    
+    // Allow expire_date to be null/undefined for certificates without expiration
+    const finalExpireDate = expire_date || null;
 
     // Only student_id is required from the issuer, other info will be auto-fetched
     if (!student_id || !certificate_name) {
@@ -1215,8 +1234,8 @@ exports.replaceCertificate = async (req, res) => {
         { trait_type: "Recipient", value: recipient_name },
         { trait_type: "Course Name", value: finalCourseName },
         { trait_type: "Certificate Name", value: certificate_name },
-        { trait_type: "Issued Date", value: issued_date },
-        { trait_type: "Expire Date", value: expire_date },
+        { trait_type: "Issued Date", value: finalIssuedDate },
+        { trait_type: "Expire Date", value: finalExpireDate || "Never Expires" },
         { trait_type: "Status", value: "active" },
         { trait_type: "Token ID", value: tokenIdStr },
         { trait_type: "Blockchain", value: "Sepolia" },
@@ -1235,8 +1254,8 @@ exports.replaceCertificate = async (req, res) => {
       certificate: {
         course_name: finalCourseName,
         certificate_name: certificate_name,
-        issued_date: new Date(issued_date).toISOString(),
-        expire_date: new Date(expire_date).toISOString(),
+        issued_date: new Date(finalIssuedDate).toISOString(),
+        expire_date: finalExpireDate ? new Date(finalExpireDate).toISOString() : null,
         status: "active",
       },
       file_hash: {
@@ -1255,7 +1274,7 @@ exports.replaceCertificate = async (req, res) => {
     const metadataURI = await uploadMetadataToPinata(metadata);
 
     // Gọi smart contract để thay thế
-    const expireUnix = Math.floor(new Date(expire_date).getTime() / 1000);
+    const expireUnix = Math.floor(new Date(finalExpireDate).getTime() / 1000);
     const verificationCode = sha256_hash.slice(0, 16) + Date.now();
 
     // Sử dụng gas options để tránh lỗi replacement transaction underpriced

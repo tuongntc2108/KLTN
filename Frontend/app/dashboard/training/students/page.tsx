@@ -18,6 +18,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
   Search,
   Download,
   Mail,
@@ -29,9 +40,11 @@ import {
   Plus,
   Eye,
   Edit,
+  Trash2,
   Loader2,
   Wallet,
   User,
+  Pencil,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -91,6 +104,19 @@ export default function StudentsPage() {
     email: '',
     wallet_address: ''
   })
+
+  // Form state for editing student
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editStudentData, setEditStudentData] = useState({
+    name: '',
+    email: ''
+  })
+
+  // State for delete confirmation
+  const [studentToDelete, setStudentToDelete] = useState<Student | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Fetch students data from API
   const fetchData = async () => {
@@ -305,10 +331,180 @@ export default function StudentsPage() {
     })
   }
 
+  // Open edit dialog
+  const openEditDialog = (student: Student) => {
+    setEditingStudent(student)
+    setEditStudentData({
+      name: student.name,
+      email: student.email
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  // Handle edit form input changes
+  const handleEditInputChange = (field: string, value: string) => {
+    setEditStudentData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  // Validate edit form data
+  const validateEditForm = () => {
+    const errors = []
+    
+    if (!editStudentData.name || !editStudentData.name.trim()) {
+      errors.push('Họ tên là bắt buộc')
+    }
+    
+    if (!editStudentData.email || !editStudentData.email.trim()) {
+      errors.push('Email là bắt buộc')
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editStudentData.email.trim())) {
+      errors.push('Email không hợp lệ')
+    }
+    
+    return errors
+  }
+
+  // Handle edit form submission
+  const handleEditSubmit = async () => {
+    if (!editingStudent) return
+    
+    const validationErrors = validateEditForm()
+    if (validationErrors.length > 0) {
+      toast({
+        title: "Lỗi validation",
+        description: validationErrors.join(', '),
+        variant: "destructive",
+      })
+      return
+    }
+    
+    try {
+      setIsSubmitting(true)
+      
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+      
+      const payload = {
+        name: editStudentData.name.trim(),
+        email: editStudentData.email.trim().toLowerCase(),
+      }
+      
+      const response = await fetch(`${baseUrl}/api/students/${editingStudent.student_id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+      
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}`
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.details || errorData.error || errorData.message || errorMessage
+        } catch (parseError) {
+          const textError = await response.text()
+          errorMessage = textError || errorMessage
+        }
+        throw new Error(errorMessage)
+      }
+      
+      const result = await response.json()
+      
+      toast({
+        title: "Thành công",
+        description: `Thông tin học viên ${editStudentData.name} đã được cập nhật`,
+      })
+      
+      // Close dialog
+      setIsEditDialogOpen(false)
+      
+      // Refresh data
+      fetchData()
+      
+    } catch (error) {
+      console.error('Error updating student:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Không thể cập nhật học viên'
+      
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Open delete confirmation dialog
+  const openDeleteDialog = (student: Student) => {
+    setStudentToDelete(student)
+    setIsDeleteDialogOpen(true)
+  }
+
+  // Handle delete student
+  const handleDeleteStudent = async () => {
+    if (!studentToDelete) return
+    
+    try {
+      setIsDeleting(true)
+      
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+      
+      const response = await fetch(`${baseUrl}/api/students/${studentToDelete.student_id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}`
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.details || errorData.error || errorData.message || errorMessage
+        } catch (parseError) {
+          const textError = await response.text()
+          errorMessage = textError || errorMessage
+        }
+        throw new Error(errorMessage)
+      }
+      
+      const result = await response.json()
+      
+      toast({
+        title: "Thành công",
+        description: `Học viên ${studentToDelete.name} đã được xóa`,
+      })
+      
+      // Close dialog
+      setIsDeleteDialogOpen(false)
+      
+      // Refresh data
+      fetchData()
+      
+    } catch (error) {
+      console.error('Error deleting student:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Không thể xóa học viên'
+      
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const filteredStudents = students.filter((student) => {
     const matchesSearch =
       student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.email.toLowerCase().includes(searchTerm.toLowerCase())
+      student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.student_id.toString().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || student.status === statusFilter
     const matchesCourse =
       courseFilter === "all" ||
@@ -433,6 +629,83 @@ export default function StudentsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Student Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Sửa thông tin học viên</DialogTitle>
+              <DialogDescription>
+                Cập nhật thông tin của học viên {editingStudent?.name}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-student-id" className="text-right">
+                  Mã sinh viên
+                </Label>
+                <div className="col-span-3">
+                  <Input
+                    id="edit-student-id"
+                    value={editingStudent?.student_id || ''}
+                    readOnly
+                    className="opacity-70 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-student-name" className="text-right">
+                  Họ tên *
+                </Label>
+                <Input
+                  id="edit-student-name"
+                  placeholder="VD: Nguyễn Văn An"
+                  className="col-span-3"
+                  value={editStudentData.name}
+                  onChange={(e) => handleEditInputChange('name', e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-student-email" className="text-right">
+                  Email *
+                </Label>
+                <Input
+                  id="edit-student-email"
+                  type="email"
+                  placeholder="VD: an.nguyen@vnu.edu.vn"
+                  className="col-span-3"
+                  value={editStudentData.email}
+                  onChange={(e) => handleEditInputChange('email', e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEditDialogOpen(false)}
+                disabled={isSubmitting}
+              >
+                Hủy
+              </Button>
+              <Button 
+                onClick={handleEditSubmit}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Đang lưu...
+                  </>
+                ) : (
+                  <>
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Cập nhật
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Stats Cards */}
@@ -496,7 +769,7 @@ export default function StudentsPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
-                  placeholder="Tìm kiếm theo tên hoặc email..."
+                  placeholder="Tìm kiếm theo tên, email hoặc mã sinh viên..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -589,10 +862,14 @@ export default function StudentsPage() {
                         <h3 className="font-semibold">{student.name}</h3>
                         {getStatusBadge(student.status || 'unknown')}
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
+                      <div className="flex flex-col gap-1 text-sm">
+                        <div className="flex items-center gap-1 text-muted-foreground">
                           <Mail className="w-3 h-3" />
                           {student.email}
+                        </div>
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <User className="w-3 h-3" />
+                          <span className="font-mono">{student.student_id}</span>
                         </div>
                       </div>
                     </div>
@@ -610,10 +887,50 @@ export default function StudentsPage() {
                         <Eye className="w-4 h-4 mr-1" />
                         Xem
                       </Button>
-                      <Button variant="outline" size="sm">
-                        <Edit className="w-4 h-4 mr-1" />
+                      <Button variant="outline" size="sm" onClick={() => openEditDialog(student)}>
+                        <Pencil className="w-4 h-4 mr-1" />
                         Sửa
                       </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" onClick={() => openDeleteDialog(student)}>
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Xóa
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Xác nhận xóa học viên</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Bạn có chắc chắn muốn xóa học viên <strong>{student.name}</strong>? Hành động này không thể hoàn tác.
+                                              
+                              {student.totalCertificates != null && student.totalCertificates > 0 && (
+                                <div className="mt-2 p-2 bg-yellow-50 text-yellow-800 rounded-md text-sm">
+                                  <AlertCircle className="w-4 h-4 inline mr-1" />
+                                  Học viên này hiện có {student.totalCertificates} chứng chỉ. Chỉ những học viên không có chứng chỉ mới có thể bị xóa.
+                                </div>
+                              )}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>Hủy</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={handleDeleteStudent}
+                              disabled={isDeleting || (student.totalCertificates != null && student.totalCertificates > 0)}
+                              className={(student.totalCertificates != null && student.totalCertificates > 0) ? 'opacity-50 cursor-not-allowed' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}
+                            >
+                              {isDeleting ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Đang xóa...
+                                </>
+                              ) : (
+                                'Xóa học viên'
+                              )}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 </div>

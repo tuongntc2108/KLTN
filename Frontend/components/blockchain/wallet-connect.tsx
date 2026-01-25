@@ -14,7 +14,6 @@ export function WalletConnect() {
     error,
     isMetaMaskInstalled,
     connectWallet,
-    disconnectWallet,
     copyAddress,
     openInExplorer,
     formatAddress,
@@ -221,12 +220,9 @@ export function WalletConnect() {
           <Button variant="outline" className="flex-1 bg-transparent" onClick={connectWallet}>
             Đổi tài khoản
           </Button>
-          <Button variant="outline" className="flex-1 bg-transparent" onClick={disconnectWallet}>
-            Ngắt kết nối
-          </Button>
+
           <Button variant="outline" className="flex-1 bg-transparent" onClick={async () => {
             await clearWalletFromBackend()
-            disconnectWallet()
           }}>
             Xóa ví
           </Button>

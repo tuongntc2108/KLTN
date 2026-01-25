@@ -237,19 +237,7 @@ export default function StudentCertificates() {
             {student && ` - ${student.name}`}
           </p>
           {/* MetaMask Connection Status */}
-          <div className="flex items-center gap-2 mt-2">
-            {isConnected && account ? (
-              <Badge variant="default" className="bg-green-100 text-green-800">
-                <CheckCircle className="w-3 h-3 mr-1" />
-                MetaMask: {account.slice(0, 6)}...{account.slice(-4)}
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="bg-orange-100 text-orange-800">
-                <AlertTriangle className="w-3 h-3 mr-1" />
-                MetaMask chưa kết nối
-              </Badge>
-            )}
-          </div>
+          
         </div>
         <div className="flex gap-3">
           <Button variant="outline" onClick={refreshCertificates} disabled={loading}>
@@ -331,7 +319,7 @@ export default function StudentCertificates() {
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">{cert.description}</p>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                 <div>
                   <p className="font-medium text-muted-foreground">Khóa học</p>
                   <p>{cert.course}</p>
@@ -343,6 +331,10 @@ export default function StudentCertificates() {
                 <div>
                   <p className="font-medium text-muted-foreground">Ngày hết hạn</p>
                   <p>{cert.expiryDate}</p>
+                </div>
+                <div>
+                  <p className="font-medium text-muted-foreground">Mã xác thực</p>
+                  <p className="font-mono text-xs truncate">{cert.verificationCode}</p>
                 </div>
                 <div>
                   <p className="font-medium text-muted-foreground">Token ID</p>
@@ -371,22 +363,6 @@ export default function StudentCertificates() {
                     )}
                   </Button>
                 )}
-                <Button size="sm" variant="outline">
-                  <Download className="w-4 h-4 mr-2" />
-                  Tải PDF
-                </Button>
-                <Button size="sm" variant="outline">
-                  <Share className="w-4 h-4 mr-2" />
-                  Chia sẻ
-                </Button>
-                <Button size="sm" variant="outline">
-                  <QrCode className="w-4 h-4 mr-2" />
-                  Mã QR
-                </Button>
-                <Button size="sm" variant="outline">
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Xem trên Blockchain
-                </Button>
               </div>
             </CardContent>
           </Card>

@@ -83,6 +83,27 @@ exports.createStudent = async (req, res) => {
       return res.status(400).json({ error: "Validation error", details: "wallet_address is invalid" });
     }
 
+    // Check if student ID or email already exists in students table
+    const checkExistingQuery = `SELECT id, email FROM students WHERE id = $1 OR email = $2`;
+    const checkResult = await db.pool.query(checkExistingQuery, [idNum, email.toLowerCase()]);
+    
+    if (checkResult.rows.length > 0) {
+      // Determine which field caused the conflict
+      const existingRecord = checkResult.rows[0];
+      let conflictField = "";
+      
+      if (existingRecord.id === idNum) {
+        conflictField = "student_id";
+      } else if (existingRecord.email.toLowerCase() === email.toLowerCase()) {
+        conflictField = "email";
+      }
+      
+      return res.status(400).json({ 
+        error: "Validation error", 
+        details: `Student ${conflictField} already exists` 
+      });
+    }
+
     // Create student with user (using new user management system)
     const studentData = {
       id: idNum,
@@ -162,21 +183,18 @@ exports.updateStudent = async (req, res) => {
       return res.status(400).json({ error: "Bad Request", details: "Invalid id in URL" });
     }
 
-    const { name, email, wallet_address } = req.body || {};
-    if (!name || !email || !wallet_address) {
-      return res.status(400).json({ error: "Bad Request", details: "name, email, wallet_address are required" });
-    }
-    if (!/^0x[a-fA-F0-9]{40}$/.test(wallet_address)) {
-      return res.status(400).json({ error: "Bad Request", details: "wallet_address is invalid" });
+    const { name, email } = req.body || {};
+    if (!name || !email) {
+      return res.status(400).json({ error: "Bad Request", details: "name and email are required" });
     }
 
     const q = `
       UPDATE students
-      SET name=$1, email=$2, wallet_address=$3
-      WHERE id=$4
+      SET name=$1, email=$2
+      WHERE id=$3
       RETURNING id
     `;
-    const params = [name, String(email).toLowerCase(), wallet_address, idParam];
+    const params = [name, String(email).toLowerCase(), idParam];
     const r = await db.query(q, params);
     if (r.rowCount === 0) {
       return res.status(404).json({ error: "Not Found" });
@@ -185,9 +203,53 @@ exports.updateStudent = async (req, res) => {
     return res.status(200).json({ message: "Student updated successfully" });
   } catch (err) {
     if (err.code === '23505') {
-      return res.status(400).json({ error: "Bad Request", details: "Email hoặc địa chỉ ví đã tồn tại" });
+      return res.status(400).json({ error: "Bad Request", details: "Email đã tồn tại" });
     }
     console.error("❌ updateStudent error:", err.message);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// Delete student only if they have no certificates
+exports.deleteStudent = async (req, res) => {
+  try {
+    const idParam = Number(req.params.id);
+    if (!Number.isInteger(idParam) || idParam <= 0) {
+      return res.status(400).json({ error: "Bad Request", details: "Invalid id in URL" });
+    }
+
+    // Check if student has any certificates (by both wallet address and student ID)
+    const checkCertificatesByHolderQuery = `SELECT COUNT(*) as count FROM certificates WHERE holder = (SELECT wallet_address FROM students WHERE id = $1)`;
+    const certByHolderResult = await db.pool.query(checkCertificatesByHolderQuery, [idParam]);
+    
+    const checkCertificatesByStudentIdQuery = `SELECT COUNT(*) as count FROM certificates WHERE student_id = $1::TEXT`;
+    const certByStudentIdResult = await db.pool.query(checkCertificatesByStudentIdQuery, [idParam]);
+    
+    const totalCertificates = parseInt(certByHolderResult.rows[0].count) + parseInt(certByStudentIdResult.rows[0].count);
+    
+    if (totalCertificates > 0) {
+      return res.status(400).json({ error: "Bad Request", details: "Không thể xóa học viên đang có chứng chỉ" });
+    }
+
+    // Check if student exists
+    const checkStudentQuery = `SELECT id FROM students WHERE id = $1`;
+    const studentResult = await db.pool.query(checkStudentQuery, [idParam]);
+    
+    if (studentResult.rows.length === 0) {
+      return res.status(404).json({ error: "Not Found", details: "Student not found" });
+    }
+
+    // Delete the student
+    const deleteQuery = `DELETE FROM students WHERE id = $1`;
+    const deleteResult = await db.pool.query(deleteQuery, [idParam]);
+    
+    if (deleteResult.rowCount === 0) {
+      return res.status(404).json({ error: "Not Found", details: "Student not found" });
+    }
+
+    return res.status(200).json({ message: "Student deleted successfully" });
+  } catch (err) {
+    console.error("❌ deleteStudent error:", err.message);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };

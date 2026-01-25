@@ -10,6 +10,7 @@ interface Certificate {
   expiryDate: string
   status: string
   tokenId: string
+  verificationCode: string
   description: string
   course: string
   grade: string

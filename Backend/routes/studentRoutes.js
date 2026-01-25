@@ -15,6 +15,9 @@ router.get("/:id", authenticate, requireRole(["Issuer", "Admin"]), studentContro
 // UPDATE Student
 router.put("/:id", authenticate, requireRole(["Issuer", "Admin"]), studentController.updateStudent);
 
+// DELETE Student
+router.delete("/:id", authenticate, requireRole(["Issuer", "Admin"]), studentController.deleteStudent);
+
 // New routes for wallet management
 // GET current user's wallet info (for authenticated students)
 router.get("/me/wallet", authenticate, studentController.getMyWalletInfo);
