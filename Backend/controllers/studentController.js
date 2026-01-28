@@ -180,10 +180,10 @@ exports.getStudents = async (req, res) => {
         s.created_at,
         s.issuer_id,
         COUNT(c.id) as total_certificates,
-        COUNT(CASE WHEN c.status = 'active' THEN 1 END) as active_certificates,
-        COUNT(CASE WHEN c.status = 'expired' OR c.expire_date < NOW() THEN 1 END) as expired_certificates,
-        COUNT(CASE WHEN c.status = 'issued_not_claimed' THEN 1 END) as pending_certificates,
-        COUNT(CASE WHEN c.status = 'revoked' THEN 1 END) as revoked_certificates,
+        COUNT(CASE WHEN c.status = 'Active' THEN 1 END) as active_certificates,
+        COUNT(CASE WHEN c.status = 'Expired' OR c.expire_date < NOW() THEN 1 END) as expired_certificates,
+        COUNT(CASE WHEN c.status = 'Issued' THEN 1 END) as pending_certificates,
+        COUNT(CASE WHEN c.status = 'Revoked' THEN 1 END) as revoked_certificates,
         ARRAY_AGG(DISTINCT c.course_name) FILTER (WHERE c.course_name IS NOT NULL) as courses
       FROM students s
       LEFT JOIN certificates c ON s.wallet_address = c.holder
@@ -206,7 +206,7 @@ exports.getStudents = async (req, res) => {
       pendingCertificates: parseInt(row.pending_certificates) || 0,
       revokedCertificates: parseInt(row.revoked_certificates) || 0,
       courses: row.courses ? row.courses.filter(course => course !== null) : [],
-      status: row.wallet_address ? 'active' : 'pending'
+      status: row.wallet_address ? 'Active' : 'Issued'
     }));
 
     return res.status(200).json(result);

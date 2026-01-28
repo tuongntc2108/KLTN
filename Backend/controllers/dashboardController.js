@@ -109,12 +109,8 @@ const dashboardController = {
             COALESCE(co.course_name, c.course_name, c.certificate_name) as course_name,
             c.issued_date as issue_date,
             CASE 
-              WHEN c.status = 'Revoked' THEN 'revoked'
-              WHEN c.status = 'Replaced' THEN 'replaced'
-              WHEN c.expire_date < NOW() THEN 'expired'
-              WHEN c.status = 'Issued' THEN 'pending'
-              WHEN c.status = 'Active' THEN 'active'
-              ELSE LOWER(c.status)
+              WHEN c.expire_date < NOW() THEN 'Expired'
+              ELSE c.status
             END as status
           FROM certificates c
           LEFT JOIN courses co ON c.course_id = co.id

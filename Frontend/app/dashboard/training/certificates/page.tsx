@@ -85,8 +85,8 @@ interface ApiResponse {
 
 export default function CertificatesPage() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [typeFilter, setTypeFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState("All")
+  const [typeFilter, setTypeFilter] = useState("All")
   const [certificates, setCertificates] = useState<Certificate[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -101,34 +101,13 @@ export default function CertificatesPage() {
   const [certificateToReplace, setCertificateToReplace] = useState<Certificate | null>(null)
   const [isReplacing, setIsReplacing] = useState(false)
 
-  // Centralized status mapping utility for consistent status handling
-  const normalizeStatus = (status: string): string => {
-    const statusLower = status.toLowerCase();
-    switch (statusLower) {
-      case 'active':
-        return 'active';
-      case 'issued':
-      case 'issued_not_claimed':
-        return 'issued_not_claimed';
-      case 'revoked':
-        return 'revoked';
-      case 'expired':
-        return 'expired';
-      case 'replaced':
-        return 'replaced';
-      default:
-        return status;
-    }
-  };
+
 
   // Check if status matches filter (handles multiple status variations)
   const statusMatches = (certificateStatus: string, filterStatus: string): boolean => {
-    if (filterStatus === "all") return true;
+    if (filterStatus === "All") return true;
     
-    const normalizedCertStatus = normalizeStatus(certificateStatus);
-    const normalizedFilterStatus = normalizeStatus(filterStatus);
-    
-    return normalizedCertStatus === normalizedFilterStatus;
+    return certificateStatus === filterStatus;
   };
 
   // Fetch certificates from API
@@ -161,7 +140,6 @@ export default function CertificatesPage() {
         console.log('Certificate statuses:', data.certificates.map(cert => ({
           tokenId: cert?.certificate?.token_id,
           status: cert?.certificate?.status,
-          normalized: normalizeStatus(cert?.certificate?.status || "")
         })))
       } else {
         throw new Error(data.message || 'Failed to fetch certificates')
@@ -327,14 +305,13 @@ export default function CertificatesPage() {
     // Use centralized status matching utility
     const matchesStatus = statusMatches(status, statusFilter);
     
-    const matchesType = typeFilter === "all" || certificateName.toLowerCase().includes(typeFilter.toLowerCase())
+    const matchesType = typeFilter === "All" || certificateName.toLowerCase().includes(typeFilter.toLowerCase())
 
     return matchesSearch && matchesStatus && matchesType
   })
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "active":
       case "Active":
         return (
           <Badge className="bg-green-100 text-green-800">
@@ -342,8 +319,6 @@ export default function CertificatesPage() {
             Hoạt động
           </Badge>
         )
-      case "issued_not_claimed":
-      case "issued":
       case "Issued":
         return (
           <Badge className="bg-orange-100 text-orange-800 border-orange-200">
@@ -351,7 +326,6 @@ export default function CertificatesPage() {
             Đang chờ nhận
           </Badge>
         )
-      case "revoked":
       case "Revoked":
         return (
           <Badge variant="destructive">
@@ -359,7 +333,6 @@ export default function CertificatesPage() {
             Đã thu hồi
           </Badge>
         )
-      case "expired":
       case "Expired":
         return (
           <Badge variant="destructive">
@@ -367,7 +340,6 @@ export default function CertificatesPage() {
             Hết hạn
           </Badge>
         )
-      case "replaced":
       case "Replaced":
         return (
           <Badge variant="outline">
@@ -511,7 +483,7 @@ export default function CertificatesPage() {
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{getStatusCount("active")}</div>
+            <div className="text-2xl font-bold">{getStatusCount("Active")}</div>
             <p className="text-xs text-muted-foreground">Đang có hiệu lực</p>
           </CardContent>
         </Card>
@@ -521,7 +493,7 @@ export default function CertificatesPage() {
             <Clock className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{getStatusCount("issued_not_claimed")}</div>
+            <div className="text-2xl font-bold">{getStatusCount("Issued")}</div>
             <p className="text-xs text-muted-foreground">Chưa được nhận</p>
           </CardContent>
         </Card>
@@ -531,7 +503,7 @@ export default function CertificatesPage() {
             <XCircle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{getStatusCount("expired")}</div>
+            <div className="text-2xl font-bold">{getStatusCount("Expired")}</div>
             <p className="text-xs text-muted-foreground">Cần gia hạn</p>
           </CardContent>
         </Card>
@@ -541,7 +513,7 @@ export default function CertificatesPage() {
             <Ban className="h-4 w-4 text-gray-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{getStatusCount("revoked")}</div>
+            <div className="text-2xl font-bold">{getStatusCount("Revoked")}</div>
             <p className="text-xs text-muted-foreground">Đã bị thu hồi</p>
           </CardContent>
         </Card>
@@ -571,11 +543,11 @@ export default function CertificatesPage() {
                 <SelectValue placeholder="Trạng thái" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                <SelectItem value="active">Hoạt động</SelectItem>
-                <SelectItem value="issued_not_claimed">Đang chờ nhận</SelectItem>
-                <SelectItem value="expired">Hết hạn</SelectItem>
-                <SelectItem value="revoked">Thu hồi</SelectItem>
+                <SelectItem value="All">Tất cả trạng thái</SelectItem>
+                <SelectItem value="Active">Hoạt động</SelectItem>
+                <SelectItem value="Issued">Đang chờ nhận</SelectItem>
+                <SelectItem value="Expired">Hết hạn</SelectItem>
+                <SelectItem value="Revoked">Thu hồi</SelectItem>
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -603,11 +575,11 @@ export default function CertificatesPage() {
                   <Award className="h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No certificates found</h3>
                   <p className="text-muted-foreground mb-4">
-                    {searchTerm || statusFilter !== "all" || typeFilter !== "all"
+                    {searchTerm || statusFilter !== "All" || typeFilter !== "All"
                       ? "Try adjusting your search filters"
                       : "You haven't issued any certificates yet"}
                   </p>
-                  {!searchTerm && statusFilter === "all" && typeFilter === "all" && (
+                  {!searchTerm && statusFilter === "All" && typeFilter === "All" && (
                     <Link href="/dashboard/training/certificates/issue">
                       <Button>
                         <Plus className="w-4 h-4 mr-2" />
@@ -680,7 +652,7 @@ export default function CertificatesPage() {
                           </Button>
                         
                           {/* Replace Button - Only show for active and issued certificates */}
-                          {(status.toLowerCase() === 'active' || status.toLowerCase() === 'issued') && (
+                          {(status === 'Active' || status === 'Issued') && (
                             <Dialog open={replaceDialogOpen} onOpenChange={(open) => {
                               setReplaceDialogOpen(open)
                               if (!open) {
@@ -720,7 +692,7 @@ export default function CertificatesPage() {
                             </Dialog>
                           )}
                           {/* Revoke Button - Show for active and issued certificates */}
-                          {(status.toLowerCase() === 'active' || status.toLowerCase() === 'issued') && (
+                          {(status === 'Active' || status === 'Issued') && (
                             <Dialog open={revokeDialogOpen} onOpenChange={(open) => {
                               setRevokeDialogOpen(open)
                               if (!open) {

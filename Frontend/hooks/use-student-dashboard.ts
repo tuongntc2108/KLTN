@@ -16,7 +16,7 @@ interface RecentCertificate {
   name: string
   issuer: string
   issue_date: string
-  status: 'Active' | 'Pending' | 'Expired' | 'Revoked' | 'Replaced'
+  status: 'Active' | 'Issued' | 'Expired' | 'Revoked' | 'Replaced'
   token_id: string
   course: string
 }
@@ -88,7 +88,7 @@ export function useStudentDashboard() {
         // Calculate stats
         const totalCertificates = certificates.length
         const activeCertificates = certificates.filter((cert: any) => cert.status === 'Active').length
-        const pendingCertificates = certificates.filter((cert: any) => cert.status === 'Pending').length
+        const pendingCertificates = certificates.filter((cert: any) => cert.status === 'Issued').length
         
         // Calculate expiring certificates (within 30 days)
         const now = new Date()

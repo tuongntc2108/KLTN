@@ -188,27 +188,27 @@ exports.verifyByCode = async (req, res) => {
     
     switch (Number(cert.status)) {
       case 0: 
-        status = "issued";
+        status = "Issued";
         message = isValid ? "Xác thực chứng chỉ thành công." : "Chứng chỉ đã được cấp nhưng chưa được kích hoạt.";
         break;
       case 1: 
-        status = "active";
+        status = "Active";
         message = isValid ? "Xác thực chứng chỉ thành công." : "Chứng chỉ đang hoạt động.";
         break;
       case 2: 
-        status = "expired";
+        status = "Expired";
         message = "Chứng chỉ đã hết hạn.";
         break;
       case 3: 
-        status = "revoked";
+        status = "Revoked";
         message = "Chứng chỉ đã bị thu hồi.";
         break;
       case 4: 
-        status = "replaced";
+        status = "Replaced";
         message = "Chứng chỉ đã được thay thế bằng chứng chỉ mới.";
         break;
       default: 
-        status = "unknown";
+        status = "Unknown";
         message = "Trạng thái chứng chỉ không xác định.";
     }
 
@@ -340,27 +340,27 @@ exports.verifyByTokenId = async (req, res) => {
     
     switch (Number(cert.status)) {
       case 0: 
-        status = "issued";
+        status = "Issued";
         message = isValid ? "Xác thực chứng chỉ thành công." : "Chứng chỉ đã được cấp nhưng chưa được kích hoạt.";
         break;
       case 1: 
-        status = "active";
+        status = "Active";
         message = isValid ? "Xác thực chứng chỉ thành công." : "Chứng chỉ đang hoạt động.";
         break;
       case 2: 
-        status = "expired";
+        status = "Expired";
         message = "Chứng chỉ đã hết hạn.";
         break;
       case 3: 
-        status = "revoked";
+        status = "Revoked";
         message = "Chứng chỉ đã bị thu hồi.";
         break;
       case 4: 
-        status = "replaced";
+        status = "Replaced";
         message = "Chứng chỉ đã được thay thế bằng chứng chỉ mới.";
         break;
       default: 
-        status = "unknown";
+        status = "Unknown";
         message = "Trạng thái chứng chỉ không xác định.";
     }
 

@@ -207,15 +207,15 @@ export default function VerifyPage() {
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-red-800">Chứng chỉ không hợp lệ</h3>
                     <p className="text-red-900 font-semibold mt-1">
-                      {verificationResult.certificate?.status === 'expired' && '⏰ Chứng chỉ đã hết hạn'}
-                      {verificationResult.certificate?.status === 'revoked' && '🚫 Chứng chỉ đã bị thu hồi'}
-                      {verificationResult.certificate?.status === 'replaced' && '🔄 Chứng chỉ đã được thay thế bằng chứng chỉ khác'}
+                      {verificationResult.certificate?.status === 'Expired' && '⏰ Chứng chỉ đã hết hạn'}
+                      {verificationResult.certificate?.status === 'Revoked' && '🚫 Chứng chỉ đã bị thu hồi'}
+                      {verificationResult.certificate?.status === 'Replaced' && '🔄 Chứng chỉ đã được thay thế bằng chứng chỉ khác'}
                       {!verificationResult.certificate?.status && '❌ Không thể xác minh chứng chỉ'}
                     </p>
                     <p className="text-red-800 text-sm mt-2">
-                      {verificationResult.certificate?.status === 'expired' && `Chứng chỉ này đã vượt quá ngày hết hạn vào ${verificationResult.certificate?.expiryDate} và không còn có hiệu lực.`}
-                      {verificationResult.certificate?.status === 'revoked' && `Chứng chỉ này đã bị thu hồi bởi đơn vị cấp và không còn giá trị. Lý do: ${verificationResult.certificate?.revocation_reason || 'Không có thông tin'}`}
-                      {verificationResult.certificate?.status === 'replaced' && `Chứng chỉ này đã được thay thế bằng một chứng chỉ mới. Vui lòng sử dụng chứng chỉ mới thay vào.`}
+                      {verificationResult.certificate?.status === 'Expired' && `Chứng chỉ này đã vượt quá ngày hết hạn vào ${verificationResult.certificate?.expiryDate} và không còn có hiệu lực.`}
+                      {verificationResult.certificate?.status === 'Revoked' && `Chứng chỉ này đã bị thu hồi bởi đơn vị cấp và không còn giá trị. Lý do: ${verificationResult.certificate?.revocation_reason || 'Không có thông tin'}`}
+                      {verificationResult.certificate?.status === 'Replaced' && `Chứng chỉ này đã được thay thế bằng một chứng chỉ mới. Vui lòng sử dụng chứng chỉ mới thay vào.`}
                       {!verificationResult.certificate?.status && verificationResult.message}
                     </p>
                   </div>
@@ -317,7 +317,7 @@ export default function VerifyPage() {
                 </div>
 
                 {/* Revocation Reason Section - Only for revoked certificates */}
-                {!verificationResult.isValid && verificationResult.certificate?.status === 'revoked' && verificationResult.certificate?.revocation_reason && (
+                {!verificationResult.isValid && verificationResult.certificate?.status === 'Revoked' && verificationResult.certificate?.revocation_reason && (
                   <div className="border-t pt-4 mt-4">
                     <h4 className="font-semibold mb-3 text-red-800">Lý do thu hồi</h4>
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">

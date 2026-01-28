@@ -33,7 +33,7 @@ export default function StudentCertificates() {
   const { connect, isConnected, account, isMetaMaskInstalled } = useMetaMask()
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState("All")
   const [claimingTokenId, setClaimingTokenId] = useState<string | null>(null)
 
   // Filter certificates based on search term and status
@@ -43,7 +43,7 @@ export default function StudentCertificates() {
                            cert.course.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            cert.issuer.toLowerCase().includes(searchTerm.toLowerCase())
       
-      const matchesStatus = statusFilter === "all" || cert.status === statusFilter
+      const matchesStatus = statusFilter === "All" || cert.status === statusFilter
       
       return matchesSearch && matchesStatus
     })
@@ -51,42 +51,42 @@ export default function StudentCertificates() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "active":
+      case "Active":
         return (
           <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
             <CheckCircle className="w-3 h-3 mr-1" />
             Có hiệu lực
           </Badge>
         )
-      case "pending":
+      case "Issued":
         return (
           <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">
             <Clock className="w-3 h-3 mr-1" />
             Chờ nhận
           </Badge>
         )
-      case "expiring":
+      case "Expiring":
         return (
           <Badge variant="destructive" className="bg-orange-100 text-orange-800 border-orange-200">
             <AlertTriangle className="w-3 h-3 mr-1" />
             Sắp hết hạn
           </Badge>
         )
-      case "expired":
+      case "Expired":
         return (
           <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200">
             <XCircle className="w-3 h-3 mr-1" />
             Đã hết hạn
           </Badge>
         )
-      case "revoked":
+      case "Revoked":
         return (
           <Badge variant="destructive">
             <XCircle className="w-3 h-3 mr-1" />
             Đã thu hồi
           </Badge>
         )
-      case "replaced":
+      case "Replaced":
         return (
           <Badge variant="secondary" className="bg-purple-100 text-purple-800 border-purple-200">
             <RefreshCw className="w-3 h-3 mr-1" />
@@ -277,13 +277,13 @@ export default function StudentCertificates() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="all">Tất cả trạng thái</option>
-              <option value="active">Có hiệu lực</option>
-              <option value="pending">Chờ nhận</option>
-              <option value="expiring">Sắp hết hạn</option>
-              <option value="expired">Hết hạn</option>
-              <option value="revoked">Thu hồi</option>
-              <option value="replaced">Đã thay thế</option>
+              <option value="All">Tất cả trạng thái</option>
+              <option value="Active">Có hiệu lực</option>
+              <option value="Issued">Chờ nhận</option>
+              <option value="Expiring">Sắp hết hạn</option>
+              <option value="Expired">Hết hạn</option>
+              <option value="Revoked">Thu hồi</option>
+              <option value="Replaced">Đã thay thế</option>
             </select>
           </div>
         </CardContent>
@@ -343,7 +343,7 @@ export default function StudentCertificates() {
               </div>
 
               <div className="flex flex-wrap gap-2 pt-2">
-                {cert.status === "pending" && (
+                {cert.status === "Issued" && (
                   <Button 
                     size="sm" 
                     onClick={() => handleClaimCertificate(cert.tokenId)}
@@ -391,7 +391,7 @@ export default function StudentCertificates() {
                 <p className="text-muted-foreground text-center mb-4">
                   Không có chứng chỉ nào phù hợp với tìm kiếm của bạn.
                 </p>
-                <Button variant="outline" onClick={() => { setSearchTerm(""); setStatusFilter("all"); }}>
+                <Button variant="outline" onClick={() => { setSearchTerm(""); setStatusFilter("All"); }}>
                   Xóa bộ lọc
                 </Button>
               </>

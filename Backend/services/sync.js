@@ -112,7 +112,7 @@ async function upsertCertificateFromStruct(tokenId, cert) {
   await db.query(q, params);
 }
 
-async function insertEvent({ tokenId, type, issuer, holder, reason, relatedToken, blockNumber, txHash }) {
+async function insertEvent({ tokenId, type, reason, relatedToken, blockNumber, txHash }) {
   // Kiểm tra xem event đã tồn tại chưa (unique theo token_id + event_type)
   const checkQuery = `
     SELECT id FROM certificate_events 
@@ -129,11 +129,11 @@ async function insertEvent({ tokenId, type, issuer, holder, reason, relatedToken
   // Nếu chưa tồn tại, insert mới
   const q = `
     INSERT INTO certificate_events
-      (token_id, event_type, issuer, holder, reason, related_token, block_number, tx_hash)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      (token_id, event_type, reason, related_token, block_number, tx_hash)
+    VALUES ($1,$2,$3,$4,$5,$6)
   `;
   await db.query(q, [
-    tokenId?.toString(), type, issuer || null, holder || null,
+    tokenId?.toString(), type,
     reason || null, relatedToken ? relatedToken.toString() : null,
     blockNumber, txHash
   ]);
@@ -187,7 +187,6 @@ async function runOnce(fromBlock, toBlock) {
       await upsertCertificateFromStruct(tokenId.toString(), cert);
       await insertEvent({
         tokenId, type: "Issued",
-        issuer: cert.issuer, holder: cert.holder,
         blockNumber: log.blockNumber, txHash: log.transactionHash
       });
     }
@@ -201,7 +200,7 @@ async function runOnce(fromBlock, toBlock) {
       const { tokenId, holder } = log.args;
       await db.query(`UPDATE certificates SET status='Active', holder=$1, updated_at=NOW() WHERE token_id=$2`,
                      [holder, tokenId.toString()]);
-      await insertEvent({ tokenId, type: "Claimed", holder, blockNumber: log.blockNumber, txHash: log.transactionHash });
+      await insertEvent({ tokenId, type: "Claimed", blockNumber: log.blockNumber, txHash: log.transactionHash });
     }
   );
 
@@ -213,7 +212,7 @@ async function runOnce(fromBlock, toBlock) {
       const { tokenId, issuer, reason } = log.args;
       await db.query(`UPDATE certificates SET status='Revoked', updated_at=NOW() WHERE token_id=$1`,
                      [tokenId.toString()]);
-      await insertEvent({ tokenId, type: "Revoked", issuer, reason, blockNumber: log.blockNumber, txHash: log.transactionHash });
+      await insertEvent({ tokenId, type: "Revoked", reason, blockNumber: log.blockNumber, txHash: log.transactionHash });
     }
   );
 
@@ -417,3 +416,4 @@ exports.syncCertificateImmediately = async (tokenId) => {
 };
 
 exports.main = main;
+exports.insertEvent = insertEvent;

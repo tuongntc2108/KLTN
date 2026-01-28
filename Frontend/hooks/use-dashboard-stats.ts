@@ -17,7 +17,7 @@ interface RecentCertificate {
   student_name: string
   course_name: string
   issue_date: string
-  status: 'active' | 'pending'
+  status: 'Active' | 'Issued'
 }
 
 interface RecentStudent {

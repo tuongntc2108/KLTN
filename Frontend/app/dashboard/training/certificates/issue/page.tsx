@@ -202,7 +202,7 @@ export default function IssueCertificatePage() {
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Trạng thái</Label>
                   <Badge className="bg-green-100 text-green-800 border-green-200">
-                    {issuedCertificate.status === 'issued_not_claimed' ? 'Chờ học viên nhận' : issuedCertificate.status}
+                    {issuedCertificate.status === 'Issued' ? 'Chờ học viên nhận' : issuedCertificate.status}
                   </Badge>
                 </div>
               </div>

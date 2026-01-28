@@ -1,7 +1,7 @@
 const { contract } = require("../config/blockchain");
 const { uploadMetadataToPinata } = require("../utils/pinata");
 const { ethers } = require("ethers");
-const { syncCertificateImmediately } = require("../services/sync");
+const { syncCertificateImmediately, insertEvent } = require("../services/sync");
 const db = require("../config/pg");
 const { getUserRole } = require('../utils/userUtils');
 const aiSummaryService = require("../services/aiSummaryService");
@@ -203,6 +203,19 @@ exports.mintCertificate = async (req, res) => {
       await syncCertificateImmediately(tokenId);
       console.log(`✅ Certificate ${tokenId} synced to database immediately`);
       
+      // Log the event immediately after sync
+      try {
+        await insertEvent({
+          tokenId: tokenId,
+          type: "Issued",
+          blockNumber: receipt.blockNumber,
+          txHash: receipt.hash || receipt.transactionHash || "ISSUED_" + Date.now()
+        });
+        console.log(`✅ Event logged for certificate ${tokenId} (Issued)`);
+      } catch (eventError) {
+        console.error(`❌ Failed to log event for certificate ${tokenId}:`, eventError.message);
+      }
+      
       // Verify the sync worked by checking the database
       const verifyQuery = await db.pool.query(
         'SELECT token_id, status, recipient_name, course_name FROM certificates WHERE token_id = $1',
@@ -305,12 +318,8 @@ exports.getMyCertificates = async (req, res) => {
       SELECT 
         c.*,
         CASE 
-          WHEN c.status = 'Revoked' THEN 'revoked'
-          WHEN c.status = 'Replaced' THEN 'replaced'
-          WHEN c.expire_date < NOW() THEN 'expired'
-          WHEN c.status = 'Issued' THEN 'pending'
-          WHEN c.status = 'Active' THEN 'active'
-          ELSE LOWER(c.status)
+          WHEN c.expire_date < NOW() THEN 'Expired'
+          ELSE c.status
         END as computed_status
       FROM certificates c 
       WHERE LOWER(c.holder) = LOWER($1)
@@ -331,15 +340,15 @@ exports.getMyCertificates = async (req, res) => {
 
       return {
         id: cert.id,
-        name: cert.certificate_name || "Chứng chỉ",
-        issuer: "VNU-UET", // Default issuer
+        name: cert.certificate_name,
+        issuer: cert.issuer_name, 
         issueDate: new Date(cert.issued_date).toLocaleDateString('vi-VN'),
         expiryDate: new Date(cert.expire_date).toLocaleDateString('vi-VN'),
         status: displayStatus,
         tokenId: cert.token_id,
         verificationCode: cert.verification_code, // Include verification code, fallback to token_id
         description: `Chứng nhận hoàn thành khóa học ${cert.course_name || 'N/A'}`,
-        course: cert.course_name || "N/A",
+        course: cert.course_name || "Không xác định",
         grade: "Đạt", // Default grade 
         recipient_name: cert.recipient_name,
         metadata_uri: cert.metadata_uri
@@ -672,6 +681,19 @@ exports.syncCertificateStatus = async (req, res) => {
     try {
       await syncCertificateImmediately(tokenId);
       console.log(`🟢 [SYNC-STATUS] ✅ Certificate ${tokenId} synced after claiming`);
+      
+      // Log the event immediately after sync
+      try {
+        await insertEvent({
+          tokenId: tokenId,
+          type: "Claimed",
+          blockNumber: blockNumber,
+          txHash: transactionHash || "CLAIMED_" + Date.now()
+        });
+        console.log(`🟢 [SYNC-STATUS] ✅ Event logged for certificate ${tokenId} (Claimed)`);
+      } catch (eventError) {
+        console.error(`🟢 [SYNC-STATUS] ❌ Failed to log event for certificate ${tokenId}:`, eventError.message);
+      }
     } catch (syncError) {
       console.error(`🟢 [SYNC-STATUS] ❌ Failed to sync certificate ${tokenId} after claiming:`, syncError.message);
       console.error(`🟢 [SYNC-STATUS] Sync error stack:`, syncError.stack);
@@ -781,6 +803,20 @@ exports.revokeCertificate = async (req, res) => {
     try {
       await syncCertificateImmediately(tokenId);
       console.log(`✅ [REVOKE] Certificate ${tokenId} synced to database immediately`);
+      
+      // Log the event immediately after sync
+      try {
+        await insertEvent({
+          tokenId: tokenId,
+          type: "Revoked",
+          reason: reason,
+          blockNumber: receipt.blockNumber,
+          txHash: receipt.hash || receipt.transactionHash || "REVOKED_" + Date.now()
+        });
+        console.log(`✅ [REVOKE] Event logged for certificate ${tokenId} (Revoked)`);
+      } catch (eventError) {
+        console.error(`❌ [REVOKE] Failed to log event for certificate ${tokenId}:`, eventError.message);
+      }
     } catch (syncError) {
       console.error(`❌ [REVOKE] Failed to sync certificate ${tokenId} immediately:`, syncError.message);
       // Don't fail the whole operation if sync fails
@@ -815,8 +851,8 @@ exports.revokeCertificate = async (req, res) => {
 
     return res.status(200).json({
       message: "Certificate revoked",
-      status: "revoked",
-      transactionHash: receipt.transactionHash,
+      status: "Revoked",
+      transactionHash: receipt.hash || receipt.transactionHash,
     });
   } catch (err) {
     console.error("❌ Lỗi revokeCertificate:", err);
@@ -891,12 +927,8 @@ exports.getCertificatesByIssuer = async (req, res) => {
       SELECT 
         c.*,
         CASE 
-          WHEN c.status = 'Revoked' THEN 'revoked'
-          WHEN c.status = 'Replaced' THEN 'replaced'
-          WHEN c.expire_date < NOW() THEN 'expired'
-          WHEN c.status = 'Issued' THEN 'pending'
-          WHEN c.status = 'Active' THEN 'active'
-          ELSE LOWER(c.status)
+          WHEN c.expire_date < NOW() THEN 'Expired'
+          ELSE c.status
         END as computed_status
       FROM certificates c 
       WHERE c.issuer = $1
@@ -907,22 +939,18 @@ exports.getCertificatesByIssuer = async (req, res) => {
     // Add status filter if provided
     if (status) {
       paramCount++;
-      if (status === 'expired') {
+      if (status === 'Expired') {
         query += ` AND c.expire_date < NOW() AND c.status != 'Revoked' AND c.status != 'Replaced'`;
-      } else if (status === 'revoked') {
+      } else if (status === 'Revoked') {
         query += ` AND c.status = 'Revoked'`;
-      } else if (status === 'replaced') {
+      } else if (status === 'Replaced') {
         query += ` AND c.status = 'Replaced'`;
       } else {
         query += ` AND (
           c.status = $${paramCount} OR 
           CASE 
-            WHEN c.status = 'Revoked' THEN 'revoked'
-            WHEN c.status = 'Replaced' THEN 'replaced'
-            WHEN c.expire_date < NOW() THEN 'expired'
-            WHEN c.status = 'Issued' THEN 'pending'
-            WHEN c.status = 'Active' THEN 'active'
-            ELSE LOWER(c.status)
+            WHEN c.expire_date < NOW() THEN 'Expired'
+            ELSE c.status
           END = $${paramCount}
         )`;
         params.push(status);
@@ -1028,9 +1056,7 @@ exports.getAllCertificates = async (req, res) => {
       SELECT 
         c.*,
         CASE 
-          WHEN c.status = 'Revoked' THEN 'revoked'
-          WHEN c.status = 'Replaced' THEN 'replaced'
-          WHEN c.expire_date < NOW() THEN 'expired'
+          WHEN c.expire_date < NOW() THEN 'Expired'
           ELSE c.status
         END as computed_status
       FROM certificates c 
@@ -1041,11 +1067,11 @@ exports.getAllCertificates = async (req, res) => {
     // Add status filter if provided
     if (status) {
       paramCount++;
-      if (status === 'expired') {
+      if (status === 'Expired') {
         query += ` WHERE c.expire_date < NOW() AND c.status != 'Revoked' AND c.status != 'Replaced'`;
-      } else if (status === 'revoked') {
+      } else if (status === 'Revoked') {
         query += ` WHERE c.status = 'Revoked'`;
-      } else if (status === 'replaced') {
+      } else if (status === 'Replaced') {
         query += ` WHERE c.status = 'Replaced'`;
       } else {
         query += ` WHERE c.status = $${paramCount}`;
@@ -1345,6 +1371,20 @@ exports.replaceCertificate = async (req, res) => {
     try {
       await syncCertificateImmediately(oldTokenId);
       console.log(`✅ [REPLACE] Old certificate ${oldTokenId} synced to database immediately`);
+      
+      // Log the event for the old certificate (Replaced)
+      try {
+        await insertEvent({
+          tokenId: oldTokenId,
+          type: "Replaced",
+          relatedToken: newTokenId,
+          blockNumber: receipt.blockNumber,
+          txHash: receipt.hash || receipt.transactionHash || "REPLACED_" + Date.now()
+        });
+        console.log(`✅ [REPLACE] Event logged for old certificate ${oldTokenId} (Replaced)`);
+      } catch (eventError) {
+        console.error(`❌ [REPLACE] Failed to log event for old certificate ${oldTokenId}:`, eventError.message);
+      }
     } catch (syncError) {
       console.error(`❌ [REPLACE] Failed to sync old certificate ${oldTokenId}:`, syncError.message);
     }
@@ -1352,6 +1392,19 @@ exports.replaceCertificate = async (req, res) => {
     try {
       await syncCertificateImmediately(newTokenId);
       console.log(`✅ [REPLACE] New certificate ${newTokenId} synced to database immediately`);
+      
+      // Log the event for the new certificate (Issued)
+      try {
+        await insertEvent({
+          tokenId: newTokenId,
+          type: "Issued",
+          blockNumber: receipt.blockNumber,
+          txHash: receipt.hash || receipt.transactionHash || "ISSUED_NEW_" + Date.now()
+        });
+        console.log(`✅ [REPLACE] Event logged for new certificate ${newTokenId} (Issued)`);
+      } catch (eventError) {
+        console.error(`❌ [REPLACE] Failed to log event for new certificate ${newTokenId}:`, eventError.message);
+      }
     } catch (syncError) {
       console.error(`❌ [REPLACE] Failed to sync new certificate ${newTokenId}:`, syncError.message);
     }

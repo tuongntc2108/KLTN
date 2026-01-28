@@ -170,35 +170,35 @@ export default function TrainingDashboard() {
                       <div className="flex items-center gap-2">
                         {(() => {
                           switch (cert.status?.toLowerCase()) {
-                            case "active":
+                            case "Active":
                               return (
                                 <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
                                   <CheckCircle className="w-3 h-3 mr-1" />
                                   Đã cấp
                                 </Badge>
                               )
-                            case "pending":
+                            case "Issued":
                               return (
                                 <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">
                                   <Clock className="w-3 h-3 mr-1" />
                                   Chờ nhận
                                 </Badge>
                               )
-                            case "expired":
+                            case "Expired":
                               return (
                                 <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200">
                                   <XCircle className="w-3 h-3 mr-1" />
                                   Đã hết hạn
                                 </Badge>
                               )
-                            case "revoked":
+                            case "Revoked":
                               return (
                                 <Badge variant="destructive">
                                   <XCircle className="w-3 h-3 mr-1" />
                                   Đã thu hồi
                                 </Badge>
                               )
-                            case "replaced":
+                            case "Replaced":
                               return (
                                 <Badge variant="secondary" className="bg-purple-100 text-purple-800 border-purple-200">
                                   <RefreshCw className="w-3 h-3 mr-1" />

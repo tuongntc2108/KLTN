@@ -117,11 +117,6 @@ class PostgreSQLVectorStore {
       const allDocsResult = await this.pool.query(allDocsQuery, [embeddingVector]);
       const allDocs = allDocsResult.rows;
       
-      console.log(`\n📊 [SIMILARITY DISTRIBUTION] Total documents in database: ${allDocs.length}`);
-      console.log(`   Top 10 similarity scores:`);
-      allDocs.slice(0, 10).forEach((row, index) => {
-        console.log(`   ${index + 1}. Score: ${(row.similarity_score * 100).toFixed(2)}% | ${row.title} | ${row.content_chunk.substring(0, 60)}...`);
-      });
       
       const SIMILARITY_THRESHOLD = 0.5; // Adjustable threshold
       
@@ -148,22 +143,11 @@ class PostgreSQLVectorStore {
       // Parameters in order: embeddingVector, k, SIMILARITY_THRESHOLD, filter values
       const queryValues = [embeddingVector, k, SIMILARITY_THRESHOLD, ...filterValues];
       
-      console.log(`\n🔎 [FILTERING] Similarity threshold: ${(SIMILARITY_THRESHOLD * 100).toFixed(1)}%`);
-      if (Object.keys(filter).length > 0) {
-        console.log(`   Applied metadata filters:`, filter);
-      }
+      
       
       const vectorResult = await this.pool.query(vectorQuery, queryValues);
       const results = vectorResult.rows;
       
-      console.log(`\n📍 [FILTERED RESULTS] Found ${results.length} documents with score > ${(SIMILARITY_THRESHOLD * 100).toFixed(1)}%`);
-      results.forEach((row, index) => {
-        console.log(`\n   ${index + 1}. ID: ${row.id}`);
-        console.log(`      Title: ${row.title}`);
-        console.log(`      Similarity Score: ${(row.similarity_score * 100).toFixed(2)}%`);
-        console.log(`      Source: ${row.source_file}`);
-        console.log(`      Content Preview: ${row.content_chunk.substring(0, 80)}...`);
-      });
       
       // Convert results to LangChain format: [document, similarity_score]
       return results.map(row => [

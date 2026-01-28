@@ -139,8 +139,6 @@ CREATE TABLE IF NOT EXISTS certificate_events (
     id SERIAL PRIMARY KEY,
     token_id BIGINT NOT NULL,
     event_type VARCHAR(50) NOT NULL,           -- Issued | Claimed | Revoked | Expired | Replaced
-    issuer VARCHAR(42),
-    holder VARCHAR(42),
     reason TEXT,
     related_token BIGINT,                      -- New token if Replaced
     block_number BIGINT NOT NULL,

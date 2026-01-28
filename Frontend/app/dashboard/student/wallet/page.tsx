@@ -11,14 +11,14 @@ const StudentWalletPage = memo(function StudentWalletPage() {
   // Memoized functions to prevent re-renders
   const getStatusBadge = useMemo(() => (status: string) => {
     switch (status) {
-      case "active":
+      case "Active":
         return (
           <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
             <CheckCircle className="w-3 h-3 mr-1" />
             Đã nhận
           </Badge>
         )
-      case "pending":
+      case "Issued":
         return (
           <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">
             <Clock className="w-3 h-3 mr-1" />

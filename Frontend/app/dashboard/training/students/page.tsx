@@ -87,8 +87,8 @@ interface Certificate {
 
 export default function StudentsPage() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [courseFilter, setCourseFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState("All")
+  const [courseFilter, setCourseFilter] = useState("All")
   const [students, setStudents] = useState<Student[]>([])
   const [certificates, setCertificates] = useState<Certificate[]>([])
   const [loading, setLoading] = useState(true)
@@ -171,7 +171,7 @@ export default function StudentsPage() {
           activeCertificates: student.activeCertificates || 0,
           expiredCertificates: student.expiredCertificates || 0,
           courses: student.courses || [],
-          status: student.status || (student.wallet_address ? 'active' : 'pending')
+          status: student.status || (student.wallet_address ? 'Active' : 'Issued')
         }
       })
       
@@ -505,9 +505,9 @@ export default function StudentsPage() {
       student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.student_id.toString().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || student.status === statusFilter
+    const matchesStatus = statusFilter === "All" || student.status === statusFilter
     const matchesCourse =
-      courseFilter === "all" ||
+      courseFilter === "All" ||
       (student.courses && student.courses.some((course) => course.toLowerCase().includes(courseFilter.toLowerCase())))
 
     return matchesSearch && matchesStatus && matchesCourse
@@ -515,21 +515,21 @@ export default function StudentsPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "active":
+      case "Active":
         return (
           <Badge className="bg-green-100 text-green-800">
             <CheckCircle className="w-3 h-3 mr-1" />
             Hoạt động
           </Badge>
         )
-      case "pending":
+      case "Issued":
         return (
           <Badge variant="secondary">
             <AlertCircle className="w-3 h-3 mr-1" />
             Chờ xử lý
           </Badge>
         )
-      case "inactive":
+      case "Inactive":
         return (
           <Badge variant="destructive">
             <XCircle className="w-3 h-3 mr-1" />
@@ -726,9 +726,9 @@ export default function StudentsPage() {
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : students.filter((s) => s.status === "active").length}</div>
+            <div className="text-2xl font-bold">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : students.filter((s) => s.status === "Active").length}</div>
             <p className="text-xs text-muted-foreground">
-              {students.length > 0 ? Math.round((students.filter((s) => s.status === "active").length / students.length) * 100) : 0}% tổng số
+              {students.length > 0 ? Math.round((students.filter((s) => s.status === "Active").length / students.length) * 100) : 0}% tổng số
             </p>
           </CardContent>
         </Card>
@@ -781,10 +781,10 @@ export default function StudentsPage() {
                 <SelectValue placeholder="Trạng thái" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                <SelectItem value="active">Hoạt động</SelectItem>
-                <SelectItem value="pending">Chờ xử lý</SelectItem>
-                <SelectItem value="inactive">Không hoạt động</SelectItem>
+                <SelectItem value="All">Tất cả trạng thái</SelectItem>
+                <SelectItem value="Active">Hoạt động</SelectItem>
+                <SelectItem value="Issued">Chờ xử lý</SelectItem>
+                <SelectItem value="Inactive">Không hoạt động</SelectItem>
               </SelectContent>
             </Select>
             <Select value={courseFilter} onValueChange={setCourseFilter}>
