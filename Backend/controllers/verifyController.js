@@ -107,7 +107,7 @@ async function getRevocationReason(tokenId) {
 async function getCertificateEvents(tokenId) {
   try {
     const result = await db.query(
-      `SELECT id, token_id, event_type, issuer, holder, reason, related_token, block_number, tx_hash, created_at
+      `SELECT id, token_id, event_type, reason, related_token, block_number, tx_hash, created_at
        FROM certificate_events
        WHERE token_id = $1
        ORDER BY created_at ASC, block_number ASC`,
@@ -168,6 +168,93 @@ exports.verifyByCode = async (req, res) => {
     const isValid = result[1];
     const statusMessage = result[2];
     const tokenId = result[3]?.toString?.() || String(result[3]);
+
+    // Parse token ID for blockchain queries
+    let parsedTokenId;
+    try {
+      if (tokenId.toString().startsWith('0x')) {
+        parsedTokenId = ethers.getBigInt(tokenId);
+      } else {
+        parsedTokenId = ethers.getBigInt(tokenId);
+      }
+    } catch (e) {
+      console.warn(`Failed to parse token ID: ${tokenId}`);
+      parsedTokenId = tokenId;
+    }
+
+    // Check if certificate is expired by date and needs status update on-chain
+    const currentTime = Math.floor(Date.now() / 1000);
+    const isExpiredByDate = Number(cert.expireDate) < currentTime;
+    
+    if (isExpiredByDate) {
+      try {
+        // Fetch actual status from blockchain struct
+        const certOnChain = await contract.certificates(parsedTokenId);
+        const statusOnChain = Number(certOnChain.status);
+        
+        // Only update if status on-chain is not Expired (2)
+        if (statusOnChain !== 2) {
+          console.log(`📝 Certificate ${tokenId} (code: ${verificationCode}) is expired by date but status on-chain is ${statusOnChain}, updating...`);
+          const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
+          const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+          const contractWithSigner = contract.connect(wallet);
+          
+          const tx = await contractWithSigner.updateExpiredStatus(parsedTokenId);
+          const receipt = await tx.wait();
+          
+          // Get transaction hash from receipt (try multiple property names)
+          let txHash = receipt?.transactionHash || receipt?.hash || tx?.hash;
+          console.log(`✅ Receipt keys:`, Object.keys(receipt || {}));
+          console.log(`✅ Transaction hash:`, txHash);
+          console.log(`✅ TX hash:`, tx?.hash);
+          
+          if (!txHash) {
+            console.warn(`⚠️ Transaction hash is null or undefined in receipt`);
+            console.warn(`⚠️ Receipt object:`, receipt);
+            return;
+          }
+
+          //update tx_hash vào cơ sở dữ liệu certificate_events
+          const selectResult = await db.query(
+            `SELECT id FROM certificate_events 
+             WHERE token_id = $1 AND event_type = 'Expired' 
+             ORDER BY block_number DESC LIMIT 1`,
+            [tokenId]
+          );
+          
+          console.log(`🔍 Select result:`, selectResult?.rows);
+          
+          if (!selectResult?.rows || selectResult.rows.length === 0) {
+            console.warn(`⚠️ No expired certificate event found for token_id: ${tokenId}, creating new record...`);
+            
+            // Insert new record
+            const insertResult = await db.query(
+              `INSERT INTO certificate_events (token_id, event_type, tx_hash, created_at)
+               VALUES ($1, $2, $3, NOW())
+               RETURNING id`,
+              [tokenId, 'Expired', txHash]
+            );
+            
+            console.log(`✅ Created new certificate event record:`, insertResult.rows[0].id);
+          } else {
+            // Update existing record
+            const updateResult = await db.query(
+              `UPDATE certificate_events 
+               SET tx_hash = $1 
+               WHERE id = $2`,
+              [txHash, selectResult.rows[0].id]
+            );
+            
+            console.log(`✅ Database updated with tx_hash: ${txHash}`);
+          }
+        } else {
+          console.log(`ℹ️ Certificate ${tokenId} (code: ${verificationCode}) already has Expired status on-chain, skipping update`);
+        }
+      } catch (updateError) {
+        console.warn(`⚠️ Failed to update expired status on-chain: ${updateError.message}`);
+        // Continue anyway - verification still succeeds even if on-chain update fails
+      }
+    }
 
     // Use the helper function to parse metadata
     const { issuerInfo, fileHash } = await parseMetadata(cert.metadataURI, 'verifyByCode');
@@ -307,6 +394,7 @@ exports.verifyByTokenId = async (req, res) => {
       result = await contract.verifyCertificate(parsedTokenId);
     } catch (e) {
       const msg = e?.reason || e?.shortMessage || e?.message || "Không tìm thấy token trên blockchain";
+      console.log("Verify by token ID error:", msg);
       return res.status(404).json({
         success: false,
         message: "Không tìm thấy chứng chỉ.",
@@ -320,6 +408,80 @@ exports.verifyByTokenId = async (req, res) => {
     const cert = result[0];
     const isValid = result[1];
     const statusMessage = result[2];
+
+    // Check if certificate is expired by date and needs status update on-chain
+    const currentTime = Math.floor(Date.now() / 1000);
+    const isExpiredByDate = Number(cert.expireDate) < currentTime;
+    
+    if (isExpiredByDate) {
+      try {
+        // Fetch actual status from blockchain struct
+        const certOnChain = await contract.certificates(parsedTokenId);
+        const statusOnChain = Number(certOnChain.status);
+        
+        // Only update if status on-chain is not Expired (2)
+        if (statusOnChain !== 2) {
+          console.log(`📝 Certificate ${tokenId} is expired by date but status on-chain is ${statusOnChain}, updating...`);
+          const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
+          const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+          const contractWithSigner = contract.connect(wallet);
+          
+          const tx = await contractWithSigner.updateExpiredStatus(parsedTokenId);
+          const receipt = await tx.wait();
+          
+          // Get transaction hash from receipt (try multiple property names)
+          let txHash = receipt?.transactionHash || receipt?.hash || tx?.hash;
+          console.log(`✅ Receipt keys:`, Object.keys(receipt || {}));
+          console.log(`✅ Transaction hash:`, txHash);
+          console.log(`✅ TX hash:`, tx?.hash);
+          
+          if (!txHash) {
+            console.warn(`⚠️ Transaction hash is null or undefined in receipt`);
+            console.warn(`⚠️ Receipt object:`, receipt);
+            return;
+          }
+
+          //update tx_hash vào cơ sở dữ liệu certificate_events
+          const selectResult = await db.query(
+            `SELECT id FROM certificate_events 
+             WHERE token_id = $1 AND event_type = 'Expired' 
+             ORDER BY block_number DESC LIMIT 1`,
+            [tokenId]
+          );
+          
+          console.log(`🔍 Select result:`, selectResult?.rows);
+          
+          if (!selectResult?.rows || selectResult.rows.length === 0) {
+            console.warn(`⚠️ No expired certificate event found for token_id: ${tokenId}, creating new record...`);
+            
+            // Insert new record
+            const insertResult = await db.query(
+              `INSERT INTO certificate_events (token_id, event_type, tx_hash, created_at)
+               VALUES ($1, $2, $3, NOW())
+               RETURNING id`,
+              [tokenId, 'Expired', txHash]
+            );
+            
+            console.log(`✅ Created new certificate event record:`, insertResult.rows[0].id);
+          } else {
+            // Update existing record
+            const updateResult = await db.query(
+              `UPDATE certificate_events 
+               SET tx_hash = $1 
+               WHERE id = $2`,
+              [txHash, selectResult.rows[0].id]
+            );
+            
+            console.log(`✅ Database updated with tx_hash: ${txHash}`);
+          }
+        } else {
+          console.log(`ℹ️ Certificate ${tokenId} already has Expired status on-chain, skipping update`);
+        }
+      } catch (updateError) {
+        console.warn(`⚠️ Failed to update expired status on-chain: ${updateError.message}`);
+        // Continue anyway - verification still succeeds even if on-chain update fails
+      }
+    }
 
     // Use the helper function to parse metadata
     const { issuerInfo, fileHash } = await parseMetadata(cert.metadataURI, 'verifyByTokenId');

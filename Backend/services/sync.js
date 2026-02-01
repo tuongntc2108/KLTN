@@ -3,6 +3,7 @@ const { ethers } = require("ethers");
 const db = require("../config/pg");
 const path = require("path");
 const MySBT = require(path.join(__dirname, "..", "..", "SmartContract", "artifacts", "contracts", "MySBT.sol", "MySBT.json")); // ABI snartcontract
+const emailNotificationService = require("../services/emailNotificationService");
 
 const STATUS = ["Issued","Active","Expired","Revoked","Replaced"];
 const JOB = "mysbt-sync";
@@ -177,6 +178,8 @@ async function runOnce(fromBlock, toBlock) {
     }
   };
 
+  // Lắng nghe các sự kiện onchain
+
   // Issued
   const issuedCount = await processEvents(
     contract.filters.CertificateIssued(),
@@ -222,9 +225,34 @@ async function runOnce(fromBlock, toBlock) {
     "Expired",
     async (log) => {
       const { tokenId } = log.args;
+      console.log(`🔍 Processing CertificateExpired event for token ${tokenId}`);
+      console.log(`📊 Blockchain data: block=${log.blockNumber}, tx=${log.transactionHash}`);
+      
       await db.query(`UPDATE certificates SET status='Expired', updated_at=NOW() WHERE token_id=$1`,
                      [tokenId.toString()]);
+      
+      // Check existing events before inserting
+      const existingEvents = await db.query(
+        `SELECT id, tx_hash, block_number FROM certificate_events 
+         WHERE token_id = $1 AND event_type = 'Expired'
+         ORDER BY created_at DESC`,
+        [tokenId.toString()]
+      );
+      
+      console.log(`📋 Existing events for token ${tokenId}:`, existingEvents.rows);
+      
       await insertEvent({ tokenId, type: "Expired", blockNumber: log.blockNumber, txHash: log.transactionHash });
+      
+      // Update with more specific targeting
+      const updateResult = await db.query(
+        `UPDATE certificate_events 
+         SET block_number = $1, tx_hash = $2, updated_at = NOW()
+         WHERE token_id = $3 AND event_type = 'Expired' AND tx_hash = 'SYSTEM_EXPIRED'
+         RETURNING id`,
+        [log.blockNumber, log.transactionHash, tokenId.toString()]
+      );
+      
+      console.log(`✅ Updated ${updateResult.rowCount} events for token ${tokenId}`);
     }
   );
 
@@ -250,7 +278,7 @@ async function runOnce(fromBlock, toBlock) {
   console.log(`Processed events: Issued: ${issuedCount}, Claimed: ${claimedCount}, Revoked: ${revokedCount}, Expired: ${expiredCount}, Replaced: ${replacedCount}`);
 }
 
-// Function để kiểm tra và cập nhật trạng thái hết hạn
+// Function để kiểm tra và cập nhật trạng thái hết hạn (theo thời gian, offchain)
 async function checkAndUpdateExpiredCertificates() {
   try {
     console.log('🔍 Checking for expired certificates...');
@@ -283,19 +311,6 @@ async function checkAndUpdateExpiredCertificates() {
           [cert.token_id]
         );
         
-        // Gọi smart contract để cập nhật trạng thái 
-        try {
-          // Tạo wallet từ private key để có thể gọi contract
-          const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
-          const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
-          const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, MySBT.abi, wallet);
-          await contract.updateExpiredStatus(cert.token_id);
-          console.log(`✅ Updated expired status for token ${cert.token_id} on blockchain`);
-        } catch (blockchainError) {
-          console.warn(`⚠️ Failed to update blockchain for token ${cert.token_id}:`, blockchainError.message);
-          // Vẫn cập nhật database ngay cả khi blockchain fail
-        }
-        
         // Thêm event vào database với block number hiện tại
         try {
           const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
@@ -317,6 +332,38 @@ async function checkAndUpdateExpiredCertificates() {
       }
     }
     
+    // Send email notifications for each expired certificate
+    let emailSentCount = 0;
+    for (const cert of expiredCerts) {
+      try {
+        // Get student email from database
+        const studentResult = await db.query(
+          `SELECT email, full_name FROM students WHERE student_id = $1`,
+          [cert.student_id]
+        );
+        
+        if (studentResult.rows.length > 0) {
+          const student = studentResult.rows[0];
+          await emailNotificationService.notifyCertificateExpired(
+            student.email,
+            student.full_name,
+            {
+              token_id: cert.token_id,
+              certificate_name: cert.certificate_name,
+              course_name: cert.course_name,
+              expire_date: cert.expire_date
+            }
+          );
+          emailSentCount++;
+        }
+      } catch (emailError) {
+        console.error(`❌ Failed to send email for certificate ${cert.token_id}:`, emailError.message);
+        // Continue with other certificates
+      }
+    }
+    
+    console.log(`📧 Email notifications sent for ${emailSentCount}/${expiredCerts.length} expired certificates`);
+
     console.log(`✅ Successfully updated ${updatedCount}/${expiredCerts.length} expired certificates`);
     return updatedCount;
     
