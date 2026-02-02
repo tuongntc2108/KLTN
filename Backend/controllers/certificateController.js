@@ -257,7 +257,7 @@ exports.mintCertificate = async (req, res) => {
       certificate_id: certificateCounter,
       token_id: tokenId,
       metadata_uri: metadataURI,
-      status: "issued_not_claimed",
+      status: "issued",
       transaction_hash: receipt.transactionHash,
     });
   } catch (err) {

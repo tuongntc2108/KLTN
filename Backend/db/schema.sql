@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS certificates (
     status VARCHAR(20) NOT NULL,               -- Issued | Active | Expired | Revoked | Replaced
     course_name VARCHAR(100),                  -- For backward compatibility
     course_id INTEGER,                         -- Foreign key to courses table
-    student_id VARCHAR(100),
+    student_id INTEGER,
     verification_code VARCHAR(100) UNIQUE NOT NULL,
     certificate_name VARCHAR(50),
     recipient_name TEXT,

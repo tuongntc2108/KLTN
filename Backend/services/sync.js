@@ -338,7 +338,7 @@ async function checkAndUpdateExpiredCertificates() {
       try {
         // Get student email from database
         const studentResult = await db.query(
-          `SELECT email, full_name FROM students WHERE student_id = $1`,
+          `SELECT email, name FROM students WHERE student_id = $1`,
           [cert.student_id]
         );
         
@@ -346,7 +346,7 @@ async function checkAndUpdateExpiredCertificates() {
           const student = studentResult.rows[0];
           await emailNotificationService.notifyCertificateExpired(
             student.email,
-            student.full_name,
+            student.name,
             {
               token_id: cert.token_id,
               certificate_name: cert.certificate_name,

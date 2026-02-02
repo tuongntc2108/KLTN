@@ -169,7 +169,7 @@ export default function TrainingDashboard() {
                       </div>
                       <div className="flex items-center gap-2">
                         {(() => {
-                          switch (cert.status?.toLowerCase()) {
+                          switch (cert.status) {
                             case "Active":
                               return (
                                 <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
