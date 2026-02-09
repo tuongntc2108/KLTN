@@ -40,11 +40,11 @@ export default function StudentCertificates() {
   const filteredCertificates = useMemo(() => {
     return certificates.filter(cert => {
       const matchesSearch = cert.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           cert.course.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           cert.issuer.toLowerCase().includes(searchTerm.toLowerCase())
-      
+        cert.course.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        cert.issuer.toLowerCase().includes(searchTerm.toLowerCase())
+
       const matchesStatus = statusFilter === "All" || cert.status === statusFilter
-      
+
       return matchesSearch && matchesStatus
     })
   }, [certificates, searchTerm, statusFilter])
@@ -116,7 +116,7 @@ export default function StudentCertificates() {
         description: "Vui lòng kết nối ví MetaMask trước khi nhận chứng chỉ.",
         variant: "destructive",
       })
-      
+
       // Try to connect automatically
       const connected = await connect()
       if (!connected) {
@@ -125,10 +125,10 @@ export default function StudentCertificates() {
     }
 
     setClaimingTokenId(tokenId)
-    
+
     try {
       const result = await claimCertificate(tokenId)
-      
+
       if (result.success) {
         toast({
           title: "Đã nhận chứng chỉ thành công!",
@@ -237,7 +237,7 @@ export default function StudentCertificates() {
             {student && ` - ${student.name}`}
           </p>
           {/* MetaMask Connection Status */}
-          
+
         </div>
         <div className="flex gap-3">
           <Button variant="outline" onClick={refreshCertificates} disabled={loading}>
@@ -248,14 +248,6 @@ export default function StudentCertificates() {
             )}
             Làm mới
           </Button>
-          <Button variant="outline">
-            <QrCode className="w-4 h-4 mr-2" />
-            Tạo mã QR
-          </Button>
-          <Button>
-            <Share className="w-4 h-4 mr-2" />
-            Chia sẻ hồ sơ
-          </Button>
         </div>
       </div>
 
@@ -265,14 +257,14 @@ export default function StudentCertificates() {
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input 
-                placeholder="Tìm kiếm chứng chỉ..." 
-                className="pl-10" 
+              <Input
+                placeholder="Tìm kiếm chứng chỉ..."
+                className="pl-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <select 
+            <select
               className="px-3 py-2 border rounded-md text-sm bg-background"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -344,8 +336,8 @@ export default function StudentCertificates() {
 
               <div className="flex flex-wrap gap-2 pt-2">
                 {cert.status === "Issued" && (
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     onClick={() => handleClaimCertificate(cert.tokenId)}
                     disabled={claimingTokenId === cert.tokenId}
                     className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -378,7 +370,7 @@ export default function StudentCertificates() {
               <>
                 <h3 className="text-lg font-semibold mb-2">Chưa có chứng chỉ nào</h3>
                 <p className="text-muted-foreground text-center mb-4">
-                  {student?.wallet_address 
+                  {student?.wallet_address
                     ? "Bạn chưa có chứng chỉ nào. Hãy tham gia các khóa học để nhận chứng chỉ đầu tiên!"
                     : "Vui lòng kết nối ví để xem chứng chỉ của bạn."
                   }

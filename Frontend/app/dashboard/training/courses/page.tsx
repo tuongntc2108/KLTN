@@ -39,6 +39,7 @@ export default function CoursesPage() {
     duration: ""
   })
   const [submitting, setSubmitting] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
 
   // Load courses on mount
   useEffect(() => {
@@ -207,6 +208,12 @@ export default function CoursesPage() {
     return new Date(dateString).toLocaleDateString('vi-VN')
   }
 
+  // Filter courses based on search term
+  const filteredCourses = courses.filter(course => 
+    course.course_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (course.course_description && course.course_description.toLowerCase().includes(searchTerm.toLowerCase()))
+  )
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -305,6 +312,16 @@ export default function CoursesPage() {
         </Dialog>
       </div>
 
+      {/* Search Input */}
+      <div className="mb-4">
+        <Input
+          placeholder="Tìm kiếm khóa học theo tên hoặc mô tả..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-md"
+        />
+      </div>
+
       {/* Courses Table */}
       <Card>
         <CardHeader>
@@ -324,7 +341,7 @@ export default function CoursesPage() {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
-          ) : courses.length === 0 ? (
+          ) : filteredCourses.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium">Chưa có khóa học nào</p>
@@ -342,7 +359,7 @@ export default function CoursesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {courses.map((course) => (
+                {filteredCourses.map((course) => (
                   <TableRow key={course.id}>
                     <TableCell>
                       <div>

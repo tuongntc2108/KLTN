@@ -135,22 +135,9 @@ export default function StudentLayout({
                   <Sidebar />
                 </SheetContent>
               </Sheet>
-
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="search"
-                  placeholder="Tìm kiếm chứng chỉ..."
-                  className="h-9 w-64 rounded-lg border border-input bg-background pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
             </div>
 
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell className="h-5 w-5" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs">2</Badge>
-              </Button>
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
                   <User className="h-4 w-4 text-primary-foreground" />

@@ -5,7 +5,7 @@ const path = require("path");
 const MySBT = require(path.join(__dirname, "..", "..", "SmartContract", "artifacts", "contracts", "MySBT.sol", "MySBT.json")); // ABI snartcontract
 const emailNotificationService = require("../services/emailNotificationService");
 
-const STATUS = ["Issued","Active","Expired","Revoked","Replaced"];
+const STATUS = ["Issued", "Active", "Expired", "Revoked", "Replaced"];
 const JOB = "mysbt-sync";
 
 // Rate limiting configuration
@@ -24,7 +24,7 @@ async function retryOperation(operation, maxRetries = MAX_RETRIES) {
       return await operation();
     } catch (error) {
       if (i === maxRetries - 1) throw error;
-      
+
       // Check if it's a rate limit error
       // Đây là lỗi từ Ethereum RPC provider (ví dụ: Infura, Alchemy) khi gửi quá nhiều requests trong thời gian ngắn
       if (error.code === 'BAD_DATA' && error.value && error.value.some(v => v.code === -32005)) {
@@ -32,7 +32,7 @@ async function retryOperation(operation, maxRetries = MAX_RETRIES) {
         await delay(RETRY_DELAY * (i + 1));
         continue;
       }
-      
+
       // For other errors, wait a bit and retry
       console.log(`Operation failed, retrying ${i + 1}/${maxRetries}:`, error.message);
       await delay(1000);
@@ -67,29 +67,24 @@ async function upsertCertificateFromStruct(tokenId, cert) {
       recipient_name=EXCLUDED.recipient_name,
       updated_at=NOW();
   `;
-  // Normalize course_id and course_name: if courseId is numeric, look up name from courses table
   let courseIdInt = null;
   let courseName = null;
 
   if (cert.courseId !== undefined && cert.courseId !== null) {
     const asNum = Number(cert.courseId);
-    if (!Number.isNaN(asNum) && Number.isFinite(asNum)) {
-      courseIdInt = parseInt(asNum);
-      try {
-        const r = await db.query('SELECT id, course_name FROM courses WHERE id=$1 LIMIT 1', [courseIdInt]);
-        console.log('[SYNC] Lookup courseId:', courseIdInt, 'Result:', r.rows);
-        if (r.rows && r.rows.length > 0) {
-          courseName = r.rows[0].course_name;
-        } else {
-          courseName = "Không rõ";
-        }
-      } catch (err) {
-        console.warn('Could not fetch course name for id', courseIdInt, err.message);
+    courseIdInt = parseInt(asNum);
+    try {
+      const r = await db.query('SELECT id, course_name FROM courses WHERE id=$1 LIMIT 1', [courseIdInt]);
+      console.log('[SYNC] Lookup courseId:', courseIdInt, 'Result:', r.rows);
+      if (r.rows && r.rows.length > 0) {
+        courseName = r.rows[0].course_name;
+      } else {
         courseName = null;
+        courseIdInt = null;
       }
-    } else {
-      // courseId is a string name (not numeric)
-      courseName = cert.courseId;
+    } catch (err) {
+      console.warn('Could not fetch course name for id', courseIdInt, err.message);
+      courseName = null;
       courseIdInt = null;
     }
   }
@@ -101,7 +96,7 @@ async function upsertCertificateFromStruct(tokenId, cert) {
     cert.issuer,
     toDate(cert.issuedDate),
     toDate(cert.expireDate),
-    STATUS[Number(cert.status)] || "Issued",
+    STATUS[Number(cert.status)],
     courseName,
     courseIdInt,
     cert.studentId,
@@ -121,12 +116,12 @@ async function insertEvent({ tokenId, type, reason, relatedToken, blockNumber, t
     LIMIT 1
   `;
   const existing = await db.query(checkQuery, [tokenId?.toString(), type]);
-  
+
   if (existing.rows.length > 0) {
     console.log(`⚠️ Event ${type} for token ${tokenId} already exists, skipping insert`);
     return;
   }
-  
+
   // Nếu chưa tồn tại, insert mới
   const q = `
     INSERT INTO certificate_events
@@ -163,14 +158,14 @@ async function runOnce(fromBlock, toBlock) {
   // Process events with retry logic
   const processEvents = async (filter, eventType, processor) => {
     try {
-      const logs = await retryOperation(() => 
+      const logs = await retryOperation(() =>
         contract.queryFilter(filter, fromBlock, toBlock)
       );
-      
+
       for (const log of logs) {
         await processor(log);
       }
-      
+
       return logs.length;
     } catch (error) {
       console.error(`Error processing ${eventType} events:`, error.message);
@@ -202,7 +197,7 @@ async function runOnce(fromBlock, toBlock) {
     async (log) => {
       const { tokenId, holder } = log.args;
       await db.query(`UPDATE certificates SET status='Active', holder=$1, updated_at=NOW() WHERE token_id=$2`,
-                     [holder, tokenId.toString()]);
+        [holder, tokenId.toString()]);
       await insertEvent({ tokenId, type: "Claimed", blockNumber: log.blockNumber, txHash: log.transactionHash });
     }
   );
@@ -214,7 +209,7 @@ async function runOnce(fromBlock, toBlock) {
     async (log) => {
       const { tokenId, issuer, reason } = log.args;
       await db.query(`UPDATE certificates SET status='Revoked', updated_at=NOW() WHERE token_id=$1`,
-                     [tokenId.toString()]);
+        [tokenId.toString()]);
       await insertEvent({ tokenId, type: "Revoked", reason, blockNumber: log.blockNumber, txHash: log.transactionHash });
     }
   );
@@ -227,10 +222,10 @@ async function runOnce(fromBlock, toBlock) {
       const { tokenId } = log.args;
       console.log(`🔍 Processing CertificateExpired event for token ${tokenId}`);
       console.log(`📊 Blockchain data: block=${log.blockNumber}, tx=${log.transactionHash}`);
-      
+
       await db.query(`UPDATE certificates SET status='Expired', updated_at=NOW() WHERE token_id=$1`,
-                     [tokenId.toString()]);
-      
+        [tokenId.toString()]);
+
       // Check existing events before inserting
       const existingEvents = await db.query(
         `SELECT id, tx_hash, block_number FROM certificate_events 
@@ -238,11 +233,11 @@ async function runOnce(fromBlock, toBlock) {
          ORDER BY created_at DESC`,
         [tokenId.toString()]
       );
-      
+
       console.log(`📋 Existing events for token ${tokenId}:`, existingEvents.rows);
-      
+
       await insertEvent({ tokenId, type: "Expired", blockNumber: log.blockNumber, txHash: log.transactionHash });
-      
+
       // Update with more specific targeting
       const updateResult = await db.query(
         `UPDATE certificate_events 
@@ -251,7 +246,7 @@ async function runOnce(fromBlock, toBlock) {
          RETURNING id`,
         [log.blockNumber, log.transactionHash, tokenId.toString()]
       );
-      
+
       console.log(`✅ Updated ${updateResult.rowCount} events for token ${tokenId}`);
     }
   );
@@ -264,7 +259,7 @@ async function runOnce(fromBlock, toBlock) {
       const { oldTokenId, newTokenId } = log.args;
       // old → Replaced
       await db.query(`UPDATE certificates SET status='Replaced', updated_at=NOW() WHERE token_id=$1`,
-                     [oldTokenId.toString()]);
+        [oldTokenId.toString()]);
       // new → upsert struct
       const cert = await retryOperation(() => contract.certificates(newTokenId));
       await upsertCertificateFromStruct(newTokenId.toString(), cert);
@@ -282,7 +277,7 @@ async function runOnce(fromBlock, toBlock) {
 async function checkAndUpdateExpiredCertificates() {
   try {
     console.log('🔍 Checking for expired certificates...');
-    
+
     // Lấy danh sách chứng chỉ có thể hết hạn
     const query = `
       SELECT token_id, expire_date, status 
@@ -290,19 +285,19 @@ async function checkAndUpdateExpiredCertificates() {
       WHERE status IN ('Issued', 'Active') 
         AND expire_date < NOW()
     `;
-    
+
     const result = await db.query(query);
     const expiredCerts = result.rows;
-    
+
     if (expiredCerts.length === 0) {
       console.log('✅ No expired certificates found');
       return 0;
     }
-    
+
     console.log(`📅 Found ${expiredCerts.length} expired certificates`);
-    
+
     let updatedCount = 0;
-    
+
     for (const cert of expiredCerts) {
       try {
         // Cập nhật trạng thái trong database
@@ -310,7 +305,7 @@ async function checkAndUpdateExpiredCertificates() {
           `UPDATE certificates SET status='Expired', updated_at=NOW() WHERE token_id=$1`,
           [cert.token_id]
         );
-        
+
         // Thêm event vào database với block number hiện tại
         try {
           const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
@@ -324,24 +319,24 @@ async function checkAndUpdateExpiredCertificates() {
         } catch (eventError) {
           console.warn(`⚠️ Failed to insert expired event for token ${cert.token_id}:`, eventError.message);
         }
-        
+
         updatedCount++;
-        
+
       } catch (error) {
         console.error(`❌ Error updating expired certificate ${cert.token_id}:`, error.message);
       }
     }
-    
+
     // Send email notifications for each expired certificate
     let emailSentCount = 0;
     for (const cert of expiredCerts) {
       try {
         // Get student email from database
         const studentResult = await db.query(
-          `SELECT email, name FROM students WHERE student_id = $1`,
+          `SELECT email, name FROM students WHERE id = $1`,
           [cert.student_id]
         );
-        
+
         if (studentResult.rows.length > 0) {
           const student = studentResult.rows[0];
           await emailNotificationService.notifyCertificateExpired(
@@ -361,12 +356,12 @@ async function checkAndUpdateExpiredCertificates() {
         // Continue with other certificates
       }
     }
-    
+
     console.log(`📧 Email notifications sent for ${emailSentCount}/${expiredCerts.length} expired certificates`);
 
     console.log(`✅ Successfully updated ${updatedCount}/${expiredCerts.length} expired certificates`);
     return updatedCount;
-    
+
   } catch (error) {
     console.error('❌ Error checking expired certificates:', error.message);
     return 0;
@@ -379,21 +374,21 @@ async function main() {
   const latest = await provider.getBlockNumber();
   const from = await getCursor(0);
   const to = latest;
-  
+
   if (from <= to) {
     console.log(`Starting sync from block ${from} to ${latest} (${latest - from} blocks)`);
-    
+
     // Process blocks in batches to avoid rate limiting
     for (let currentFrom = from; currentFrom <= to; currentFrom += BATCH_SIZE) {
       const currentTo = Math.min(currentFrom + BATCH_SIZE - 1, to);
-      
+
       console.log(`Processing batch: blocks ${currentFrom} → ${currentTo}`);
-      
+
       try {
         await runOnce(currentFrom, currentTo);
         await setCursor(currentTo);
         console.log(`Successfully synced batch ${currentFrom} → ${currentTo}`);
-        
+
         // Add delay between batches to respect rate limits
         if (currentTo < to) {
           console.log(`Waiting ${DELAY_BETWEEN_BATCHES}ms before next batch...`);
@@ -406,11 +401,11 @@ async function main() {
       }
     }
   }
-  
+
   // Kiểm tra và cập nhật trạng thái hết hạn sau khi sync events
   console.log('🔄 Checking expired certificates...');
   const expiredCount = await checkAndUpdateExpiredCertificates();
-  
+
   console.log(`Sync completed. Final block: ${to}, Updated expired: ${expiredCount}`);
 }
 
@@ -425,14 +420,14 @@ exports.syncCertificateImmediately = async (tokenId) => {
     const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
     const MySBTAbi = require(path.join(__dirname, "..", "..", "SmartContract", "artifacts", "contracts", "MySBT.sol", "MySBT.json")).abi;
     const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, MySBTAbi, provider);
-    
+
     // Use retry logic for getting certificate data
     const cert = await retryOperation(() => contract.certificates(tokenId));
-    
+
     if (!cert || cert.holder === ethers.ZeroAddress) {
       throw new Error(`Certificate ${tokenId} not found on blockchain`);
     }
-    
+
     console.log(`🗺️ Certificate data from blockchain:`, {
       holder: cert.holder,
       issuer: cert.issuer,
@@ -440,19 +435,19 @@ exports.syncCertificateImmediately = async (tokenId) => {
       metadataURI: cert.metadataURI,
       recipientName: cert.recipientName
     });
-    
+
     await upsertCertificateFromStruct(tokenId.toString(), cert);
-    
+
     // Verify the insert/update worked
     const verifyResult = await db.query(
       'SELECT token_id, status, recipient_name, course_name FROM certificates WHERE token_id = $1',
       [tokenId.toString()]
     );
-    
+
     if (verifyResult.rows.length === 0) {
       throw new Error(`Certificate ${tokenId} was not saved to database`);
     }
-    
+
     console.log(`✅ Certificate ${tokenId} synced immediately and verified in database`);
     return true;
   } catch (error) {

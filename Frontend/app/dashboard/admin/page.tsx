@@ -343,67 +343,6 @@ export default function DocumentUploadPage() {
               </div>
             )}
 
-            {/* Metadata */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="category">Danh mục (tùy chọn)</Label>
-                <Input
-                  id="category"
-                  placeholder="VD: Hướng dẫn, FAQ, Kỹ thuật..."
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  disabled={uploading}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="tags">Tags (tùy chọn)</Label>
-                <div className="flex space-x-2">
-                  <Input
-                    id="tags"
-                    placeholder="Nhập tag và nhấn Enter"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyPress={handleTagKeyPress}
-                    disabled={uploading}
-                  />
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={addTag}
-                    disabled={!tagInput.trim() || uploading}
-                  >
-                    Thêm
-                  </Button>
-                </div>
-                {tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {tags.map(tag => (
-                      <Badge key={tag} variant="secondary" className="cursor-pointer">
-                        {tag}
-                        <X
-                          className="h-3 w-3 ml-1"
-                          onClick={() => removeTag(tag)}
-                        />
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Mô tả (tùy chọn)</Label>
-              <Textarea
-                id="description"
-                placeholder="Mô tả ngắn về nội dung tài liệu..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                disabled={uploading}
-                rows={3}
-              />
-            </div>
-
             {/* Upload Progress */}
             {uploading && (
               <div className="space-y-2">

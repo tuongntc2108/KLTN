@@ -102,12 +102,6 @@ export default function StudentDashboard() {
           <h1 className="text-3xl font-bold text-balance">Chào mừng trở lại!</h1>
           <p className="text-muted-foreground">Quản lý chứng chỉ số và ví blockchain của bạn</p>
         </div>
-        <div className="flex gap-3">
-          <Button>
-            <Share className="w-4 h-4 mr-2" />
-            Chia sẻ hồ sơ
-          </Button>
-        </div>
       </div>
 
       {/* Stats Cards */}
@@ -133,8 +127,8 @@ export default function StudentDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.activeCertificates}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.totalCertificates > 0 ? 
-                `${Math.round((stats.activeCertificates / stats.totalCertificates) * 100)}% tổng số chứng chỉ` : 
+              {stats.totalCertificates > 0 ?
+                `${Math.round((stats.activeCertificates / stats.totalCertificates) * 100)}% tổng số chứng chỉ` :
                 '0% tổng số chứng chỉ'
               }
             </p>
@@ -189,7 +183,7 @@ export default function StudentDashboard() {
                 recentCertificates.map((cert) => {
                   const issueDate = new Date(cert.issue_date)
                   const formattedDate = issueDate.toLocaleDateString('vi-VN')
-                  
+
                   return (
                     <div key={cert.id} className="flex items-center justify-between p-3 border border-border rounded-lg">
                       <div className="flex items-center gap-3">
@@ -235,9 +229,6 @@ export default function StudentDashboard() {
                 <CardTitle>Trạng thái ví Blockchain</CardTitle>
                 <CardDescription>Thông tin ví và kết nối blockchain</CardDescription>
               </div>
-              <Button variant="ghost" size="sm">
-                <Wallet className="w-4 h-4" />
-              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -245,8 +236,8 @@ export default function StudentDashboard() {
               <div>
                 <p className="text-sm font-medium">Địa chỉ ví</p>
                 <p className="text-xs text-muted-foreground font-mono">
-                  {walletInfo.address ? 
-                    `${walletInfo.address.slice(0, 6)}...${walletInfo.address.slice(-4)}` : 
+                  {walletInfo.address ?
+                    `${walletInfo.address.slice(0, 6)}...${walletInfo.address.slice(-4)}` :
                     'Chưa kết nối ví'
                   }
                 </p>
@@ -278,24 +269,7 @@ export default function StudentDashboard() {
                 <p className="text-sm font-medium">Số dư ví</p>
                 <p className="text-xs text-muted-foreground">{walletInfo.balance}</p>
               </div>
-              {walletInfo.isConnected && (
-                <Button variant="outline" size="sm">
-                  Nạp tiền
-                </Button>
-              )}
             </div>
-
-            {walletInfo.isConnected ? (
-              <Button className="w-full">
-                <QrCode className="w-4 h-4 mr-2" />
-                Tạo mã QR chia sẻ
-              </Button>
-            ) : (
-              <Button className="w-full" variant="outline">
-                <Wallet className="w-4 h-4 mr-2" />
-                Kết nối ví MetaMask
-              </Button>
-            )}
           </CardContent>
         </Card>
       </div>

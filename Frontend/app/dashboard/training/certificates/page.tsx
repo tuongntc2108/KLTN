@@ -370,7 +370,7 @@ export default function CertificatesPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Quản lý Chứng chỉ</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Quản lý chứng chỉ</h1>
             <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ trong hệ thống</p>
           </div>
           <Button disabled>
@@ -421,7 +421,7 @@ export default function CertificatesPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Quản lý Chứng chỉ</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Quản lý chứng chỉ</h1>
             <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ trong hệ thống</p>
           </div>
         </div>
@@ -444,7 +444,7 @@ export default function CertificatesPage() {
     <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Quản lý Chứng chỉ</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Quản lý chứng chỉ</h1>
             <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ trong hệ thống</p>
           </div>
           <div className="flex gap-2">
@@ -531,7 +531,7 @@ export default function CertificatesPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
-                  placeholder="Tìm kiếm theo tên học viên, khóa học hoặc mã chứng chỉ..."
+                  placeholder="Tìm kiếm theo tên học viên, khóa học, tokenID hoặc mã xác thực..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"

@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Shield, Award, Users, Search, ChevronRight, Blocks, Lock, Zap } from "lucide-react"
 import Link from "next/link"
+import { VerifySection } from "@/components/landing/verify-section"
 
 export default function HomePage() {
   return (
@@ -240,26 +241,7 @@ export default function HomePage() {
       </section>
 
       {/* Quick Verify Section */}
-      <section id="verify" className="py-16 px-4">
-        <div className="container mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold mb-4">Xác minh chứng chỉ ngay</h2>
-          <p className="text-muted-foreground mb-8">Nhập mã chứng chỉ hoặc quét mã QR để xác minh tính hợp lệ</p>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex gap-4">
-                <input
-                  type="text"
-                  placeholder="Nhập mã chứng chỉ hoặc Token ID..."
-                  className="flex-1 px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-input"
-                />
-                <Link href="/verify">
-                  <Button size="lg">Xác minh</Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+      <VerifySection />
 
       {/* Footer */}
       <footer className="border-t border-border bg-card/50 py-12 px-4">

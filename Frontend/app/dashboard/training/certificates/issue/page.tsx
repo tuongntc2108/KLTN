@@ -174,7 +174,7 @@ export default function IssueCertificatePage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Mã chứng chỉ</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">Mã xác thực</Label>
                   <p className="font-mono text-sm">{issuedCertificate.id}</p>
                 </div>
                 <div>

@@ -123,10 +123,10 @@ export default function StudentsPage() {
     try {
       setLoading(true)
       setError(null)
-      
+
       // Construct API URLs with proper base URL
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-      
+
       // Fetch students with authentication
       const studentsResponse = await fetch(`${baseUrl}/api/students`, {
         method: 'GET',
@@ -135,16 +135,16 @@ export default function StudentsPage() {
           'Content-Type': 'application/json'
         }
       })
-      
+
       if (!studentsResponse.ok) {
         if (studentsResponse.status === 401) {
           throw new Error('Authentication required. Please login first.')
         }
         throw new Error(`Failed to fetch students: ${studentsResponse.status}`)
       }
-      
+
       const studentsData = await studentsResponse.json()
-      
+
       // Fetch certificates for the current issuer to calculate student statistics
       const certificatesResponse = await fetch(`${baseUrl}/api/certificates/issuer/me`, {
         method: 'GET',
@@ -153,15 +153,15 @@ export default function StudentsPage() {
           'Content-Type': 'application/json'
         }
       })
-      
+
       let certificatesData = []
       if (certificatesResponse.ok) {
         const certResponse = await certificatesResponse.json()
         certificatesData = certResponse.certificates || []
       }
-      
+
       setCertificates(certificatesData)
-      
+
       // Calculate statistics for each student based on API response
       const studentsWithStats = studentsData.map((student: Student) => {
         return {
@@ -174,7 +174,7 @@ export default function StudentsPage() {
           status: student.status || (student.wallet_address ? 'Active' : 'Issued')
         }
       })
-      
+
       setStudents(studentsWithStats)
     } catch (err) {
       console.error('Error fetching data:', err)
@@ -200,33 +200,33 @@ export default function StudentsPage() {
   // Validate form data
   const validateForm = () => {
     const errors = []
-    
+
     // Debug: log current form state
     console.log('Validating form with data:', newStudent)
-    
+
     if (!newStudent.id || !newStudent.id.trim()) {
       errors.push('Mã sinh viên là bắt buộc')
     } else if (!/^\d+$/.test(newStudent.id.trim())) {
       errors.push('Mã sinh viên phải là số')
     }
-    
+
     if (!newStudent.name || !newStudent.name.trim()) {
       errors.push('Họ tên là bắt buộc')
     }
-    
+
     if (!newStudent.email || !newStudent.email.trim()) {
       errors.push('Email là bắt buộc')
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newStudent.email.trim())) {
       errors.push('Email không hợp lệ')
     }
-    
+
     // Only validate wallet address if it's provided
     if (newStudent.wallet_address && newStudent.wallet_address.trim()) {
       if (!/^0x[a-fA-F0-9]{40}$/.test(newStudent.wallet_address.trim())) {
         errors.push('Địa chỉ ví không hợp lệ (phải có định dạng 0x...)')
       }
     }
-    
+
     console.log('Validation errors:', errors)
     return errors
   }
@@ -244,19 +244,19 @@ export default function StudentsPage() {
     }
 
     setIsSubmitting(true)
-    
+
     try {
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-      
+
       const payload = {
         student_id: parseInt(newStudent.id.trim()),
         name: newStudent.name.trim(),
         email: newStudent.email.trim().toLowerCase(),
         wallet_address: newStudent.wallet_address && newStudent.wallet_address.trim() ? newStudent.wallet_address.trim() : null
       }
-      
+
       console.log('Sending payload:', payload) // Debug log
-      
+
       const response = await fetch(`${baseUrl}/api/students`, {
         method: 'POST',
         credentials: 'include',
@@ -265,9 +265,9 @@ export default function StudentsPage() {
         },
         body: JSON.stringify(payload)
       })
-      
+
       console.log('Response status:', response.status) // Debug log
-      
+
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}`
         try {
@@ -282,15 +282,15 @@ export default function StudentsPage() {
         }
         throw new Error(errorMessage)
       }
-      
+
       const result = await response.json()
       console.log('Success response:', result) // Debug log
-      
+
       toast({
         title: "Thành công",
         description: `Đã thêm học viên ${newStudent.name}`,
       })
-      
+
       // Reset form
       setNewStudent({
         id: '',
@@ -298,18 +298,18 @@ export default function StudentsPage() {
         email: '',
         wallet_address: ''
       })
-      
+
       // Close dialog
       setIsAddDialogOpen(false)
-      
+
       // Refresh data
       fetchData()
-      
+
     } catch (error) {
       console.error('Error adding student:', error)
       const errorMessage = error instanceof Error ? error.message : 'Không thể thêm học viên'
       console.log('Final error message:', errorMessage) // Debug log
-      
+
       toast({
         title: "Lỗi",
         description: errorMessage,
@@ -352,24 +352,24 @@ export default function StudentsPage() {
   // Validate edit form data
   const validateEditForm = () => {
     const errors = []
-    
+
     if (!editStudentData.name || !editStudentData.name.trim()) {
       errors.push('Họ tên là bắt buộc')
     }
-    
+
     if (!editStudentData.email || !editStudentData.email.trim()) {
       errors.push('Email là bắt buộc')
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editStudentData.email.trim())) {
       errors.push('Email không hợp lệ')
     }
-    
+
     return errors
   }
 
   // Handle edit form submission
   const handleEditSubmit = async () => {
     if (!editingStudent) return
-    
+
     const validationErrors = validateEditForm()
     if (validationErrors.length > 0) {
       toast({
@@ -379,17 +379,17 @@ export default function StudentsPage() {
       })
       return
     }
-    
+
     try {
       setIsSubmitting(true)
-      
+
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-      
+
       const payload = {
         name: editStudentData.name.trim(),
         email: editStudentData.email.trim().toLowerCase(),
       }
-      
+
       const response = await fetch(`${baseUrl}/api/students/${editingStudent.student_id}`, {
         method: 'PUT',
         credentials: 'include',
@@ -398,7 +398,7 @@ export default function StudentsPage() {
         },
         body: JSON.stringify(payload)
       })
-      
+
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}`
         try {
@@ -410,24 +410,24 @@ export default function StudentsPage() {
         }
         throw new Error(errorMessage)
       }
-      
+
       const result = await response.json()
-      
+
       toast({
         title: "Thành công",
         description: `Thông tin học viên ${editStudentData.name} đã được cập nhật`,
       })
-      
+
       // Close dialog
       setIsEditDialogOpen(false)
-      
+
       // Refresh data
       fetchData()
-      
+
     } catch (error) {
       console.error('Error updating student:', error)
       const errorMessage = error instanceof Error ? error.message : 'Không thể cập nhật học viên'
-      
+
       toast({
         title: "Lỗi",
         description: errorMessage,
@@ -447,12 +447,12 @@ export default function StudentsPage() {
   // Handle delete student
   const handleDeleteStudent = async () => {
     if (!studentToDelete) return
-    
+
     try {
       setIsDeleting(true)
-      
+
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-      
+
       const response = await fetch(`${baseUrl}/api/students/${studentToDelete.student_id}`, {
         method: 'DELETE',
         credentials: 'include',
@@ -460,7 +460,7 @@ export default function StudentsPage() {
           'Content-Type': 'application/json'
         }
       })
-      
+
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}`
         try {
@@ -472,24 +472,24 @@ export default function StudentsPage() {
         }
         throw new Error(errorMessage)
       }
-      
+
       const result = await response.json()
-      
+
       toast({
         title: "Thành công",
         description: `Học viên ${studentToDelete.name} đã được xóa`,
       })
-      
+
       // Close dialog
       setIsDeleteDialogOpen(false)
-      
+
       // Refresh data
       fetchData()
-      
+
     } catch (error) {
       console.error('Error deleting student:', error)
       const errorMessage = error instanceof Error ? error.message : 'Không thể xóa học viên'
-      
+
       toast({
         title: "Lỗi",
         description: errorMessage,
@@ -600,17 +600,17 @@ export default function StudentsPage() {
                   onChange={(e) => handleInputChange('email', e.target.value)}
                 />
               </div>
-              
+
             </div>
             <DialogFooter>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={handleDialogClose}
                 disabled={isSubmitting}
               >
                 Hủy
               </Button>
-              <Button 
+              <Button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
               >
@@ -680,14 +680,14 @@ export default function StudentsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setIsEditDialogOpen(false)}
                 disabled={isSubmitting}
               >
                 Hủy
               </Button>
-              <Button 
+              <Button
                 onClick={handleEditSubmit}
                 disabled={isSubmitting}
               >
@@ -787,22 +787,6 @@ export default function StudentsPage() {
                 <SelectItem value="Inactive">Không hoạt động</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={courseFilter} onValueChange={setCourseFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Khóa học" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả khóa học</SelectItem>
-                <SelectItem value="digital">Digital Marketing</SelectItem>
-                <SelectItem value="english">English Communication</SelectItem>
-                <SelectItem value="web">Web Development</SelectItem>
-                <SelectItem value="data">Data Analytics</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              Xuất Excel
-            </Button>
           </div>
 
           {/* Loading State */}
@@ -846,129 +830,125 @@ export default function StudentsPage() {
             <div className="space-y-4">
               {filteredStudents.map((student) => (
                 <Card key={student.student_id} className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src="/placeholder.svg" alt={student.name} />
-                      <AvatarFallback>
-                        {student.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">{student.name}</h3>
-                        {getStatusBadge(student.status || 'unknown')}
-                      </div>
-                      <div className="flex flex-col gap-1 text-sm">
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Mail className="w-3 h-3" />
-                          {student.email}
-                        </div>
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <User className="w-3 h-3" />
-                          <span className="font-mono">{student.student_id}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="text-right text-sm">
-                      <div className="font-medium">{student.totalCertificates || 0} chứng chỉ</div>
-                      <div className="text-muted-foreground">
-                        {student.activeCertificates || 0} hoạt động, {student.expiredCertificates || 0} hết hạn
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <Eye className="w-4 h-4 mr-1" />
-                        Xem
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => openEditDialog(student)}>
-                        <Pencil className="w-4 h-4 mr-1" />
-                        Sửa
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="outline" size="sm" onClick={() => openDeleteDialog(student)}>
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            Xóa
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Xác nhận xóa học viên</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Bạn có chắc chắn muốn xóa học viên <strong>{student.name}</strong>? Hành động này không thể hoàn tác.
-                                              
-                              {student.totalCertificates != null && student.totalCertificates > 0 && (
-                                <div className="mt-2 p-2 bg-yellow-50 text-yellow-800 rounded-md text-sm">
-                                  <AlertCircle className="w-4 h-4 inline mr-1" />
-                                  Học viên này hiện có {student.totalCertificates} chứng chỉ. Chỉ những học viên không có chứng chỉ mới có thể bị xóa.
-                                </div>
-                              )}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>Hủy</AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={handleDeleteStudent}
-                              disabled={isDeleting || (student.totalCertificates != null && student.totalCertificates > 0)}
-                              className={(student.totalCertificates != null && student.totalCertificates > 0) ? 'opacity-50 cursor-not-allowed' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}
-                            >
-                              {isDeleting ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  Đang xóa...
-                                </>
-                              ) : (
-                                'Xóa học viên'
-                              )}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium mb-1">Khóa học đã tham gia:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {student.courses && student.courses.length > 0 ? (
-                          student.courses.map((course, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
-                              {course}
+                    <div className="flex items-center space-x-4">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src="/placeholder.svg" alt={student.name} />
+                        <AvatarFallback>
+                          {student.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold">{student.name}</h3>
+                          {getStatusBadge(student.status || 'unknown')}
+                        </div>
+                        <div className="flex flex-col gap-1 text-sm">
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Mail className="w-3 h-3" />
+                            {student.email}
+                          </div>
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <User className="w-3 h-3" />
+                            <span className="font-mono">{student.student_id}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <div className="text-right text-sm">
+                        <div className="font-medium">{student.totalCertificates || 0} chứng chỉ</div>
+                        <div className="text-muted-foreground">
+                          {student.activeCertificates || 0} hoạt động, {student.expiredCertificates || 0} hết hạn
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openEditDialog(student)}>
+                          <Pencil className="w-4 h-4 mr-1" />
+                          Sửa
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" onClick={() => openDeleteDialog(student)}>
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Xóa
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Xác nhận xóa học viên</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Bạn có chắc chắn muốn xóa học viên <strong>{student.name}</strong>? Hành động này không thể hoàn tác.
+
+                                {student.totalCertificates != null && student.totalCertificates > 0 && (
+                                  <div className="mt-2 p-2 bg-yellow-50 text-yellow-800 rounded-md text-sm">
+                                    <AlertCircle className="w-4 h-4 inline mr-1" />
+                                    Học viên này hiện có {student.totalCertificates} chứng chỉ. Chỉ những học viên không có chứng chỉ mới có thể bị xóa.
+                                  </div>
+                                )}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>Hủy</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={handleDeleteStudent}
+                                disabled={isDeleting || (student.totalCertificates != null && student.totalCertificates > 0)}
+                                className={(student.totalCertificates != null && student.totalCertificates > 0) ? 'opacity-50 cursor-not-allowed' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}
+                              >
+                                {isDeleting ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Đang xóa...
+                                  </>
+                                ) : (
+                                  'Xóa học viên'
+                                )}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium mb-1">Khóa học đã tham gia:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {student.courses && student.courses.length > 0 ? (
+                            student.courses.map((course, index) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                {course}
+                              </Badge>
+                            ))
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              Chưa có khóa học
                             </Badge>
-                          ))
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium mb-1">Địa chỉ ví:</p>
+                        {student.wallet_address ? (
+                          <code className="text-xs bg-muted px-2 py-1 rounded">
+                            {student.wallet_address.slice(0, 6)}...{student.wallet_address.slice(-4)}
+                          </code>
                         ) : (
                           <Badge variant="outline" className="text-xs">
-                            Chưa có khóa học
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            Chưa kết nối
                           </Badge>
                         )}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium mb-1">Địa chỉ ví:</p>
-                      {student.wallet_address ? (
-                        <code className="text-xs bg-muted px-2 py-1 rounded">
-                          {student.wallet_address.slice(0, 6)}...{student.wallet_address.slice(-4)}
-                        </code>
-                      ) : (
-                        <Badge variant="outline" className="text-xs">
-                          <AlertCircle className="w-3 h-3 mr-1" />
-                          Chưa kết nối
-                        </Badge>
-                      )}
-                    </div>
                   </div>
-                </div>
-              </Card>
+                </Card>
               ))}
             </div>
           )}

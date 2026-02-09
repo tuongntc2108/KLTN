@@ -98,7 +98,7 @@ ________________
    4. Hướng dẫn cho Nhà tuyển dụng / Bên xác minh
    1. Xác minh chứng chỉ
    * Truy cập trang.
-   * Nhập Token ID hoặc mã chứng chỉ
+   * Nhập Token ID hoặc mã xác thực
    * Hệ thống hiển thị thông tin về chứng chỉ
    1. Tóm tắt chứng chỉ bằng AI
    * Sau khi xác minh chứng chỉ, có thể chọn Tóm tắt chứng chỉ bằng AI để nhận thông tin tóm tắt về khóa học của chứng chỉ bằng AI

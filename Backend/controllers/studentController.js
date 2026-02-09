@@ -186,7 +186,7 @@ exports.getStudents = async (req, res) => {
         COUNT(CASE WHEN c.status = 'Revoked' THEN 1 END) as revoked_certificates,
         ARRAY_AGG(DISTINCT c.course_name) FILTER (WHERE c.course_name IS NOT NULL) as courses
       FROM students s
-      LEFT JOIN certificates c ON s.wallet_address = c.holder
+      LEFT JOIN certificates c ON s.id = c.student_id
       WHERE s.issuer_id = $1
       GROUP BY s.id, s.name, s.email, s.wallet_address, s.created_at, s.issuer_id
       ORDER BY s.id ASC
@@ -286,7 +286,7 @@ exports.deleteStudent = async (req, res) => {
     const checkCertificatesByHolderQuery = `SELECT COUNT(*) as count FROM certificates WHERE holder = (SELECT wallet_address FROM students WHERE id = $1 AND issuer_id = $2)`;
     const certByHolderResult = await db.pool.query(checkCertificatesByHolderQuery, [idParam, userIssuerId]);
     
-    const checkCertificatesByStudentIdQuery = `SELECT COUNT(*) as count FROM certificates WHERE student_id = $1::TEXT`;
+    const checkCertificatesByStudentIdQuery = `SELECT COUNT(*) as count FROM certificates WHERE student_id = $1`;
     const certByStudentIdResult = await db.pool.query(checkCertificatesByStudentIdQuery, [idParam]);
     
     const totalCertificates = parseInt(certByHolderResult.rows[0].count) + parseInt(certByStudentIdResult.rows[0].count);

@@ -39,7 +39,7 @@ interface StudentDashboardData {
 export function useStudentDashboard() {
   const [studentWalletAddress, setStudentWalletAddress] = useState<string | null>(null)
   const walletInfo = useWalletInfo(studentWalletAddress)
-  
+
   const [state, setState] = useState<StudentDashboardData>({
     stats: {
       totalCertificates: 0,
@@ -80,7 +80,7 @@ export function useStudentDashboard() {
       }
 
       const certificatesData = await certificatesResponse.json()
-      
+
       if (certificatesData.success) {
         const certificates = certificatesData.certificates || []
         const student = certificatesData.student
@@ -89,7 +89,7 @@ export function useStudentDashboard() {
         const totalCertificates = certificates.length
         const activeCertificates = certificates.filter((cert: any) => cert.status === 'Active').length
         const pendingCertificates = certificates.filter((cert: any) => cert.status === 'Issued').length
-        
+
         // Calculate expiring certificates (within 30 days)
         const now = new Date()
         const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000))
@@ -109,7 +109,7 @@ export function useStudentDashboard() {
             id: cert.id,
             name: cert.name || cert.course || 'Unnamed Certificate',
             issuer: cert.issuer || 'Unknown Issuer',
-            issue_date: cert.issue_date,
+            issue_date: cert.issueDate,
             status: cert.status,
             token_id: cert.token_id || '',
             course: cert.course || cert.name || 'Unknown Course'

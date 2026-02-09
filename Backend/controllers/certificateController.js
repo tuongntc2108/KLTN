@@ -35,7 +35,7 @@ exports.mintCertificate = async (req, res) => {
     // Auto-set issued date to current date if not provided
     const currentDate = new Date().toISOString();
     const finalIssuedDate = issued_date || currentDate;
-    
+
     // Allow expire_date to be null/undefined for certificates without expiration
     const finalExpireDate = expire_date || null;
 
@@ -51,21 +51,21 @@ exports.mintCertificate = async (req, res) => {
     // Handle course information - use course_id if provided, otherwise course_name, or allow empty
     let finalCourseName = course_name || "";
     let finalCourseId = course_id;
-    
+
     if (course_id) {
       // Fetch course information from database
       const courseQuery = await db.pool.query(
         'SELECT id, course_name FROM courses WHERE id = $1',
         [course_id]
       );
-      
+
       if (courseQuery.rows.length === 0) {
         return res.status(400).json({
           error: "Không tìm thấy khóa học",
           message: `Course với ID ${course_id} không tồn tại trong hệ thống`
         });
       }
-      
+
       finalCourseName = courseQuery.rows[0].course_name;
       finalCourseId = courseQuery.rows[0].id;
     } else if (course_name) {
@@ -161,7 +161,7 @@ exports.mintCertificate = async (req, res) => {
 
     // Gọi smart contract
     // Convert expiration date to Unix timestamp, use far future date for "never expires"
-    const expireUnix = finalExpireDate 
+    const expireUnix = finalExpireDate
       ? Math.floor(new Date(finalExpireDate).getTime() / 1000)
       : Math.floor(new Date('9999-12-31').getTime() / 1000);
     const verificationCode = sha256_hash.slice(0, 16) + Date.now();
@@ -202,7 +202,7 @@ exports.mintCertificate = async (req, res) => {
       console.log(`🔄 Starting immediate sync for certificate ${tokenId}...`);
       await syncCertificateImmediately(tokenId);
       console.log(`✅ Certificate ${tokenId} synced to database immediately`);
-      
+
       // Log the event immediately after sync
       try {
         await insertEvent({
@@ -215,13 +215,13 @@ exports.mintCertificate = async (req, res) => {
       } catch (eventError) {
         console.error(`❌ Failed to log event for certificate ${tokenId}:`, eventError.message);
       }
-      
+
       // Verify the sync worked by checking the database
       const verifyQuery = await db.pool.query(
         'SELECT token_id, status, recipient_name, course_name FROM certificates WHERE token_id = $1',
         [tokenId]
       );
-      
+
       if (verifyQuery.rows.length > 0) {
         console.log(`✅ Certificate ${tokenId} confirmed in database:`, verifyQuery.rows[0]);
       } else {
@@ -274,7 +274,7 @@ exports.getMyCertificates = async (req, res) => {
     const userEmail = req.user?.email;
     // console.log(`🔍 Debug getMyCertificates - Raw user object:`, req.user);
     // console.log(`🔍 Debug getMyCertificates - User email: ${userEmail}`);
-    
+
     if (!userEmail) {
       // console.log(`❌ Debug getMyCertificates - No user email found`);
       return res.status(401).json({ error: "Unauthorized: User not authenticated" });
@@ -300,7 +300,7 @@ exports.getMyCertificates = async (req, res) => {
 
     const student = studentQuery.rows[0];
     // console.log(`🔍 Debug getMyCertificates - Found student:`, student);
-    
+
     // If student doesn't have a wallet address, return empty certificates
     if (!student.wallet_address) {
       // console.log(`❌ Debug getMyCertificates - Student has no wallet address`);
@@ -314,18 +314,22 @@ exports.getMyCertificates = async (req, res) => {
     // Get certificates for this student's wallet address
     // Only include certificates where this student is the holder
     // Use LOWER() for case-insensitive wallet address comparison
+    // JOIN with issuers table to get issuer name
     const query = `
       SELECT 
         c.*,
+        i.name as issuer_name,
+        i.organization as issuer_org,
         CASE 
           WHEN c.expire_date < NOW() THEN 'Expired'
           ELSE c.status
         END as computed_status
       FROM certificates c 
+      LEFT JOIN issuers i ON LOWER(c.issuer) = LOWER(i.wallet_address)
       WHERE LOWER(c.holder) = LOWER($1)
       ORDER BY c.created_at DESC
     `;
-    
+
     const result = await db.pool.query(query, [student.wallet_address]);
     const certificates = result.rows;
 
@@ -335,15 +339,18 @@ exports.getMyCertificates = async (req, res) => {
     // Format certificates for frontend
     const formattedCertificates = certificates.map(cert => {
       // Use computed_status directly (already calculated in SQL query)
-      // No need for additional mapping as SQL query handles all cases correctly
       const displayStatus = cert.computed_status;
+
+      // Get issuer name from join result, fallback to issuer address or "Unknown"
+      const issuerDisplay = cert.issuer_name || cert.issuer_org || cert.issuer || "Unknown Issuer";
 
       return {
         id: cert.id,
         name: cert.certificate_name,
-        issuer: cert.issuer_name, 
-        issueDate: new Date(cert.issued_date).toLocaleDateString('vi-VN'),
-        expiryDate: new Date(cert.expire_date).toLocaleDateString('vi-VN'),
+        issuer: issuerDisplay,
+        // Return ISO strings for consistent parsing on frontend
+        issueDate: cert.issued_date,
+        expiryDate: cert.expire_date,
         status: displayStatus,
         tokenId: cert.token_id,
         verificationCode: cert.verification_code, // Include verification code, fallback to token_id
@@ -368,10 +375,10 @@ exports.getMyCertificates = async (req, res) => {
 
   } catch (err) {
     console.error("❌ Lỗi getMyCertificates:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: "Không thể lấy danh sách chứng chỉ",
-      error: err.message 
+      error: err.message
     });
   }
 };
@@ -626,9 +633,9 @@ exports.syncCertificateStatus = async (req, res) => {
 
     if (!userEmail) {
       console.log('🟢 [SYNC-STATUS] No user email, returning 401');
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        error: "Authentication required" 
+        error: "Authentication required"
       });
     }
 
@@ -681,7 +688,7 @@ exports.syncCertificateStatus = async (req, res) => {
     try {
       await syncCertificateImmediately(tokenId);
       console.log(`🟢 [SYNC-STATUS] ✅ Certificate ${tokenId} synced after claiming`);
-      
+
       // Log the event immediately after sync
       try {
         await insertEvent({
@@ -710,7 +717,7 @@ exports.syncCertificateStatus = async (req, res) => {
       expire_date: certificate.expire_date,
       transaction_hash: transactionHash
     });
-    
+
     try {
       const emailResult = await emailNotificationService.notifyCertificateClaimed(
         student.email,
@@ -751,7 +758,7 @@ exports.syncCertificateStatus = async (req, res) => {
   } catch (err) {
     console.error("🟢 [SYNC-STATUS] ❌ Error syncing certificate status:", err);
     console.error("🟢 [SYNC-STATUS] ❌ Error stack:", err.stack);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
       error: "Failed to sync certificate status",
       message: "An error occurred while syncing the certificate status",
@@ -778,9 +785,9 @@ exports.revokeCertificate = async (req, res) => {
       'SELECT c.*, s.email, s.name FROM certificates c JOIN students s ON LOWER(c.holder) = LOWER(s.wallet_address) WHERE c.token_id = $1',
       [tokenId]
     );
-    
+
     const certInfo = certQuery.rows.length > 0 ? certQuery.rows[0] : null;
-    
+
     // Log if certInfo is not found for debugging
     if (!certInfo) {
       console.warn(`⚠️ Certificate ${tokenId} found but student info not found for email notification`);
@@ -803,7 +810,7 @@ exports.revokeCertificate = async (req, res) => {
     try {
       await syncCertificateImmediately(tokenId);
       console.log(`✅ [REVOKE] Certificate ${tokenId} synced to database immediately`);
-      
+
       // Log the event immediately after sync
       try {
         await insertEvent({
@@ -877,7 +884,7 @@ exports.getCertificatesByIssuer = async (req, res) => {
     const { issuerId } = req.params;
     const { status, limit = 50, offset = 0 } = req.query;
     const userEmail = req.user?.email;
-    
+
     // Verify user is authenticated
     if (!userEmail) {
       return res.status(401).json({
@@ -885,7 +892,7 @@ exports.getCertificatesByIssuer = async (req, res) => {
         message: "Unauthorized: User not authenticated"
       });
     }
-    
+
     // Get user role to ensure they are authorized to access this endpoint
     const userRole = await getUserRole(userEmail);
     if (!['Issuer', 'Admin'].includes(userRole)) {
@@ -894,23 +901,23 @@ exports.getCertificatesByIssuer = async (req, res) => {
         message: "Forbidden: Only issuers and admins can access this endpoint"
       });
     }
-    
+
     let issuerWalletAddress;
     let issuerInfo;
-    
+
     // If issuerId is 'me', get the current authenticated issuer
     if (issuerId === 'me') {
       // Get issuer information from the database based on the authenticated user
       const issuerQuery = `SELECT * FROM issuers WHERE user_id = (SELECT user_id FROM users WHERE email = $1)`;
       const issuerResult = await db.pool.query(issuerQuery, [userEmail]);
-      
+
       if (issuerResult.rows.length === 0) {
         return res.status(404).json({
           success: false,
           message: "Issuer not found for authenticated user"
         });
       }
-      
+
       issuerInfo = issuerResult.rows[0];
       issuerWalletAddress = issuerInfo.wallet_address;
     } else {
@@ -921,7 +928,7 @@ exports.getCertificatesByIssuer = async (req, res) => {
         message: "Access denied: Only 'me' parameter is allowed for security reasons"
       });
     }
-    
+
     // Build query with issuer filter
     let query = `
       SELECT 
@@ -959,12 +966,12 @@ exports.getCertificatesByIssuer = async (req, res) => {
 
     // Add ordering and pagination
     query += ` ORDER BY c.created_at DESC`;
-    
+
     // Add limit
     paramCount++;
     query += ` LIMIT $${paramCount}`;
     params.push(parseInt(limit));
-    
+
     // Add offset
     paramCount++;
     query += ` OFFSET $${paramCount}`;
@@ -1036,10 +1043,10 @@ exports.getCertificatesByIssuer = async (req, res) => {
 
   } catch (err) {
     console.error("❌ Lỗi getCertificatesByIssuer:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: "Không thể lấy danh sách chứng chỉ",
-      error: err.message 
+      error: err.message
     });
   }
 };
@@ -1081,12 +1088,12 @@ exports.getAllCertificates = async (req, res) => {
 
     // Add ordering and pagination
     query += ` ORDER BY c.created_at DESC`;
-    
+
     // Add limit
     paramCount++;
     query += ` LIMIT $${paramCount}`;
     params.push(parseInt(limit));
-    
+
     // Add offset
     paramCount++;
     query += ` OFFSET $${paramCount}`;
@@ -1156,10 +1163,10 @@ exports.getAllCertificates = async (req, res) => {
 
   } catch (err) {
     console.error("❌ Lỗi getAllCertificates:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: "Không thể lấy danh sách chứng chỉ",
-      error: err.message 
+      error: err.message
     });
   }
 };
@@ -1190,7 +1197,7 @@ exports.replaceCertificate = async (req, res) => {
     // Auto-set issued date to current date if not provided
     const currentDate = new Date().toISOString();
     const finalIssuedDate = issued_date || currentDate;
-    
+
     // Allow expire_date to be null/undefined for certificates without expiration
     const finalExpireDate = expire_date || null;
 
@@ -1206,21 +1213,21 @@ exports.replaceCertificate = async (req, res) => {
     // Handle course information - use course_id if provided, otherwise course_name, or allow empty
     let finalCourseName = course_name || "Chứng chỉ độc lập";
     let finalCourseId = course_id;
-    
+
     if (course_id) {
       // Fetch course information from database
       const courseQuery = await db.pool.query(
         'SELECT id, course_name FROM courses WHERE id = $1',
         [course_id]
       );
-      
+
       if (courseQuery.rows.length === 0) {
         return res.status(400).json({
           error: "Không tìm thấy khóa học",
           message: `Course với ID ${course_id} không tồn tại trong hệ thống`
         });
       }
-      
+
       finalCourseName = courseQuery.rows[0].course_name;
       finalCourseId = courseQuery.rows[0].id;
     } else if (course_name) {
@@ -1352,7 +1359,7 @@ exports.replaceCertificate = async (req, res) => {
     );
 
     const receipt = await tx.wait();
-    
+
     // Tìm event CertificateReplaced để lấy newTokenId
     const replacedEvent = receipt.logs
       .map((log) => {
@@ -1371,7 +1378,7 @@ exports.replaceCertificate = async (req, res) => {
     try {
       await syncCertificateImmediately(oldTokenId);
       console.log(`✅ [REPLACE] Old certificate ${oldTokenId} synced to database immediately`);
-      
+
       // Log the event for the old certificate (Replaced)
       try {
         await insertEvent({
@@ -1388,11 +1395,11 @@ exports.replaceCertificate = async (req, res) => {
     } catch (syncError) {
       console.error(`❌ [REPLACE] Failed to sync old certificate ${oldTokenId}:`, syncError.message);
     }
-    
+
     try {
       await syncCertificateImmediately(newTokenId);
       console.log(`✅ [REPLACE] New certificate ${newTokenId} synced to database immediately`);
-      
+
       // Log the event for the new certificate (Issued)
       try {
         await insertEvent({
@@ -1437,7 +1444,7 @@ exports.replaceCertificate = async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Lỗi replaceCertificate:", err);
-    
+
     // Xử lý lỗi cụ thể
     if (err.error?.message?.includes("Not the issuer")) {
       return res.status(401).json({ error: "Unauthorized: Not the issuer" });
@@ -1489,7 +1496,7 @@ exports.getAISummary = async (req, res) => {
 
     // Check if we have course information (either from join or certificate table)
     const courseName = certificate.final_course_name || certificate.course_name;
-    
+
     if (!courseName || courseName.trim() === '') {
       return res.status(200).json({
         success: true,

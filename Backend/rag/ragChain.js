@@ -40,7 +40,7 @@ Hệ thống này có các chức năng chính:
 
 QUY TẮC TUÂN THỦ:
 - Trả lời câu hỏi dựa TRÊN THÔNG TIN ĐƯỢC CUNG CẤP DƯỚI ĐÂY, không được bịa thông tin
-- Nếu thông tin chưa đủ để trả lời, hãy trả về: "Tôi không rõ thông tin này, câu hỏi đã được gửi đến tư vấn viên. Vui lòng chờ phản hồi qua email"
+- Nếu thông tin chưa đủ để trả lời, bắt buộc phải trả lời như sau: "Tôi không rõ thông tin này, câu hỏi đã được gửi đến tư vấn viên. Vui lòng chờ phản hồi qua email". Không đưa ra câu trả lời khác.
 - Không từ chối vì khác biệt nhỏ về từ khóa; hãy suy luận các cụm tương đương như "chứng chỉ" và "chứng chỉ NFT"
 - Giữ giọng điệu tích cực và thực tế
 - Trả lời bằng tiếng Việt một cách thân thiện và hữu ích
@@ -212,13 +212,12 @@ Hãy trả lời dựa trên thông tin được cung cấp ở trên. Nếu th�
         question: (input) => input.question,
       },
       this.ragPrompt,
-      (input) => {
+      (prompt) => {
         // Log the final prompt being sent to LLM
         console.log('🤖 [LLM PROMPT] Final prompt sent to LLM:');
-        console.log('Context length:', typeof input.context === 'string' ? input.context.length : 'N/A', 'characters');
-        console.log('Question:', input.question);
+        console.log(prompt);
         console.log('--- End of prompt ---');
-        return input;
+        return prompt;
       },
       this.model,
       new StringOutputParser(),
