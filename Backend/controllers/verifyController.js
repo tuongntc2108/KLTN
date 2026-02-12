@@ -135,6 +135,19 @@ async function getCertificateEvents(tokenId) {
   }
 }
 
+async function getCertificateFromDb(tokenId) {
+  try {
+    const result = await db.query(
+      "SELECT token_id, course_name, course_id, certificate_name, recipient_name FROM certificates WHERE token_id = $1",
+      [tokenId?.toString()]
+    );
+    return result.rows && result.rows.length > 0 ? result.rows[0] : null;
+  } catch (error) {
+    console.warn("Failed to get certificate from DB:", error.message);
+    return null;
+  }
+}
+
 exports.verifyByCode = async (req, res) => {
   try {
     const { verificationCode } = req.params;
@@ -300,6 +313,7 @@ exports.verifyByCode = async (req, res) => {
     }
 
     const events = await getCertificateEvents(tokenId);
+    const dbCert = await getCertificateFromDb(tokenId);
 
     const responseData = {
       success: isValid,
@@ -316,14 +330,14 @@ exports.verifyByCode = async (req, res) => {
           issuer: issuerInfo,
           
           recipient: {
-            full_name: cert.recipientName || "Chưa xác định",
+            full_name: dbCert?.recipient_name || "Chưa xác định",
             wallet_address: cert.holder,
             email_hash: "hash-email-tam-thoi"
           },
           
           certificate_detail: {
-            course_name: cert.courseId || "Chưa xác định",
-            certificate_name: cert.certificateName || "Chưa xác định",
+            course_name: dbCert?.course_name || (dbCert?.course_id ? dbCert.course_id.toString() : cert.courseId || "Chưa xác định"),
+            certificate_name: dbCert?.certificate_name || "Chưa xác định",
             issue_date: issueDate,
             expire_date: expireDate,
             status: status
@@ -527,6 +541,7 @@ exports.verifyByTokenId = async (req, res) => {
     }
 
     const events = await getCertificateEvents(tokenId);
+    const dbCert = await getCertificateFromDb(tokenId);
 
     const responseData = {
       success: isValid,
@@ -543,14 +558,14 @@ exports.verifyByTokenId = async (req, res) => {
           issuer: issuerInfo,
           
           recipient: {
-            full_name: cert.recipientName || "Chưa xác định",
+            full_name: dbCert?.recipient_name || "Chưa xác định",
             wallet_address: cert.holder,
             email_hash: "hash-email-tam-thoi"
           },
           
           certificate_detail: {
-            course_name: cert.courseId || "Chưa xác định",
-            certificate_name: cert.certificateName || "Chưa xác định",
+            course_name: dbCert?.course_name || (dbCert?.course_id ? dbCert.course_id.toString() : cert.courseId || "Chưa xác định"),
+            certificate_name: dbCert?.certificate_name || "Chưa xác định",
             issue_date: issueDate,
             expire_date: expireDate,
             status: status

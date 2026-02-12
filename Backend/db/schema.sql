@@ -118,6 +118,7 @@ CREATE TABLE IF NOT EXISTS certificates (
     verification_code VARCHAR(100) UNIQUE NOT NULL,
     certificate_name VARCHAR(50),
     recipient_name TEXT,
+    data_hash VARCHAR(66),                      -- 0x + 64 hex chars from on-chain bytes32
     ai_summary TEXT,                           -- AI-generated summary
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
@@ -248,6 +249,7 @@ CREATE INDEX IF NOT EXISTS idx_cert_status  ON certificates(status);
 CREATE INDEX IF NOT EXISTS idx_cert_vcode   ON certificates(verification_code);
 CREATE INDEX IF NOT EXISTS idx_certificates_course_id ON certificates(course_id);
 CREATE INDEX IF NOT EXISTS idx_certificates_ai_summary ON certificates(ai_summary);
+CREATE INDEX IF NOT EXISTS idx_certificates_data_hash ON certificates(data_hash);
 
 -- Certificate events indexes
 CREATE INDEX IF NOT EXISTS idx_ce_token ON certificate_events(token_id);

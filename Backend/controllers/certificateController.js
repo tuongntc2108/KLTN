@@ -6,6 +6,7 @@ const db = require("../config/pg");
 const { getUserRole } = require('../utils/userUtils');
 const aiSummaryService = require("../services/aiSummaryService");
 const emailNotificationService = require("../services/emailNotificationService");
+const { generateCertificateDataHash } = require("../utils/privacyUtils");
 
 let certificateCounter = 1000;
 
@@ -105,20 +106,27 @@ exports.mintCertificate = async (req, res) => {
     const recipient_email = student.email;
     const recipient_wallet = student.wallet_address;
 
+    const dataHash = `0x${generateCertificateDataHash({
+      student_id,
+      recipient_name,
+      certificate_name,
+      course_id: finalCourseId || 0,
+      issued_date: finalIssuedDate
+    })}`;
+
     // Generate tokenId giả lập từ counter để phục vụ external_url và metadata trước khi mint
     certificateCounter++;
     const tokenIdStr = certificateCounter.toString();
 
     // Build metadata JSON
     const metadata = {
-      name: `${certificate_name} - ${recipient_name}`,
-      description: `${certificate_name} do ${issuer_name} cấp cho học viên ${recipient_name}.`,
+      name: certificate_name,
+      description: `Chứng chỉ ${certificate_name} được cấp phát bởi CertChain.`,
       image: "ipfs://QmHashOfImageFile", // TODO
       external_url: `https://certify.example.org/certificate/${tokenIdStr}`,
       attributes: [
         { trait_type: "Issuer", value: issuer_name },
-        { trait_type: "Recipient", value: recipient_name },
-        { trait_type: "Course Name", value: finalCourseName },
+        { trait_type: "Course ID", value: (finalCourseId || 0).toString() },
         { trait_type: "Certificate Name", value: certificate_name },
         { trait_type: "Issued Date", value: finalIssuedDate },
         { trait_type: "Expire Date", value: finalExpireDate || "Never Expires" },
@@ -131,11 +139,6 @@ exports.mintCertificate = async (req, res) => {
         name: issuer_name,
         id: issuer_id,
         url: issuer_url,
-      },
-      recipient: {
-        full_name: recipient_name,
-        wallet_address: recipient_wallet,
-        email_hash: "hash-email-tam-thoi",
       },
       certificate: {
         course_name: finalCourseName,
@@ -176,11 +179,9 @@ exports.mintCertificate = async (req, res) => {
       recipient_wallet,
       metadataURI,
       expireUnix,
-      finalCourseId ? finalCourseId.toString() : finalCourseName, // Use course_id if available, otherwise course_name
-      student_id.toString(),
+      finalCourseId ? finalCourseId.toString() : "0",
       verificationCode,
-      certificate_name,
-      recipient_name,
+      dataHash,
       gasOptions
     );
 
@@ -200,7 +201,10 @@ exports.mintCertificate = async (req, res) => {
     // Immediately sync the certificate to database
     try {
       console.log(`🔄 Starting immediate sync for certificate ${tokenId}...`);
-      await syncCertificateImmediately(tokenId);
+      await syncCertificateImmediately(tokenId, {
+        certificate_name: certificate_name,
+        recipient_name: recipient_name
+      });
       console.log(`✅ Certificate ${tokenId} synced to database immediately`);
 
       // Log the event immediately after sync
@@ -320,6 +324,7 @@ exports.getMyCertificates = async (req, res) => {
         c.*,
         i.name as issuer_name,
         i.organization as issuer_org,
+        COALESCE(c.certificate_name, c.course_name, 'Chứng chỉ không xác định') as display_certificate_name,
         CASE 
           WHEN c.expire_date < NOW() THEN 'Expired'
           ELSE c.status
@@ -346,7 +351,7 @@ exports.getMyCertificates = async (req, res) => {
 
       return {
         id: cert.id,
-        name: cert.certificate_name,
+        name: cert.display_certificate_name,
         issuer: issuerDisplay,
         // Return ISO strings for consistent parsing on frontend
         issueDate: cert.issued_date,
@@ -585,6 +590,12 @@ exports.getCertificateById = async (req, res) => {
       return res.status(404).json({ error: "Certificate not found" });
     }
 
+    const dbResult = await db.pool.query(
+      "SELECT recipient_name FROM certificates WHERE token_id = $1",
+      [tokenId]
+    );
+    const dbCert = dbResult.rows.length > 0 ? dbResult.rows[0] : null;
+
     // Map enum status
     const statusMap = {
       0: "Issued",
@@ -606,7 +617,7 @@ exports.getCertificateById = async (req, res) => {
         .toISOString()
         .split("T")[0],
       holder: {
-        name: cert.recipientName,
+        name: dbCert?.recipient_name || "",
         wallet_address: cert.holder,
       },
     };
@@ -1287,14 +1298,13 @@ exports.replaceCertificate = async (req, res) => {
 
     // Build metadata JSON for new certificate
     const metadata = {
-      name: `${certificate_name} - ${recipient_name}`,
-      description: `${certificate_name} do ${issuer_name} cấp cho học viên ${recipient_name}.`,
+      name: certificate_name,
+      description: `Chứng chỉ ${certificate_name} được cấp phát bởi CertChain.`,
       image: "ipfs://QmHashOfImageFile", // TODO
       external_url: `https://certify.example.org/certificate/${tokenIdStr}`,
       attributes: [
         { trait_type: "Issuer", value: issuer_name },
-        { trait_type: "Recipient", value: recipient_name },
-        { trait_type: "Course Name", value: finalCourseName },
+        { trait_type: "Course ID", value: (finalCourseId || 0).toString() },
         { trait_type: "Certificate Name", value: certificate_name },
         { trait_type: "Issued Date", value: finalIssuedDate },
         { trait_type: "Expire Date", value: finalExpireDate || "Never Expires" },
@@ -1307,11 +1317,6 @@ exports.replaceCertificate = async (req, res) => {
         name: issuer_name,
         id: issuer_id,
         url: issuer_url,
-      },
-      recipient: {
-        full_name: recipient_name,
-        wallet_address: recipient_wallet,
-        email_hash: "hash-email-tam-thoi",
       },
       certificate: {
         course_name: finalCourseName,
@@ -1350,11 +1355,9 @@ exports.replaceCertificate = async (req, res) => {
       recipient_wallet,
       metadataURI,
       expireUnix,
-      finalCourseId ? finalCourseId.toString() : finalCourseName, // Use course_id if available, otherwise course_name
-      student_id.toString(),
+      finalCourseId ? finalCourseId.toString() : "0",
       verificationCode,
-      certificate_name,
-      recipient_name,
+      dataHash,
       gasOptions
     );
 

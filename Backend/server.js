@@ -82,6 +82,9 @@ app.use("/api/dashboard", dashboardRoutes);
 const documentRoutes = require("./routes/documentRoutes");
 app.use("/api/documents", documentRoutes);
 
+const issuerRoutes = require("./routes/issuerRoutes");
+app.use("/api/issuers", issuerRoutes);
+
 // New LangChain RAG chat API mounted at /api/chat
 const chatRoutes = require("./routes/chat");
 app.use("/api/chat", chatRoutes);

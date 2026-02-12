@@ -46,12 +46,12 @@ const toDate = (secOrMs) => {
   return new Date(n * 1000);
 };
 
-async function upsertCertificateFromStruct(tokenId, cert) {
+async function upsertCertificateFromStruct(tokenId, cert, metadata = {}) {
   const q = `
     INSERT INTO certificates (
       token_id, metadata_uri, holder, issuer, issued_date, expire_date, status,
-      course_name, course_id, student_id, verification_code, certificate_name, recipient_name, updated_at
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW())
+      course_name, course_id, student_id, verification_code, certificate_name, recipient_name, data_hash, updated_at
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW())
     ON CONFLICT (token_id) DO UPDATE SET
       metadata_uri=EXCLUDED.metadata_uri,
       holder=EXCLUDED.holder,
@@ -59,12 +59,13 @@ async function upsertCertificateFromStruct(tokenId, cert) {
       issued_date=EXCLUDED.issued_date,
       expire_date=EXCLUDED.expire_date,
       status=EXCLUDED.status,
-      course_name=EXCLUDED.course_name,
-      course_id=EXCLUDED.course_id,
-      student_id=EXCLUDED.student_id,
+      course_name=COALESCE(EXCLUDED.course_name, certificates.course_name),
+      course_id=COALESCE(EXCLUDED.course_id, certificates.course_id),
+      student_id=COALESCE(EXCLUDED.student_id, certificates.student_id),
       verification_code=EXCLUDED.verification_code,
-      certificate_name=EXCLUDED.certificate_name,
-      recipient_name=EXCLUDED.recipient_name,
+      certificate_name=COALESCE(EXCLUDED.certificate_name, certificates.certificate_name),
+      recipient_name=COALESCE(EXCLUDED.recipient_name, certificates.recipient_name),
+      data_hash=EXCLUDED.data_hash,
       updated_at=NOW();
   `;
   let courseIdInt = null;
@@ -89,6 +90,9 @@ async function upsertCertificateFromStruct(tokenId, cert) {
     }
   }
 
+  const certificateName = metadata.certificate_name || cert.certificateName || null;
+  const recipientName = metadata.recipient_name || cert.recipientName || null;
+
   const params = [
     tokenId,
     cert.metadataURI,
@@ -99,10 +103,11 @@ async function upsertCertificateFromStruct(tokenId, cert) {
     STATUS[Number(cert.status)],
     courseName,
     courseIdInt,
-    cert.studentId,
+    cert.studentId || null,
     cert.verificationCode,
-    cert.certificateName,
-    cert.recipientName
+    certificateName,
+    recipientName,
+    cert.dataHash || null
   ];
 
   await db.query(q, params);
@@ -414,7 +419,7 @@ if (require.main === module) {
 }
 
 // Export helper function for immediate sync after mint
-exports.syncCertificateImmediately = async (tokenId) => {
+exports.syncCertificateImmediately = async (tokenId, metadata = {}) => {
   try {
     console.log(`🔄 Starting immediate sync for certificate ${tokenId}`);
     const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
@@ -432,15 +437,14 @@ exports.syncCertificateImmediately = async (tokenId) => {
       holder: cert.holder,
       issuer: cert.issuer,
       status: STATUS[Number(cert.status)] || "Issued",
-      metadataURI: cert.metadataURI,
-      recipientName: cert.recipientName
+      metadataURI: cert.metadataURI
     });
 
-    await upsertCertificateFromStruct(tokenId.toString(), cert);
+    await upsertCertificateFromStruct(tokenId.toString(), cert, metadata);
 
     // Verify the insert/update worked
     const verifyResult = await db.query(
-      'SELECT token_id, status, recipient_name, course_name FROM certificates WHERE token_id = $1',
+      'SELECT token_id, status, recipient_name, certificate_name, course_name FROM certificates WHERE token_id = $1',
       [tokenId.toString()]
     );
 
@@ -448,7 +452,7 @@ exports.syncCertificateImmediately = async (tokenId) => {
       throw new Error(`Certificate ${tokenId} was not saved to database`);
     }
 
-    console.log(`✅ Certificate ${tokenId} synced immediately and verified in database`);
+    console.log(`✅ Certificate ${tokenId} synced immediately and verified in database:`, verifyResult.rows[0]);
     return true;
   } catch (error) {
     console.error(`❌ Failed to sync certificate ${tokenId}:`, error.message);
