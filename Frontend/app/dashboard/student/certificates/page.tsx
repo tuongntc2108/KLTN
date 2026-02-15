@@ -39,9 +39,9 @@ export default function StudentCertificates() {
   // Filter certificates based on search term and status
   const filteredCertificates = useMemo(() => {
     return certificates.filter(cert => {
-      const matchesSearch = cert.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        cert.course.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        cert.issuer.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesSearch = (cert.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (cert.course || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (cert.issuer || '').toLowerCase().includes(searchTerm.toLowerCase())
 
       const matchesStatus = statusFilter === "All" || cert.status === statusFilter
 
@@ -292,11 +292,11 @@ export default function StudentCertificates() {
                     <Award className="h-6 w-6 text-secondary" />
                   </div>
                   <div className="space-y-1">
-                    <CardTitle className="text-lg">{cert.name}</CardTitle>
+                    <CardTitle className="text-lg">{cert.name || 'Chứng chỉ không xác định'}</CardTitle>
                     <CardDescription className="flex items-center gap-4 text-sm">
                       <span className="flex items-center gap-1">
                         <Building className="w-4 h-4" />
-                        {cert.issuer}
+                        {cert.issuer || 'Không xác định'}
                       </span>
                       <span className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />

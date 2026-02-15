@@ -10,7 +10,7 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 1000, // Tăng từ 200 lên 1000 để giảm contract size
+        runs: 1000,
       },
     },
   },
@@ -24,5 +24,8 @@ module.exports = {
       accounts: [process.env.PRIVATE_KEY],
       chainId: 11155111,
     },
-  },  
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
+  },
 };

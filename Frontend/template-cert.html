@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate - Hanyu Shuiping Kaoshi 4</title>
+    <style>
+        :root {
+            --primary-color: #003366;
+            --secondary-color: #d4af37;
+            --text-color: #333;
+            --bg-gray: #f9f9f9;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #525659;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* Thiết lập khổ A4 dọc */
+        .page {
+            width: 210mm;
+            height: 297mm;
+            padding: 15mm;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            box-sizing: border-box;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            border: 15px solid var(--primary-color);
+            outline: 2px solid var(--secondary-color);
+            outline-offset: -10px;
+        }
+
+        .header {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .logo {
+            width: 80px;
+            margin-bottom: 10px;
+        }
+
+        .issuer-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            margin: 5px 0;
+        }
+
+        .content {
+            text-align: center;
+            margin-top: 50px;
+            flex-grow: 1;
+        }
+
+        .title {
+            font-size: 48px;
+            font-family: 'Times New Roman', serif;
+            color: var(--secondary-color);
+            margin: 10px 0;
+        }
+
+        .subtitle {
+            font-size: 18px;
+            font-style: italic;
+            margin-bottom: 40px;
+        }
+
+        .recipient-label {
+            font-size: 20px;
+        }
+
+        .course-name {
+            font-size: 32px;
+            font-weight: bold;
+            text-decoration: underline;
+            margin: 20px 0;
+            color: var(--primary-color);
+        }
+
+        .description {
+            width: 80%;
+            margin: 0 auto;
+            line-height: 1.6;
+            font-size: 16px;
+        }
+
+        /* Phần thông tin Blockchain */
+        .verification-box {
+            background-color: var(--bg-gray);
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-top: 40px;
+            text-align: left;
+            font-size: 13px;
+            border-radius: 5px;
+        }
+
+        .verification-box h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .info-item b {
+            color: #555;
+        }
+
+        .footer {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .qr-code {
+            width: 120px;
+            height: 120px;
+            border: 1px solid #eee;
+        }
+
+        .signatures {
+            text-align: center;
+        }
+
+        .sig-line {
+            width: 200px;
+            border-top: 1px solid #000;
+            margin-top: 60px;
+        }
+
+        /* CSS cho việc in ấn */
+        @media print {
+            body { background: none; padding: 0; }
+            .page { box-shadow: none; margin: 0; border: 15px solid var(--primary-color) !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page">
+        <div class="header">
+            <div class="issuer-name">VNU - UET</div>
+            <div style="color: #666;">The Issuer</div>
+        </div>
+
+        <div class="content">
+            <div class="title">CERTIFICATE</div>
+            <div class="subtitle">OF ACHIEVEMENT</div>
+            
+            <p class="recipient-label">This is to certify that the holder has successfully completed</p>
+            <div class="course-name">Hanyu Shuiping Kaoshi 4</div>
+            <p class="subtitle">(Tiếng Trung cơ bản)</p>
+
+            <div class="description">
+                The Hanyu Shuiping Kaoshi 4 certificate, issued by CertChain, confirms that the practitioner meets the required standards..
+            </div>
+
+            <div class="verification-box">
+                <h3>Blockchain Verification Details</h3>
+                <div class="info-grid">
+                    <div class="info-item"><b>Token ID:</b> 1003</div>
+                    <div class="info-item"><b>Blockchain:</b> Sepolia</div>
+                    <div class="info-item"><b>Issued Date:</b> 2026-02-12</div>
+                    <div class="info-item"><b>Expire Date:</b> 2026-02-15</div>
+                    <div class="info-item"><b>Status:</b> Active</div>
+                    <div class="info-item"><b>Course ID:</b> 18</div>
+                </div>
+                <div style="margin-top: 10px; word-break: break-all;">
+                    <b>Smart Contract:</b> <br>
+                    <span style="font-family: monospace;">0x4A52CaD61603A512cceA74fB90E63De6eA28A78f</span>
+                </div>
+                <div style="margin-top: 10px; word-break: break-all;">
+                    <b>File Hash (SHA256):</b> <br>
+                    <span style="font-family: monospace;">hash_1770899698866_1hl4ca0ry</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="qr-area">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://localhost:3000/verify" alt="QR Code" class="qr-code">
+                <p style="font-size: 10px; margin-top: 5px;">Scan to verify authenticity</p>
+            </div>
+            
+            <div class="signatures">
+                <p><b>CertChain System</b></p>
+                <div class="sig-line"></div>
+                <p style="font-size: 12px;">Authorized Signature</p>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

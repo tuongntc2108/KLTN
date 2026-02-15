@@ -36,10 +36,8 @@ contract MySBT is ERC721, AccessControl, Pausable {
         uint256 expireDate;      // Thời gian hết hạn
         CertificateStatus status; // Trạng thái chứng chỉ
         string courseId;         // Mã khóa học từ metadata
-        string studentId;        // Mã học viên
         string verificationCode; // Mã xác thực từ metadata
-        string certificateName;  // Tên chứng chỉ
-        string recipientName;    // Tên người nhận (có thể hash)
+        bytes32 dataHash;        // Hash dữ liệu off-chain (privacy-preserving)
     }
     
     // State variables  
@@ -108,10 +106,8 @@ contract MySBT is ERC721, AccessControl, Pausable {
         string memory metadataURI,
         uint256 expireDate,
         string memory courseId,
-        string memory studentId,
         string memory verificationCode,
-        string memory certificateName,
-        string memory recipientName
+        bytes32 dataHash
     ) external onlyIssuer whenNotPaused returns (uint256) {
         require(holder != address(0), "Invalid holder address");
         require(bytes(verificationCode).length > 0, "Verification code required");
@@ -129,10 +125,8 @@ contract MySBT is ERC721, AccessControl, Pausable {
             expireDate: expireDate,
             status: CertificateStatus.Issued,
             courseId: courseId,
-            studentId: studentId,
             verificationCode: verificationCode,
-            certificateName: certificateName,
-            recipientName: recipientName
+            dataHash: dataHash
         });
         
         // Map verification code to token
@@ -188,10 +182,8 @@ contract MySBT is ERC721, AccessControl, Pausable {
         string memory metadataURI,
         uint256 expireDate,
         string memory courseId,
-        string memory studentId,
         string memory verificationCode,
-        string memory certificateName,
-        string memory recipientName
+        bytes32 dataHash
     ) external onlyIssuer tokenExists(oldTokenId) whenNotPaused returns (uint256) {
         Certificate storage oldCert = certificates[oldTokenId];
         require(oldCert.issuer == msg.sender, "Not the issuer of this certificate");
@@ -216,10 +208,8 @@ contract MySBT is ERC721, AccessControl, Pausable {
             expireDate: expireDate,
             status: CertificateStatus.Issued,
             courseId: courseId,
-            studentId: studentId,
             verificationCode: verificationCode,
-            certificateName: certificateName,
-            recipientName: recipientName
+            dataHash: dataHash
         });
         
         // Map verification code to token

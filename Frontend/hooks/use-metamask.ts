@@ -21,8 +21,8 @@ interface MetaMaskState {
 }
 
 const SEPOLIA_CHAIN_ID = '0xaa36a7' // 11155111 in hex
-const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0xBe34829265F8a0609bd52e592CF43428056AE88a'
-
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ||  ''
+    
 // Contract ABI for claimCertificate function
 const CONTRACT_ABI = [
   {
@@ -153,6 +153,10 @@ export function useMetaMask() {
       try {
         if (!window.ethereum) {
           throw new Error('MetaMask not found')
+        }
+
+        if (!CONTRACT_ADDRESS) {
+          throw new Error('Missing contract address')
         }
 
         // Create provider and signer using ethers.js v6
