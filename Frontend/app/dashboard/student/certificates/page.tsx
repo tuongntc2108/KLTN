@@ -9,7 +9,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useCertificates } from "@/hooks/use-certificates"
 import { useMetaMask } from "@/hooks/use-metamask"
 import { useToast } from "@/hooks/use-toast"
+import { useCertificateShare } from "@/hooks/use-certificate-share"
+import { CertificateShareDialog } from "@/components/certificate/CertificateShareDialog"
 import { useState, useMemo } from "react"
+import Link from "next/link"
 import {
   Award,
   Download,
@@ -20,7 +23,6 @@ import {
   XCircle,
   Search,
   Filter,
-  QrCode,
   ExternalLink,
   Calendar,
   Building,
@@ -35,6 +37,10 @@ export default function StudentCertificates() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [claimingTokenId, setClaimingTokenId] = useState<string | null>(null)
+
+  // Use certificate share hook
+  const { shareUrl, shareTokenId, shareOpen, qrUrl, setShareOpen, openShare, copyShareLink, downloadPdf } =
+    useCertificateShare()
 
   // Filter certificates based on search term and status
   const filteredCertificates = useMemo(() => {
@@ -355,11 +361,38 @@ export default function StudentCertificates() {
                     )}
                   </Button>
                 )}
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/certificates/${cert.tokenId}`} target="_blank">
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Xem chi tiết
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => openShare(cert.tokenId)}>
+                  <Share className="w-4 h-4 mr-2" />
+                  Chia sẻ
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => downloadPdf(cert.tokenId)}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Tải PDF
+                </Button>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      <CertificateShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        shareUrl={shareUrl}
+        tokenId={shareTokenId || ""}
+        qrUrl={qrUrl}
+        onCopyLink={copyShareLink}
+      />
 
       {/* Empty State */}
       {!loading && filteredCertificates.length === 0 && (

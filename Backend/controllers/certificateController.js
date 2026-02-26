@@ -1,12 +1,15 @@
 const { contract } = require("../config/blockchain");
 const { uploadMetadataToPinata } = require("../utils/pinata");
 const { ethers } = require("ethers");
+const puppeteer = require("puppeteer");
 const { syncCertificateImmediately, insertEvent } = require("../services/sync");
 const db = require("../config/pg");
 const { getUserRole } = require('../utils/userUtils');
 const aiSummaryService = require("../services/aiSummaryService");
 const emailNotificationService = require("../services/emailNotificationService");
 const { generateCertificateDataHash } = require("../utils/privacyUtils");
+const { buildCertificateViewByTokenId } = require("../services/certificateViewService");
+const { renderCertificateHtml } = require("../services/certificateTemplateService");
 
 let certificateCounter = 1000;
 
@@ -626,6 +629,76 @@ exports.getCertificateById = async (req, res) => {
   } catch (err) {
     console.error("❌ Lỗi getCertificateById:", err);
     res.status(500).json({ error: "Không thể lấy chứng chỉ" });
+  }
+};
+
+// ========================
+// GET /api/certificates/public/:id/html
+// ========================
+exports.getCertificatePublicHtml = async (req, res) => {
+  try {
+    const tokenId = req.params.id;
+    const { statusCode, payload } = await buildCertificateViewByTokenId(tokenId);
+
+    if (statusCode !== 200) {
+      return res.status(statusCode).json(payload);
+    }
+
+    const baseUrl = (process.env.FRONTEND_URL || "http://localhost:3000").replace(/\/$/, "");
+    const shareUrl = `${baseUrl}/certificates/${tokenId}`;
+    const html = renderCertificateHtml(payload.data.certificate, { shareUrl });
+
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.status(200).send(html);
+  } catch (err) {
+    console.error("❌ Lỗi getCertificatePublicHtml:", err);
+    return res.status(500).json({ error: "Không thể tạo bản HTML chứng chỉ" });
+  }
+};
+
+// ========================
+// GET /api/certificates/public/:id/pdf
+// ========================
+exports.getCertificatePublicPdf = async (req, res) => {
+  let browser;
+  try {
+    const tokenId = req.params.id;
+    const { statusCode, payload } = await buildCertificateViewByTokenId(tokenId);
+
+    if (statusCode !== 200) {
+      return res.status(statusCode).json(payload);
+    }
+
+    const baseUrl = (process.env.FRONTEND_URL || "http://localhost:3000").replace(/\/$/, "");
+    const shareUrl = `${baseUrl}/certificates/${tokenId}`;
+    const html = renderCertificateHtml(payload.data.certificate, { shareUrl });
+
+    browser = await puppeteer.launch({
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle0" });
+
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="certificate-${tokenId}.pdf"`
+    );
+
+    return res.status(200).send(pdfBuffer);
+  } catch (err) {
+    console.error("❌ Lỗi getCertificatePublicPdf:", err);
+    return res.status(500).json({ error: "Không thể tạo PDF chứng chỉ" });
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
   }
 };
 

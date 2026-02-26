@@ -246,7 +246,7 @@ async function runOnce(fromBlock, toBlock) {
       // Update with more specific targeting
       const updateResult = await db.query(
         `UPDATE certificate_events 
-         SET block_number = $1, tx_hash = $2, updated_at = NOW()
+         SET block_number = $1, tx_hash = $2
          WHERE token_id = $3 AND event_type = 'Expired' AND tx_hash = 'SYSTEM_EXPIRED'
          RETURNING id`,
         [log.blockNumber, log.transactionHash, tokenId.toString()]

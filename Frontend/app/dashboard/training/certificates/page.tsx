@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,6 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/hooks/use-toast"
+import { useCertificateShare } from "@/hooks/use-certificate-share"
+import { CertificateShareDialog } from "@/components/certificate/CertificateShareDialog"
 import {
   Search,
   Download,
@@ -29,8 +32,8 @@ import {
   Loader2,
   RefreshCw,
   Replace,
+  Share,
 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { useCourses } from "@/hooks/use-courses"
 
@@ -101,7 +104,9 @@ export default function CertificatesPage() {
   const [certificateToReplace, setCertificateToReplace] = useState<Certificate | null>(null)
   const [isReplacing, setIsReplacing] = useState(false)
 
-
+  // Use certificate share hook
+  const { shareUrl, shareTokenId, shareOpen, qrUrl, setShareOpen, openShare, copyShareLink, downloadPdf } =
+    useCertificateShare()
 
   // Check if status matches filter (handles multiple status variations)
   const statusMatches = (certificateStatus: string, filterStatus: string): boolean => {
@@ -640,7 +645,25 @@ export default function CertificatesPage() {
                             Hết hạn: {expiryDate.toLocaleDateString("vi-VN")}
                           </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-0">
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/certificates/${tokenId}`}>
+                              <ExternalLink className="w-4 h-4 sm:mr-1" />
+                              <span className="hidden sm:inline">Chi tiết</span>
+                            </Link>
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => openShare(tokenId)}>
+                            <Share className="w-4 h-4 sm:mr-1" />
+                            <span className="hidden sm:inline">Chia sẻ</span>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => downloadPdf(tokenId)}
+                          >
+                            <Download className="w-4 h-4 sm:mr-1" />
+                            <span className="hidden sm:inline">Tải PDF</span>
+                          </Button>
                           <Button 
                             variant="outline" 
                             size="sm" 
@@ -810,6 +833,14 @@ export default function CertificatesPage() {
           </div>
         </CardContent>
       </Card>
+      <CertificateShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        shareUrl={shareUrl}
+        tokenId={shareTokenId || ""}
+        qrUrl={qrUrl}
+        onCopyLink={copyShareLink}
+      />
     </div>
   )
 }

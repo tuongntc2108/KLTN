@@ -40,7 +40,9 @@ export default function VerifyPage() {
 
     try {
       // Determine if input is verification code or token ID
-      const isTokenId = searchQuery.startsWith('0x') || /^\d+$/.test(searchQuery)
+      // Token ID: pure number or starts with 0x
+      // Verification code: starts with hash_ or other patterns
+      const isTokenId = /^\d+$/.test(searchQuery) || searchQuery.startsWith('0x')
       const endpoint = isTokenId
         ? `/api/verify/by-token/${searchQuery}`
         : `/api/verify/by-code/${searchQuery}`

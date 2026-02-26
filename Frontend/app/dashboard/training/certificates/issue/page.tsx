@@ -409,57 +409,6 @@ export default function IssueCertificatePage() {
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        {/* Preview & Actions */}
-        <div className="space-y-6">
-          {/* Preview */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Xem trước chứng chỉ
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="aspect-[3/4] bg-gradient-to-br from-secondary/20 to-secondary/5 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                <div className="text-center">
-                  <Award className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Xem trước chứng chỉ</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Blockchain Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Blocks className="w-5 h-5" />
-                Thông tin Blockchain
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Mạng:</span>
-                <span>Polygon Mainnet</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Loại token:</span>
-                <span>Soulbound Token (SBT)</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Phí gas ước tính:</span>
-                <span>~0.001 MATIC</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Lưu trữ metadata:</span>
-                <span>IPFS</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Actions */}
           <div className="space-y-3">
             <Button
               className="w-full"
@@ -478,12 +427,9 @@ export default function IssueCertificatePage() {
                 </>
               )}
             </Button>
-            <Button variant="outline" className="w-full bg-transparent">
-              <Upload className="w-4 h-4 mr-2" />
-              Tải template
-            </Button>
           </div>
         </div>
+          
       </div>
     </div>
   )

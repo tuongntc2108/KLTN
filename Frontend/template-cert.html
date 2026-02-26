@@ -39,7 +39,7 @@
 
         .header {
             text-align: center;
-            margin-top: 20px;
+            margin-top: 16px;
         }
 
         .logo {
@@ -62,7 +62,7 @@
         }
 
         .title {
-            font-size: 48px;
+            font-size: 35px;
             font-family: 'Times New Roman', serif;
             color: var(--secondary-color);
             margin: 10px 0;
@@ -78,8 +78,15 @@
             font-size: 20px;
         }
 
+        .recipient-name {
+            font-size: 25px;
+            font-weight: bold;
+            margin: 12px 0 24px;
+            color: var(--primary-color);
+        }
+
         .course-name {
-            font-size: 32px;
+            font-size: 25px;
             font-weight: bold;
             text-decoration: underline;
             margin: 20px 0;
@@ -155,7 +162,7 @@
 
     <div class="page">
         <div class="header">
-            <div class="issuer-name">VNU - UET</div>
+            <div class="issuer-name">{{issuerName}}</div>
             <div style="color: #666;">The Issuer</div>
         </div>
 
@@ -163,43 +170,45 @@
             <div class="title">CERTIFICATE</div>
             <div class="subtitle">OF ACHIEVEMENT</div>
             
-            <p class="recipient-label">This is to certify that the holder has successfully completed</p>
-            <div class="course-name">Hanyu Shuiping Kaoshi 4</div>
-            <p class="subtitle">(Tiếng Trung cơ bản)</p>
+            <p class="recipient-label">This is to certify that</p>
+            <div class="recipient-name">{{recipientName}}</div>
+            <p class="recipient-label">has successfully completed</p>
+            <div class="course-name">{{courseName}}</div>
+            <p class="subtitle">({{certificateSubtitle}})</p>
 
             <div class="description">
-                The Hanyu Shuiping Kaoshi 4 certificate, issued by CertChain, confirms that the practitioner meets the required standards..
+                {{description}}
             </div>
 
             <div class="verification-box">
                 <h3>Blockchain Verification Details</h3>
                 <div class="info-grid">
-                    <div class="info-item"><b>Token ID:</b> 1003</div>
-                    <div class="info-item"><b>Blockchain:</b> Sepolia</div>
-                    <div class="info-item"><b>Issued Date:</b> 2026-02-12</div>
-                    <div class="info-item"><b>Expire Date:</b> 2026-02-15</div>
-                    <div class="info-item"><b>Status:</b> Active</div>
-                    <div class="info-item"><b>Course ID:</b> 18</div>
+                    <div class="info-item"><b>Token ID:</b> {{tokenId}}</div>
+                    <div class="info-item"><b>Blockchain:</b> {{blockchain}}</div>
+                    <div class="info-item"><b>Issued Date:</b> {{issuedDate}}</div>
+                    <div class="info-item"><b>Expire Date:</b> {{expireDate}}</div>
+                    <div class="info-item"><b>Status:</b> {{status}}</div>
+                    <div class="info-item"><b>Course ID:</b> {{courseId}}</div>
                 </div>
                 <div style="margin-top: 10px; word-break: break-all;">
                     <b>Smart Contract:</b> <br>
-                    <span style="font-family: monospace;">0x4A52CaD61603A512cceA74fB90E63De6eA28A78f</span>
+                    <span style="font-family: monospace;">{{smartContract}}</span>
                 </div>
                 <div style="margin-top: 10px; word-break: break-all;">
                     <b>File Hash (SHA256):</b> <br>
-                    <span style="font-family: monospace;">hash_1770899698866_1hl4ca0ry</span>
+                    <span style="font-family: monospace;">{{fileHash}}</span>
                 </div>
             </div>
         </div>
 
         <div class="footer">
             <div class="qr-area">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://localhost:3000/verify" alt="QR Code" class="qr-code">
+                <img src="{{qrUrl}}" alt="QR Code" class="qr-code">
                 <p style="font-size: 10px; margin-top: 5px;">Scan to verify authenticity</p>
             </div>
             
             <div class="signatures">
-                <p><b>CertChain System</b></p>
+                <p><b>{{issuerName}}</b></p>
                 <div class="sig-line"></div>
                 <p style="font-size: 12px;">Authorized Signature</p>
             </div>

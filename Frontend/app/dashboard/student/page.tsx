@@ -199,14 +199,6 @@ export default function StudentDashboard() {
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         {getStatusBadge(cert.status)}
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <Share className="h-4 w-4" />
-                          </Button>
-                        </div>
                       </div>
                     </div>
                   )

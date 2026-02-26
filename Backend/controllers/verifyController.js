@@ -1,152 +1,13 @@
 const { contract } = require("../config/blockchain");
 const { ethers } = require("ethers");
-const axios = require('axios');
 const db = require("../config/pg");
-
-// Helper function to parse metadata and extract issuer and file hash info
-async function parseMetadata(metadataURI, functionName = '') {
-  let issuerInfo = {
-    name: "Chưa xác định",
-    id: "N/A",
-    url: "N/A"
-  };
-  let fileHash = {
-    sha256: "N/A",
-    pdf_url: "N/A"
-  };
-  
-  try {
-    if (metadataURI && metadataURI.trim() !== '') {
-      console.log(`${functionName} - Fetching metadata from:`, metadataURI);
-      
-      // Convert IPFS URI if needed
-      let fetchUrl = metadataURI;
-      if (metadataURI.startsWith('ipfs://')) {
-        fetchUrl = metadataURI.replace('ipfs://', 'https://ipfs.io/ipfs/');
-      }
-      
-      const metadataResponse = await axios.get(fetchUrl, { 
-        timeout: 10000,
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Certificate-Verifier/1.0'
-        }
-      });
-      
-      const metadata = metadataResponse.data;
-      console.log(`${functionName} - Metadata received:`, JSON.stringify(metadata, null, 2));
-      
-      // Extract issuer info from metadata
-      if (metadata.issuer) {
-        console.log(`${functionName} - Found issuer in metadata:`, metadata.issuer);
-        issuerInfo = {
-          name: metadata.issuer.name || "Chưa xác định",
-          id: metadata.issuer.id || "N/A",
-          url: metadata.issuer.url || "N/A"
-        };
-      } else if (metadata.attributes && Array.isArray(metadata.attributes)) {
-        // Fallback to attributes if issuer object not found
-        const issuerAttr = metadata.attributes.find(attr => 
-          attr.trait_type === 'Issuer' || attr.trait_type === 'issuer'
-        );
-        if (issuerAttr) {
-          console.log(`${functionName} - Found issuer in attributes:`, issuerAttr.value);
-          issuerInfo.name = issuerAttr.value;
-        }
-      }
-
-      // Extract file hash info
-      if (metadata.file_hash) {
-        console.log(`${functionName} - Found file_hash in metadata:`, metadata.file_hash);
-        fileHash = {
-          sha256: metadata.file_hash.sha256 || "N/A",
-          pdf_url: metadata.file_hash.pdf_url || "N/A"
-        };
-      }
-      
-      console.log(`${functionName} - Final issuerInfo:`, issuerInfo);
-      console.log(`${functionName} - Final fileHash:`, fileHash);
-    } else {
-      console.log(`${functionName} - No metadata URI provided`);
-    }
-  } catch (error) {
-    console.error(`${functionName} - Failed to fetch metadata:`, error.message);
-    if (error.response) {
-      console.error(`${functionName} - Response status:`, error.response.status);
-      console.error(`${functionName} - Response data:`, error.response.data);
-    }
-    if (error.code) {
-      console.error(`${functionName} - Error code:`, error.code);
-    }
-  }
-  
-  return { issuerInfo, fileHash };
-}
-
-// Helper function to get revocation reason from certificate_events
-async function getRevocationReason(tokenId) {
-  try {
-    const result = await db.query(
-      `SELECT reason FROM certificate_events 
-       WHERE token_id = $1 AND event_type = 'Revoked' 
-       ORDER BY block_number DESC LIMIT 1`,
-      [tokenId?.toString()]
-    );
-    
-    if (result.rows && result.rows.length > 0) {
-      return result.rows[0].reason;
-    }
-  } catch (error) {
-    console.warn('Failed to get revocation reason:', error.message);
-  }
-  
-  return null;
-}
-
-// Helper function to get full event history from certificate_events
-async function getCertificateEvents(tokenId) {
-  try {
-    const result = await db.query(
-      `SELECT id, token_id, event_type, reason, related_token, block_number, tx_hash, created_at
-       FROM certificate_events
-       WHERE token_id = $1
-       ORDER BY created_at ASC, block_number ASC`,
-      [tokenId?.toString()]
-    );
-
-    // Map to a client-friendly format
-    const events = (result.rows || []).map((ev) => ({
-      id: ev.id,
-      token_id: ev.token_id?.toString?.() || String(ev.token_id),
-      type: ev.event_type,
-      issuer: ev.issuer,
-      holder: ev.holder,
-      reason: ev.reason || null,
-      related_token: ev.related_token ? (ev.related_token?.toString?.() || String(ev.related_token)) : null,
-      block_number: ev.block_number ? Number(ev.block_number) : null,
-      tx_hash: ev.tx_hash,
-      created_at: ev.created_at ? new Date(ev.created_at).toISOString() : null,
-    }));
-
-    return events;
-  } catch (error) {
-    console.warn('Failed to get certificate events:', error.message);
-    return [];
-  }
-}
-
-async function getCertificateFromDb(tokenId) {
-  try {
-    const result = await db.query(
-      "SELECT token_id, course_name, course_id, certificate_name, recipient_name FROM certificates WHERE token_id = $1",
-      [tokenId?.toString()]
-    );
-    return result.rows && result.rows.length > 0 ? result.rows[0] : null;
-  } catch (error) {
-    console.warn("Failed to get certificate from DB:", error.message);
-    return null;
-  }
-}
+const {
+  parseMetadata,
+  getRevocationReason,
+  getCertificateEvents,
+  getCertificateFromDb,
+  buildCertificateViewByTokenId,
+} = require("../services/certificateViewService");
 
 exports.verifyByCode = async (req, res) => {
   try {
@@ -164,7 +25,7 @@ exports.verifyByCode = async (req, res) => {
     // Call smart contract view to verify by code
     let result;
     try {
-      result = await contract.verifyCertificateByCode(verificationCode);
+      result = await contract.verifyCertificateByCode.staticCall(verificationCode);
     } catch (e) {
       const msg = e?.reason || e?.shortMessage || e?.message || "Mã xác minh không hợp lệ";
       return res.status(404).json({
@@ -181,6 +42,18 @@ exports.verifyByCode = async (req, res) => {
     const isValid = result[1];
     const statusMessage = result[2];
     const tokenId = result[3]?.toString?.() || String(result[3]);
+
+    // Validate that cert exists and has required properties
+    if (!cert || !cert.expireDate) {
+      return res.status(404).json({
+        success: false,
+        message: "Khong tim thay chung chi hoac du lieu khong hop le.",
+        data: {
+          verified: false,
+          error: "Invalid certificate data from blockchain"
+        }
+      });
+    }
 
     // Parse token ID for blockchain queries
     let parsedTokenId;
@@ -373,229 +246,27 @@ exports.verifyByCode = async (req, res) => {
 exports.verifyByTokenId = async (req, res) => {
   try {
     const { tokenId } = req.params;
-    
-    if (!tokenId) {
-      return res.status(400).json({
-        success: false,
-        message: "Token ID là bắt buộc",
-        data: {
-          verified: false
-        }
-      });
-    }
-
-    // Validate tokenId format
-    let parsedTokenId;
-    try {
-      if (tokenId.startsWith('0x')) {
-        parsedTokenId = ethers.getBigInt(tokenId);
-      } else {
-        parsedTokenId = ethers.getBigInt(tokenId);
-      }
-    } catch (e) {
-      return res.status(400).json({
-        success: false,
-        message: "Định dạng Token ID không hợp lệ",
-        data: {
-          verified: false
-        }
-      });
-    }
-
-    // Call smart contract view to verify by token ID
-    let result;
-    try {
-      result = await contract.verifyCertificate(parsedTokenId);
-    } catch (e) {
-      const msg = e?.reason || e?.shortMessage || e?.message || "Không tìm thấy token trên blockchain";
-      console.log("Verify by token ID error:", msg);
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy chứng chỉ.",
-        data: {
-          verified: false,
-          error: msg
-        }
-      });
-    }
-
-    const cert = result[0];
-    const isValid = result[1];
-    const statusMessage = result[2];
-
-    // Check if certificate is expired by date and needs status update on-chain
-    const currentTime = Math.floor(Date.now() / 1000);
-    const isExpiredByDate = Number(cert.expireDate) < currentTime;
-    
-    if (isExpiredByDate) {
-      try {
-        // Fetch actual status from blockchain struct
-        const certOnChain = await contract.certificates(parsedTokenId);
-        const statusOnChain = Number(certOnChain.status);
-        
-        // Only update if status on-chain is not Expired (2)
-        if (statusOnChain !== 2) {
-          console.log(`📝 Certificate ${tokenId} is expired by date but status on-chain is ${statusOnChain}, updating...`);
-          const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
-          const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
-          const contractWithSigner = contract.connect(wallet);
-          
-          const tx = await contractWithSigner.updateExpiredStatus(parsedTokenId);
-          const receipt = await tx.wait();
-          
-          // Get transaction hash from receipt (try multiple property names)
-          let txHash = receipt?.transactionHash || receipt?.hash || tx?.hash;
-          console.log(`✅ Receipt keys:`, Object.keys(receipt || {}));
-          console.log(`✅ Transaction hash:`, txHash);
-          console.log(`✅ TX hash:`, tx?.hash);
-          
-          if (!txHash) {
-            console.warn(`⚠️ Transaction hash is null or undefined in receipt`);
-            console.warn(`⚠️ Receipt object:`, receipt);
-            return;
-          }
-
-          //update tx_hash vào cơ sở dữ liệu certificate_events
-          const selectResult = await db.query(
-            `SELECT id FROM certificate_events 
-             WHERE token_id = $1 AND event_type = 'Expired' 
-             ORDER BY block_number DESC LIMIT 1`,
-            [tokenId]
-          );
-          
-          console.log(`🔍 Select result:`, selectResult?.rows);
-          
-          if (!selectResult?.rows || selectResult.rows.length === 0) {
-            console.warn(`⚠️ No expired certificate event found for token_id: ${tokenId}, creating new record...`);
-            
-            // Insert new record
-            const insertResult = await db.query(
-              `INSERT INTO certificate_events (token_id, event_type, tx_hash, created_at)
-               VALUES ($1, $2, $3, NOW())
-               RETURNING id`,
-              [tokenId, 'Expired', txHash]
-            );
-            
-            console.log(`✅ Created new certificate event record:`, insertResult.rows[0].id);
-          } else {
-            // Update existing record
-            const updateResult = await db.query(
-              `UPDATE certificate_events 
-               SET tx_hash = $1 
-               WHERE id = $2`,
-              [txHash, selectResult.rows[0].id]
-            );
-            
-            console.log(`✅ Database updated with tx_hash: ${txHash}`);
-          }
-        } else {
-          console.log(`ℹ️ Certificate ${tokenId} already has Expired status on-chain, skipping update`);
-        }
-      } catch (updateError) {
-        console.warn(`⚠️ Failed to update expired status on-chain: ${updateError.message}`);
-        // Continue anyway - verification still succeeds even if on-chain update fails
-      }
-    }
-
-    // Use the helper function to parse metadata
-    const { issuerInfo, fileHash } = await parseMetadata(cert.metadataURI, 'verifyByTokenId');
-    
-    // Get revocation reason if cert is revoked
-    let revocationReason = null;
-    if (Number(cert.status) === 3) {
-      revocationReason = await getRevocationReason(tokenId);
-    }
-
-    // Format dates
-    const issueDate = new Date(Number(cert.issuedDate) * 1000).toISOString();
-    const expireDate = new Date(Number(cert.expireDate) * 1000).toISOString();
-
-    // Determine status
-    let status = "unknown";
-    let message = "";
-    
-    switch (Number(cert.status)) {
-      case 0: 
-        status = "Issued";
-        message = isValid ? "Xác thực chứng chỉ thành công." : "Chứng chỉ đã được cấp nhưng chưa được kích hoạt.";
-        break;
-      case 1: 
-        status = "Active";
-        message = isValid ? "Xác thực chứng chỉ thành công." : "Chứng chỉ đang hoạt động.";
-        break;
-      case 2: 
-        status = "Expired";
-        message = "Chứng chỉ đã hết hạn.";
-        break;
-      case 3: 
-        status = "Revoked";
-        message = "Chứng chỉ đã bị thu hồi.";
-        break;
-      case 4: 
-        status = "Replaced";
-        message = "Chứng chỉ đã được thay thế bằng chứng chỉ mới.";
-        break;
-      default: 
-        status = "Unknown";
-        message = "Trạng thái chứng chỉ không xác định.";
-    }
-
-    const events = await getCertificateEvents(tokenId);
-    const dbCert = await getCertificateFromDb(tokenId);
-
-    const responseData = {
-      success: isValid,
-      message: message,
-      data: {
-        verified: Boolean(isValid),
-        certificate: {
-          token_id: tokenId,
-          status: status,
-          metadata_uri: cert.metadataURI,
-          revocation_reason: revocationReason,
-          events,
-          
-          issuer: issuerInfo,
-          
-          recipient: {
-            full_name: dbCert?.recipient_name || "Chưa xác định",
-            wallet_address: cert.holder,
-            email_hash: "hash-email-tam-thoi"
-          },
-          
-          certificate_detail: {
-            course_name: dbCert?.course_name || (dbCert?.course_id ? dbCert.course_id.toString() : cert.courseId || "Chưa xác định"),
-            certificate_name: dbCert?.certificate_name || "Chưa xác định",
-            issue_date: issueDate,
-            expire_date: expireDate,
-            status: status
-          },
-          
-          file_hash: fileHash,
-          
-          verification: {
-            blockchain: "Sepolia",
-            chain_id: 11155111,
-            smart_contract: process.env.CONTRACT_ADDRESS,
-            verified_at: new Date().toISOString()
-          }
-        }
-      }
-    };
-
-    return res.status(200).json(responseData);
+    const { statusCode, payload } = await buildCertificateViewByTokenId(tokenId);
+    return res.status(statusCode).json(payload);
 
   } catch (err) {
     console.error("Verify by token ID error:", err);
+    console.error("Error code:", err.code);
+    console.error("Error message:", err.message);
     
     // Check if it's a blockchain connection error
-    if (err.code === 'NETWORK_ERROR' || err.code === 'TIMEOUT') {
-      return res.status(500).json({
+    if (err.code === 'NETWORK_ERROR' || 
+        err.code === 'TIMEOUT' || 
+        err.code === 'SERVER_ERROR' ||
+        err.message?.includes('missing response') ||
+        err.message?.includes('could not detect network')) {
+      return res.status(503).json({
         success: false,
-        message: "Xác minh thất bại do lỗi kết nối blockchain.",
+        message: "Không thể kết nối đến blockchain. Vui lòng thử lại sau.",
         data: {
           verified: false,
-          error: "Blockchain connection error"
+          error: "Blockchain connection error",
+          hint: "RPC provider may be down or rate-limited"
         }
       });
     }
