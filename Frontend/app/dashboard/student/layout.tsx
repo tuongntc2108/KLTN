@@ -6,40 +6,43 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
-import { Award, Wallet, User, Settings, Menu, Bell, Search, LogOut, Blocks } from "lucide-react"
+import { Award, Wallet, User, UserCircle, Menu, Bell, Search, LogOut, Blocks } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Suspense } from "react"
 import { AuthGuard } from "@/components/auth/auth-guard"
 import { useAuth } from "@/hooks/use-auth"
-
-const navigation = [
-  {
-    name: "Tổng quan",
-    href: "/dashboard/student",
-    icon: User,
-  },
-  {
-    name: "Chứng chỉ của tôi",
-    href: "/dashboard/student/certificates",
-    icon: Award,
-  },
-  {
-    name: "Ví Blockchain",
-    href: "/dashboard/student/wallet",
-    icon: Wallet,
-  },
-  {
-    name: "Cài đặt",
-    href: "/dashboard/student/settings",
-    icon: Settings,
-  },
-]
+import { useTranslation } from "@/hooks/use-translation"
+import { UserAvatar } from "@/components/ui/user-avatar"
 
 function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname()
   const { user, logout } = useAuth()
+  const { t } = useTranslation()
+  
+  const navigation = [
+    {
+      name: t('nav.overview'),
+      href: "/dashboard/student",
+      icon: User,
+    },
+    {
+      name: t('nav.myCertificates'),
+      href: "/dashboard/student/certificates",
+      icon: Award,
+    },
+    {
+      name: t('nav.wallet'),
+      href: "/dashboard/student/wallet",
+      icon: Wallet,
+    },
+    {
+      name: t('nav.profile'),
+      href: "/dashboard/student/profile",
+      icon: UserCircle,
+    },
+  ]
 
   return (
     <div className={cn("flex h-full flex-col bg-sidebar", className)}>
@@ -51,7 +54,7 @@ function Sidebar({ className }: { className?: string }) {
           </div>
           <div>
             <h1 className="text-lg font-bold text-sidebar-foreground">CertChain</h1>
-            <p className="text-xs text-sidebar-foreground/60">Học viên</p>
+            <p className="text-xs text-sidebar-foreground/60">{t('nav.student')}</p>
           </div>
         </div>
       </div>
@@ -81,9 +84,11 @@ function Sidebar({ className }: { className?: string }) {
       {/* User info */}
       <div className="border-t border-sidebar-border p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-primary">
-            <User className="h-4 w-4 text-sidebar-primary-foreground" />
-          </div>
+          <UserAvatar 
+            avatarUrl={user?.avatar} 
+            userName={user?.fullName}
+            size="sm"
+          />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-sidebar-foreground">{user?.fullName || 'Học viên'}</p>
             <p className="text-xs text-sidebar-foreground/60 truncate">{user?.email || 'Loading...'}</p>
@@ -139,9 +144,11 @@ export default function StudentLayout({
 
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
-                  <User className="h-4 w-4 text-primary-foreground" />
-                </div>
+                <UserAvatar 
+                  avatarUrl={user?.avatar} 
+                  userName={user?.fullName}
+                  size="sm"
+                />
                 <span className="hidden text-sm font-medium md:inline-block">{user?.fullName || 'Học viên'}</span>
               </div>
             </div>

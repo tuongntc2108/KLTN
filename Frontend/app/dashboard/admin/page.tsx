@@ -4,55 +4,57 @@ import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Building2, Bot, LayoutGrid } from "lucide-react"
+import { useTranslation } from "@/hooks/use-translation"
 
-const quickLinks = [
+const quickLinkKeys = [
   {
-    title: "Tổng quan",
-    description: "Theo dõi hoạt động quản trị và thông tin tổng hợp.",
+    titleKey: "adminOverview.overviewTitle",
+    descKey: "adminOverview.overviewDesc",
     href: "/dashboard/admin",
     icon: LayoutGrid
   },
   {
-    title: "Quản lý đơn vị đào tạo",
-    description: "Thêm và quản lý các issuer mới trên hệ thống.",
+    titleKey: "adminOverview.issuersTitle",
+    descKey: "adminOverview.issuersDesc",
     href: "/dashboard/admin/issuers",
     icon: Building2
   },
   {
-    title: "Quản lý chatbot",
-    description: "Upload tài liệu và huấn luyện chatbot AI.",
+    titleKey: "adminOverview.chatbotTitle",
+    descKey: "adminOverview.chatbotDesc",
     href: "/dashboard/admin/chatbot",
     icon: Bot
   }
 ]
 
 export default function AdminOverviewPage() {
+  const { t } = useTranslation()
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Tổng quan quản trị</h1>
+        <h1 className="text-3xl font-bold">{t('adminOverview.pageTitle')}</h1>
         <p className="text-muted-foreground mt-2">
-          Quản lý đơn vị đào tạo, chatbot và theo dõi hệ thống.
+          {t('adminOverview.pageSubtitle')}
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        {quickLinks.map((item) => (
-          <Card key={item.title} className="flex flex-col">
+        {quickLinkKeys.map((item) => (
+          <Card key={item.titleKey} className="flex flex-col">
             <CardHeader>
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                   <item.icon className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle>{item.title}</CardTitle>
-                  <CardDescription>{item.description}</CardDescription>
+                  <CardTitle>{t(item.titleKey as any)}</CardTitle>
+                  <CardDescription>{t(item.descKey as any)}</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="mt-auto">
               <Button asChild className="w-full">
-                <Link href={item.href}>Mở trang</Link>
+                <Link href={item.href}>{t('adminOverview.openButtonText')}</Link>
               </Button>
             </CardContent>
           </Card>

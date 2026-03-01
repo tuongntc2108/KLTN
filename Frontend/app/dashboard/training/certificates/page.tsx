@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/hooks/use-translation"
 import { useCertificateShare } from "@/hooks/use-certificate-share"
 import { CertificateShareDialog } from "@/components/certificate/CertificateShareDialog"
 import {
@@ -95,6 +96,7 @@ export default function CertificatesPage() {
   const [error, setError] = useState<string | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const { toast } = useToast()
+  const { t } = useTranslation()
   const searchParams = useSearchParams()
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false)
   const [revokeReason, setRevokeReason] = useState("")
@@ -171,8 +173,8 @@ export default function CertificatesPage() {
   const handleRevokeCertificate = async () => {
     if (!certificateToRevoke || !revokeReason.trim()) {
       toast({
-        title: "Lỗi",
-        description: "Vui lòng nhập lý do thu hồi",
+        title: t('common.error'),
+        description: t('certificates.revokeError'),
         variant: "destructive",
       })
       return
@@ -198,8 +200,8 @@ export default function CertificatesPage() {
       const result = await response.json()
       
       toast({
-        title: "Thành công",
-        description: "Chứng chỉ đã được thu hồi thành công",
+        title: t('common.success'),
+        description: t('certificates.revokeSuccess'),
       })
       
       // Close dialog and reset state
@@ -212,8 +214,8 @@ export default function CertificatesPage() {
     } catch (err) {
       console.error('Error revoking certificate:', err)
       toast({
-        title: "Lỗi",
-        description: "Không thể thu hồi chứng chỉ. Vui lòng thử lại.",
+        title: t('common.error'),
+        description: t('certificates.revokeErrorMsg'),
         variant: "destructive",
       })
     } finally {
@@ -225,8 +227,8 @@ export default function CertificatesPage() {
   const handleReplaceCertificate = async (replaceData: any) => {
     if (!certificateToReplace) {
       toast({
-        title: "Lỗi",
-        description: "Không tìm thấy chứng chỉ để thay thế",
+        title: t('common.error'),
+        description: t('certificates.replaceError'),
         variant: "destructive",
       })
       return
@@ -253,8 +255,8 @@ export default function CertificatesPage() {
       const result = await response.json()
       
       toast({
-        title: "Thay thế chứng chỉ thành công",
-        description: `Chứng chỉ cũ: ${result.replaced_old_cert_id}, Chứng chỉ mới: ${result.new_certificate_id}`,
+        title: t('certificates.replaceSuccess'),
+        description: `${t('certificates.replaceSuccessOld')} ${result.replaced_old_cert_id}, ${t('certificates.replaceSuccessNew')} ${result.new_certificate_id}`,
       })
       
       // Close dialog and reset state
@@ -266,8 +268,8 @@ export default function CertificatesPage() {
     } catch (err) {
       console.error('Error replacing certificate:', err)
       toast({
-        title: "Lỗi",
-        description: (err as Error)?.message || "Không thể thay thế chứng chỉ. Vui lòng thử lại.",
+        title: t('common.error'),
+        description: (err as Error)?.message || t('certificates.replaceErrorMsg'),
         variant: "destructive",
       })
     } finally {
@@ -288,8 +290,8 @@ export default function CertificatesPage() {
       // Trigger refresh
       handleRefresh()
       toast({
-        title: "Đã cập nhật",
-        description: "Danh sách chứng chỉ đã được làm mới",
+        title: t('common.success'),
+        description: t('certificates.refreshSuccess'),
       })
     }
   }, [searchParams])
@@ -321,42 +323,42 @@ export default function CertificatesPage() {
         return (
           <Badge className="bg-green-100 text-green-800">
             <CheckCircle className="w-3 h-3 mr-1" />
-            Hoạt động
+            {t('certificates.badgeActive')}
           </Badge>
         )
       case "Issued":
         return (
           <Badge className="bg-orange-100 text-orange-800 border-orange-200">
             <Clock className="w-3 h-3 mr-1" />
-            Đang chờ nhận
+            {t('certificates.badgePending')}
           </Badge>
         )
       case "Revoked":
         return (
           <Badge variant="destructive">
             <Ban className="w-3 h-3 mr-1" />
-            Đã thu hồi
+            {t('certificates.badgeRevoked')}
           </Badge>
         )
       case "Expired":
         return (
           <Badge variant="destructive">
             <XCircle className="w-3 h-3 mr-1" />
-            Hết hạn
+            {t('certificates.badgeExpired')}
           </Badge>
         )
       case "Replaced":
         return (
           <Badge variant="outline">
             <RotateCcw className="w-3 h-3 mr-1" />
-            Đã thay thế
+            {t('certificates.badgeReplaced')}
           </Badge>
         )
       default:
         return (
           <Badge variant="outline" className="bg-gray-100 text-gray-800">
             <AlertCircle className="w-3 h-3 mr-1" />
-            Không xác định
+            {t('certificates.badgeUnknown')}
           </Badge>
         )
     }
@@ -375,12 +377,12 @@ export default function CertificatesPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Quản lý chứng chỉ</h1>
-            <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ trong hệ thống</p>
+            <h1 className="text-3xl font-bold tracking-tight">{t('certificates.pageTitle')}</h1>
+            <p className="text-muted-foreground">{t('certificates.pageSubtitle')}</p>
           </div>
           <Button disabled>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Loading...
+            {t('common.loading')}
           </Button>
         </div>
         
@@ -426,18 +428,18 @@ export default function CertificatesPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Quản lý chứng chỉ</h1>
-            <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ trong hệ thống</p>
+            <h1 className="text-3xl font-bold tracking-tight">{t('certificates.pageTitle')}</h1>
+            <p className="text-muted-foreground">{t('certificates.pageSubtitle')}</p>
           </div>
         </div>
         
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-8">
             <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Error Loading Certificates</h3>
+            <h3 className="text-lg font-semibold mb-2">{t('certificates.loadError')}</h3>
             <p className="text-muted-foreground mb-4">{error}</p>
             <Button onClick={() => window.location.reload()}>
-              Try Again
+              {t('certificates.tryAgain')}
             </Button>
           </CardContent>
         </Card>
@@ -449,8 +451,8 @@ export default function CertificatesPage() {
     <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Quản lý chứng chỉ</h1>
-            <p className="text-muted-foreground">Theo dõi và quản lý tất cả chứng chỉ trong hệ thống</p>
+            <h1 className="text-3xl font-bold tracking-tight">{t('certificates.pageTitle')}</h1>
+            <p className="text-muted-foreground">{t('certificates.pageSubtitle')}</p>
           </div>
           <div className="flex gap-2">
             <Button 
@@ -459,12 +461,12 @@ export default function CertificatesPage() {
               disabled={loading}
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Làm mới
+              {t('certificates.refreshButton')}
             </Button>
             <Link href="/dashboard/training/certificates/issue">
               <Button>
                 <Plus className="w-4 h-4 mr-2" />
-                Cấp chứng chỉ mới
+                {t('certificates.issueNewButton')}
               </Button>
             </Link>
           </div>
@@ -474,52 +476,52 @@ export default function CertificatesPage() {
       <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tổng số</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('certificates.totalHeader')}</CardTitle>
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{certificates.length}</div>
-            <p className="text-xs text-muted-foreground">Chứng chỉ đã cấp</p>
+            <p className="text-xs text-muted-foreground">{t('certificates.totalDesc')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Hoạt động</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('certificates.activeHeader')}</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{getStatusCount("Active")}</div>
-            <p className="text-xs text-muted-foreground">Đang có hiệu lực</p>
+            <p className="text-xs text-muted-foreground">{t('certificates.activeDesc')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Đang chờ nhận</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('certificates.pendingHeader')}</CardTitle>
             <Clock className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{getStatusCount("Issued")}</div>
-            <p className="text-xs text-muted-foreground">Chưa được nhận</p>
+            <p className="text-xs text-muted-foreground">{t('certificates.pendingDesc')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Hết hạn</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('certificates.expiredHeader')}</CardTitle>
             <XCircle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{getStatusCount("Expired")}</div>
-            <p className="text-xs text-muted-foreground">Cần gia hạn</p>
+            <p className="text-xs text-muted-foreground">{t('certificates.expiredDesc')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Thu hồi</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('certificates.revokedHeader')}</CardTitle>
             <Ban className="h-4 w-4 text-gray-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{getStatusCount("Revoked")}</div>
-            <p className="text-xs text-muted-foreground">Đã bị thu hồi</p>
+            <p className="text-xs text-muted-foreground">{t('certificates.revokedDesc')}</p>
           </CardContent>
         </Card>
       </div>
@@ -527,8 +529,8 @@ export default function CertificatesPage() {
       {/* Filters and List */}
       <Card>
         <CardHeader>
-          <CardTitle>Danh sách Chứng chỉ</CardTitle>
-          <CardDescription>Tìm kiếm và quản lý tất cả chứng chỉ trong hệ thống</CardDescription>
+          <CardTitle>{t('certificates.pageTitle')}</CardTitle>
+          <CardDescription>{t('certificates.pageSubtitle')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -536,7 +538,7 @@ export default function CertificatesPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
-                  placeholder="Tìm kiếm theo tên học viên, khóa học, tokenID hoặc mã xác thực..."
+                  placeholder={t('certificates.searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -545,30 +547,30 @@ export default function CertificatesPage() {
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Trạng thái" />
+                <SelectValue placeholder={t('status.label')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="All">Tất cả trạng thái</SelectItem>
-                <SelectItem value="Active">Hoạt động</SelectItem>
-                <SelectItem value="Issued">Đang chờ nhận</SelectItem>
-                <SelectItem value="Expired">Hết hạn</SelectItem>
-                <SelectItem value="Revoked">Thu hồi</SelectItem>
+                <SelectItem value="All">{t('certificates.statusAll')}</SelectItem>
+                <SelectItem value="Active">{t('certificates.statusActive')}</SelectItem>
+                <SelectItem value="Issued">{t('certificates.statusPending')}</SelectItem>
+                <SelectItem value="Expired">{t('certificates.statusExpired')}</SelectItem>
+                <SelectItem value="Revoked">{t('certificates.statusRevoked')}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Loại chứng chỉ" />
+                <SelectValue placeholder={t('certificates.typeFilterLabel')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tất cả loại</SelectItem>
-                <SelectItem value="professional">Professional</SelectItem>
-                <SelectItem value="advanced">Advanced</SelectItem>
-                <SelectItem value="foundation">Foundation</SelectItem>
+                <SelectItem value="all">{t('certificates.typeFilterAll')}</SelectItem>
+                <SelectItem value="professional">{t('certificates.typeFilterProfessional')}</SelectItem>
+                <SelectItem value="advanced">{t('certificates.typeFilterAdvanced')}</SelectItem>
+                <SelectItem value="foundation">{t('certificates.typeFilterFoundation')}</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline">
               <Download className="w-4 h-4 mr-2" />
-              Xuất báo cáo
+              {t('certificates.exportButton')}
             </Button>
           </div>
 
@@ -578,17 +580,17 @@ export default function CertificatesPage() {
               <Card className="p-8">
                 <div className="flex flex-col items-center justify-center text-center">
                   <Award className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No certificates found</h3>
+                  <h3 className="text-lg font-semibold mb-2">{t('certificates.emptyTitle')}</h3>
                   <p className="text-muted-foreground mb-4">
                     {searchTerm || statusFilter !== "All" || typeFilter !== "All"
-                      ? "Try adjusting your search filters"
-                      : "You haven't issued any certificates yet"}
+                      ? t('certificates.emptyFilterMsg')
+                      : t('certificates.emptyAllMsg')}
                   </p>
                   {!searchTerm && statusFilter === "All" && typeFilter === "All" && (
                     <Link href="/dashboard/training/certificates/issue">
                       <Button>
                         <Plus className="w-4 h-4 mr-2" />
-                        Issue your first certificate
+                        {t('certificates.issueFirstButton')}
                       </Button>
                     </Link>
                   )}
@@ -629,10 +631,10 @@ export default function CertificatesPage() {
                           </div>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
                             <span className="truncate">
-                              Học viên: <strong>{studentName}</strong>
+                              {t('certificates.studentLabel')} <strong>{studentName}</strong>
                             </span>
                             <span className="truncate">
-                              Token ID: <code className="bg-muted px-1 rounded">{tokenId}</code>
+                              {t('certificates.tokenIdLabel')} <code className="bg-muted px-1 rounded">{tokenId}</code>
                             </span>
                           </div>
                         </div>
@@ -640,21 +642,21 @@ export default function CertificatesPage() {
 
                       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                         <div className="text-sm">
-                          <div className="font-medium">Cấp: {issueDate.toLocaleDateString("vi-VN")}</div>
+                          <div className="font-medium">{t('certificates.issuedLabel')} {issueDate.toLocaleDateString("vi-VN")}</div>
                           <div className="text-muted-foreground">
-                            Hết hạn: {expiryDate.toLocaleDateString("vi-VN")}
+                            {t('certificates.expiresLabel')} {expiryDate.toLocaleDateString("vi-VN")}
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-0">
                           <Button variant="outline" size="sm" asChild>
                             <Link href={`/certificates/${tokenId}`}>
                               <ExternalLink className="w-4 h-4 sm:mr-1" />
-                              <span className="hidden sm:inline">Chi tiết</span>
+                              <span className="hidden sm:inline">{t('certificates.detailsButton')}</span>
                             </Link>
                           </Button>
                           <Button variant="outline" size="sm" onClick={() => openShare(tokenId)}>
                             <Share className="w-4 h-4 sm:mr-1" />
-                            <span className="hidden sm:inline">Chia sẻ</span>
+                            <span className="hidden sm:inline">{t('certificates.shareButton')}</span>
                           </Button>
                           <Button
                             variant="outline"
@@ -662,7 +664,7 @@ export default function CertificatesPage() {
                             onClick={() => downloadPdf(tokenId)}
                           >
                             <Download className="w-4 h-4 sm:mr-1" />
-                            <span className="hidden sm:inline">Tải PDF</span>
+                            <span className="hidden sm:inline">{t('certificates.downloadButton')}</span>
                           </Button>
                           <Button 
                             variant="outline" 
@@ -671,7 +673,7 @@ export default function CertificatesPage() {
                             disabled={!blockchainTx}
                           >
                             <ExternalLink className="w-4 h-4 sm:mr-1" />
-                            <span className="hidden sm:inline">Blockchain</span>
+                            <span className="hidden sm:inline">{t('certificates.blockchainButton')}</span>
                           </Button>
                         
                           {/* Replace Button - Only show for active and issued certificates */}
@@ -689,15 +691,14 @@ export default function CertificatesPage() {
                                   onClick={() => setCertificateToReplace(cert)}
                                 >
                                   <Replace className="w-4 h-4 sm:mr-1" />
-                                  <span className="hidden sm:inline">Thay thế</span>
+                                  <span className="hidden sm:inline">{t('certificates.replaceButton')}</span>
                                 </Button>
                               </DialogTrigger>
                               <DialogContent className="sm:max-w-[600px]">
                                 <DialogHeader>
-                                  <DialogTitle>Thay thế chứng chỉ</DialogTitle>
+                                  <DialogTitle>{t('certificates.replaceDialogTitle')}</DialogTitle>
                                   <DialogDescription>
-                                    Bạn đang thay thế chứng chỉ với mã token <strong>{certificateToReplace?.certificate?.token_id || 'N/A'}</strong> của học viên <strong>{certificateToReplace?.certificate?.recipient?.full_name || 'Unknown'}</strong>.
-                                    Mã sinh viên sẽ được tự động điền sẵn và không thể sửa.
+                                    {t('certificates.revokeDialogDesc')}
                                   </DialogDescription>
                                 </DialogHeader>
                                 {certificateToReplace && (
@@ -730,22 +731,21 @@ export default function CertificatesPage() {
                                   onClick={() => setCertificateToRevoke(cert)}
                                 >
                                   <Ban className="w-4 h-4 sm:mr-1" />
-                                  <span className="hidden sm:inline">Thu hồi</span>
+                                  <span className="hidden sm:inline">{t('certificates.revokeButton')}</span>
                                 </Button>
                               </DialogTrigger>
                               <DialogContent className="sm:max-w-[425px]">
                                 <DialogHeader>
-                                  <DialogTitle>Thu hồi chứng chỉ</DialogTitle>
+                                  <DialogTitle>{t('certificates.revokeDialogTitle')}</DialogTitle>
                                   <DialogDescription>
-                                    Bạn đang thu hồi chứng chỉ với mã token <strong>{certificateToRevoke?.certificate?.token_id || 'N/A'}</strong> của học viên <strong>{certificateToRevoke?.certificate?.recipient?.full_name || 'Unknown'}</strong>.
-                                    Vui lòng nhập lý do thu hồi bên dưới.
+                                    {t('certificates.revokeDialogDesc')}
                                   </DialogDescription>
                                 </DialogHeader>
                                 <div className="grid gap-4 py-4">
                                   <div className="grid grid-cols-4 items-center gap-4">
                                     <Textarea
                                       id="reason"
-                                      placeholder="Nhập lý do thu hồi chứng chỉ..."
+                                      placeholder={t('certificates.revokeReasonPlaceholder')}
                                       className="col-span-4"
                                       value={revokeReason}
                                       onChange={(e) => setRevokeReason(e.target.value)}
@@ -763,7 +763,7 @@ export default function CertificatesPage() {
                                     }}
                                     disabled={isRevoking}
                                   >
-                                    Hủy
+                                    {t('certificates.cancelButton')}
                                   </Button>
                                   <Button 
                                     variant="destructive" 
@@ -773,10 +773,10 @@ export default function CertificatesPage() {
                                     {isRevoking ? (
                                       <>
                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        Đang thu hồi...
+                                        {t('certificates.revokingLabel')}
                                       </>
                                     ) : (
-                                      "Xác nhận thu hồi"
+                                      t('certificates.revokeConfirmButton')
                                     )}
                                   </Button>
                                 </DialogFooter>
@@ -790,29 +790,29 @@ export default function CertificatesPage() {
                     <div className="mt-4 pt-4 border-t">
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 text-sm">
                         <div>
-                          <p className="font-medium mb-1">Loại chứng chỉ:</p>
+                          <p className="font-medium mb-1">{t('certificates.certificateTypeLabel')}</p>
                           <Badge variant="secondary">{certificateName}</Badge>
                         </div>
                         <div>
-                          <p className="font-medium mb-1">Token ID:</p>
+                          <p className="font-medium mb-1">{t('certificates.tokenIdLabel')}</p>
                           <code className="text-xs bg-muted px-2 py-1 rounded block">
                             {tokenId}
                           </code>
                         </div>
                         <div>
-                          <p className="font-medium mb-1">Mã xác thực:</p>
+                          <p className="font-medium mb-1">{t('certificates.verificationCodeLabel')}</p>
                           <code className="text-xs bg-muted px-2 py-1 rounded block">
                             {certificate?.verification_code || tokenId}
                           </code>
                         </div>
                         <div>
-                          <p className="font-medium mb-1">IPFS Hash:</p>
+                          <p className="font-medium mb-1">{t('certificates.ipfsHashLabel')}</p>
                           <code className="text-xs bg-muted px-2 py-1 rounded block">
                             {ipfsHash ? `${ipfsHash.replace('ipfs://', '').slice(0, 8)}...${ipfsHash.replace('ipfs://', '').slice(-6)}` : "N/A"}
                           </code>
                         </div>
                         <div>
-                          <p className="font-medium mb-1">Địa chỉ ví:</p>
+                          <p className="font-medium mb-1">{t('certificates.walletAddressLabel')}</p>
                           {walletAddress ? (
                             <code className="text-xs bg-muted px-2 py-1 rounded block">
                               {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
@@ -820,7 +820,7 @@ export default function CertificatesPage() {
                           ) : (
                             <Badge variant="outline" className="text-xs">
                               <AlertCircle className="w-3 h-3 mr-1" />
-                              Chưa kết nối
+                              {t('certificates.notConnectedLabel')}
                             </Badge>
                           )}
                         </div>
@@ -855,6 +855,7 @@ interface ReplaceCertificateFormProps {
 
 function ReplaceCertificateForm({ certificate, onReplace, isReplacing, onCancel }: ReplaceCertificateFormProps) {
   const { courses, loading: coursesLoading, fetchCourses } = useCourses()
+  const { t } = useTranslation()
   const [formData, setFormData] = useState({
     studentId: "",
     courseName: "",
@@ -927,7 +928,7 @@ function ReplaceCertificateForm({ certificate, onReplace, isReplacing, onCancel 
       <div className="grid gap-4">
         {/* Student ID - Read only */}
         <div>
-          <Label htmlFor="studentId">Mã sinh viên</Label>
+          <Label htmlFor="studentId">{t('certificates.replaceFormStudentId')}</Label>
           <Input
             id="studentId"
             value={formData.studentId}
@@ -938,41 +939,41 @@ function ReplaceCertificateForm({ certificate, onReplace, isReplacing, onCancel 
 
         {/* Student Name - Read only (for reference) */}
         <div>
-          <Label htmlFor="studentName">Tên sinh viên</Label>
+          <Label htmlFor="studentName">{t('certificates.replaceFormStudentName')}</Label>
           <Input
             id="studentName"
             value={certificate?.certificate?.recipient?.full_name || ""}
             readOnly
             className="bg-muted cursor-not-allowed"
-            placeholder="Tên sinh viên sẽ hiển thị ở đây"
+            placeholder={t('certificates.replaceFormStudentNamePlaceholder')}
           />
         </div>
 
         {/* Certificate Name */}
         <div>
-          <Label htmlFor="certificateName">Tên chứng chỉ *</Label>
+          <Label htmlFor="certificateName">{t('certificates.replaceFormCertificateName')}</Label>
           <Input
             id="certificateName"
             value={formData.certificateName}
             onChange={(e) => handleInputChange("certificateName", e.target.value)}
-            placeholder="Chứng chỉ Tiếng Anh Giao Tiếp - Cấp độ B2"
+            placeholder={t('certificates.replaceFormCertificateNamePlaceholder')}
           />
         </div>
 
         {/* Course Name */}
         <div>
-          <Label htmlFor="courseName">Khóa học *</Label>
+          <Label htmlFor="courseName">{t('certificates.replaceFormCourseName')}</Label>
           <Input
             id="courseName"
             value={formData.courseName}
             onChange={(e) => handleInputChange("courseName", e.target.value)}
-            placeholder="Tên khóa học"
+            placeholder={t('certificates.replaceFormCourseNamePlaceholder')}
           />
         </div>
 
         {/* Issue Date */}
         <div>
-          <Label htmlFor="issueDate">Ngày cấp *</Label>
+          <Label htmlFor="issueDate">{t('certificates.replaceFormIssueDate')}</Label>
           <Input
             id="issueDate"
             type="date"
@@ -984,7 +985,7 @@ function ReplaceCertificateForm({ certificate, onReplace, isReplacing, onCancel 
 
         {/* Expiry Date */}
         <div>
-          <Label htmlFor="expiryDate">Ngày hết hạn</Label>
+          <Label htmlFor="expiryDate">{t('certificates.replaceFormExpiryDate')}</Label>
           <Input
             id="expiryDate"
             type="date"
@@ -1000,7 +1001,7 @@ function ReplaceCertificateForm({ certificate, onReplace, isReplacing, onCancel 
           onClick={onCancel}
           disabled={isReplacing}
         >
-          Hủy
+          {t('certificates.cancelButton')}
         </Button>
         <Button 
           onClick={handleSubmit}
@@ -1009,12 +1010,12 @@ function ReplaceCertificateForm({ certificate, onReplace, isReplacing, onCancel 
           {isReplacing ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Đang thay thế...
+              {t('certificates.replacingLabel')}
             </>
           ) : (
             <>
               <Replace className="w-4 h-4 mr-2" />
-              Cấp chứng chỉ NFT
+              {t('certificates.replaceFormSubmitButton')}
             </>
           )}
         </Button>

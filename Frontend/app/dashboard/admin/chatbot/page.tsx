@@ -19,6 +19,7 @@ import {
   Info
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/hooks/use-translation';
 
 interface UploadFile extends File {
   id: string;
@@ -64,6 +65,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_FILES = 10;
 
 export default function DocumentUploadPage() {
+  const { t } = useTranslation()
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -103,8 +105,8 @@ export default function DocumentUploadPage() {
 
       if (!mimeType || !SUPPORTED_TYPES[mimeType]) {
         toast({
-          title: "File không được hỗ trợ",
-          description: `${file.name} không thuộc định dạng được hỗ trợ.`,
+          title: t('adminChatbot.unsupportedFileTitle'),
+          description: `${file.name} ${t('adminChatbot.unsupportedFileDesc')}`,
           variant: "destructive"
         });
         return false;
@@ -112,8 +114,8 @@ export default function DocumentUploadPage() {
 
       if (file.size > MAX_FILE_SIZE) {
         toast({
-          title: "File quá lớn",
-          description: `${file.name} vượt quá giới hạn 10MB.`,
+          title: t('adminChatbot.fileTooLargeTitle'),
+          description: `${file.name} ${t('adminChatbot.fileTooLargeDesc')}`,
           variant: "destructive"
         });
         return false;
@@ -124,8 +126,8 @@ export default function DocumentUploadPage() {
 
     if (files.length + validFiles.length > MAX_FILES) {
       toast({
-        title: "Quá nhiều file",
-        description: `Chỉ có thể upload tối đa ${MAX_FILES} files cùng lúc.`,
+        title: t('adminChatbot.tooManyFilesTitle'),
+        description: `${t('adminChatbot.tooManyFilesDesc')} ${MAX_FILES} ${t('adminChatbot.tooManyFilesMax')}`,
         variant: "destructive"
       });
       return;
@@ -162,8 +164,8 @@ export default function DocumentUploadPage() {
   const handleUpload = useCallback(async () => {
     if (files.length === 0) {
       toast({
-        title: "Không có file",
-        description: "Vui lòng chọn ít nhất một file để upload.",
+        title: t('adminChatbot.noFileError'),
+        description: t('adminChatbot.noFileErrorDesc'),
         variant: "destructive"
       });
       return;
@@ -206,8 +208,8 @@ export default function DocumentUploadPage() {
       setUploadResults(result);
 
       toast({
-        title: "Upload thành công!",
-        description: `Đã xử lý ${result.statistics.successfulFiles}/${result.statistics.totalFiles} files, tạo ${result.statistics.totalDocuments} documents.`,
+        title: t('adminChatbot.uploadSuccessTitle'),
+        description: `${t('adminChatbot.uploadSuccessDesc')} ${result.statistics.successfulFiles}/${result.statistics.totalFiles} ${t('adminChatbot.uploadSingleFile')} ${result.statistics.totalDocuments}${t('adminChatbot.uploadDocuments')}`,
       });
 
       setFiles([]);
@@ -218,15 +220,15 @@ export default function DocumentUploadPage() {
     } catch (error) {
       console.error('Upload error:', error);
       toast({
-        title: "Upload thất bại",
-        description: error instanceof Error ? error.message : "Đã xảy ra lỗi khi upload.",
+        title: t('adminChatbot.uploadErrorTitle'),
+        description: error instanceof Error ? error.message : t('adminChatbot.uploadErrorDesc'),
         variant: "destructive"
       });
     } finally {
       setUploading(false);
       setTimeout(() => setUploadProgress(0), 1000);
     }
-  }, [files, category, description, tags, toast]);
+  }, [files, category, description, tags, toast, t]);
 
   const handleDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -247,25 +249,24 @@ export default function DocumentUploadPage() {
     <div className="container mx-auto py-8 px-4 max-w-4xl">
       <div className="space-y-6">
         <div className="text-center">
-          <h1 className="text-3xl font-bold">Upload Tài Liệu</h1>
+          <h1 className="text-3xl font-bold">{t('adminChatbot.pageTitle')}</h1>
           <p className="text-muted-foreground mt-2">
-            Upload tài liệu để huấn luyện chatbot AI hỗ trợ người dùng
+            {t('adminChatbot.pageSubtitle')}
           </p>
         </div>
 
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Hỗ trợ file PDF, DOCX, TXT, MD. Tối đa 10MB/file và 10 files/lần upload.
-            Tài liệu sẽ được phân tích và tạo embedding để chatbot có thể tìm kiếm thông tin liên quan.
+            {t('adminChatbot.supportInfo')}
           </AlertDescription>
         </Alert>
 
         <Card>
           <CardHeader>
-            <CardTitle>Chọn Tài Liệu</CardTitle>
+            <CardTitle>{t('adminChatbot.selectTitle')}</CardTitle>
             <CardDescription>
-              Kéo thả hoặc chọn file để upload
+              {t('adminChatbot.selectDescription')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -277,10 +278,10 @@ export default function DocumentUploadPage() {
             >
               <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
               <p className="text-lg font-medium text-gray-600">
-                Kéo thả file vào đây hoặc nhấp để chọn
+                {t('adminChatbot.dragDropText')}
               </p>
               <p className="text-sm text-gray-500 mt-2">
-                PDF, DOCX, TXT, MD - Tối đa 10MB mỗi file
+                {t('adminChatbot.dragDropHint')}
               </p>
               <input
                 id="file-input"
@@ -294,7 +295,7 @@ export default function DocumentUploadPage() {
 
             {files.length > 0 && (
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Files đã chọn ({files.length})</Label>
+                <Label className="text-sm font-medium">{t('adminChatbot.filesSelectedLabel')} ({files.length})</Label>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {files.map(file => (
                     <div key={file.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
@@ -303,7 +304,7 @@ export default function DocumentUploadPage() {
                         <div>
                           <p className="font-medium text-sm">{file.name}</p>
                           <p className="text-xs text-gray-500">
-                            {SUPPORTED_TYPES[(file.detectedType || file.type) as keyof typeof SUPPORTED_TYPES] ?? 'Không xác định'} • {(file.size / 1024).toFixed(1)} KB
+                            {SUPPORTED_TYPES[(file.detectedType || file.type) as keyof typeof SUPPORTED_TYPES] ?? t('adminChatbot.fileDetailsNoType')} • {(file.size / 1024).toFixed(1)} KB
                           </p>
                         </div>
                       </div>
@@ -312,6 +313,7 @@ export default function DocumentUploadPage() {
                         size="sm"
                         onClick={() => removeFile(file.id)}
                         disabled={uploading}
+                        aria-label={t('adminChatbot.removeButtonAria')}
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -323,10 +325,10 @@ export default function DocumentUploadPage() {
 
             {uploading && (
               <div className="space-y-2">
-                <Label>Tiến trình upload</Label>
+                <Label>{t('adminChatbot.uploadProgressLabel')}</Label>
                 <Progress value={uploadProgress} className="w-full" />
                 <p className="text-sm text-gray-500 text-center">
-                  Đang xử lý tài liệu... {uploadProgress}%
+                  {t('adminChatbot.uploadProgressText')}{uploadProgress}%
                 </p>
               </div>
             )}
@@ -340,12 +342,12 @@ export default function DocumentUploadPage() {
               {uploading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Đang xử lý...
+                  {t('adminChatbot.uploadingButtonText')}
                 </>
               ) : (
                 <>
                   <Upload className="mr-2 h-4 w-4" />
-                  Upload {files.length > 0 ? `${files.length} file(s)` : 'Tài Liệu'}
+                  {t('adminChatbot.uploadButtonText')} {files.length > 0 ? `${files.length} ${t('adminChatbot.uploadButtonFiles')}` : ''}
                 </>
               )}
             </Button>
@@ -357,7 +359,7 @@ export default function DocumentUploadPage() {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <CheckCircle className="h-5 w-5 text-green-500" />
-                <span>Kết Quả Upload</span>
+                <span>{t('adminChatbot.resultTitle')}</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -366,30 +368,30 @@ export default function DocumentUploadPage() {
                   <div className="text-2xl font-bold text-blue-600">
                     {uploadResults.statistics.totalFiles}
                   </div>
-                  <div className="text-sm text-gray-500">Total Files</div>
+                  <div className="text-sm text-gray-500">{t('adminChatbot.resultTotalFiles')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600">
                     {uploadResults.statistics.successfulFiles}
                   </div>
-                  <div className="text-sm text-gray-500">Successful</div>
+                  <div className="text-sm text-gray-500">{t('adminChatbot.resultSuccessful')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-orange-600">
                     {uploadResults.statistics.totalChunks}
                   </div>
-                  <div className="text-sm text-gray-500">Text Chunks</div>
+                  <div className="text-sm text-gray-500">{t('adminChatbot.resultTextChunks')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-purple-600">
                     {uploadResults.statistics.totalDocuments}
                   </div>
-                  <div className="text-sm text-gray-500">Documents</div>
+                  <div className="text-sm text-gray-500">{t('adminChatbot.resultDocuments')}</div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label>Chi tiết xử lý file</Label>
+                <Label>{t('adminChatbot.resultDetailsLabel')}</Label>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
                   {uploadResults.results.map((result, index) => (
                     <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
@@ -403,7 +405,7 @@ export default function DocumentUploadPage() {
                           <p className="font-medium text-sm text-gray-900">{result.filename}</p>
                           {result.status === 'success' ? (
                             <p className="text-xs text-green-600">
-                              {result.chunkCount} chunks → {result.documentIds.length} documents
+                              {result.chunkCount} {t('adminChatbot.resultChunkDoc')} {result.documentIds.length} {t('adminChatbot.resultDocumentsLabel')}
                             </p>
                           ) : (
                             <p className="text-xs text-red-600">
@@ -413,7 +415,7 @@ export default function DocumentUploadPage() {
                         </div>
                       </div>
                       <Badge variant={result.status === 'success' ? 'default' : 'destructive'}>
-                        {result.status}
+                        {t(`adminChatbot.result${result.status === 'success' ? 'Success' : 'Error'}` as any)}
                       </Badge>
                     </div>
                   ))}

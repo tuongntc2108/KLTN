@@ -7,11 +7,13 @@ import { useToast } from "@/hooks/use-toast"
 import { useCertificateShare } from "@/hooks/use-certificate-share"
 import { CertificateShareDialog } from "@/components/certificate/CertificateShareDialog"
 import { Download, Share } from "lucide-react"
+import { useTranslation } from "@/hooks/use-translation"
 
 export default function CertificateDetailPage() {
   const params = useParams()
   const tokenId = Array.isArray(params?.id) ? params.id[0] : params?.id
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   const [htmlContent, setHtmlContent] = useState<string>("")
   const [loading, setLoading] = useState(true)
@@ -33,7 +35,7 @@ export default function CertificateDetailPage() {
       .then(async (response) => {
         if (!response.ok) {
           const data = await response.json().catch(() => null)
-          const message = data?.message || data?.error || "Không thể tải thông tin chứng chỉ"
+          const message = data?.message || data?.error || t('certificates.loadError')
           throw new Error(message)
         }
         return response.text()
@@ -43,33 +45,33 @@ export default function CertificateDetailPage() {
         setLoading(false)
       })
       .catch((err) => {
-        setError(err.message || "Không thể tải thông tin chứng chỉ")
+        setError(err.message || t('certificates.loadError'))
         setLoading(false)
       })
-  }, [tokenId])
+  }, [tokenId, t])
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="mx-4 my-2">
-          <h1 className="text-2xl font-semibold">Chi tiết chứng chỉ</h1>
-          <p className="text-sm text-muted-foreground">Token ID: {tokenId}</p>
+          <h1 className="text-2xl font-semibold">{t('certificates.detailTitle')}</h1>
+          <p className="text-sm text-muted-foreground">{t('common.tokenIdLabel')}: {tokenId}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => openShare(tokenId || "")} disabled={!tokenId}>
             <Share className="w-4 h-4 mr-2" />
-            Chia sẻ
+            {t('common.share')}
           </Button>
           <Button variant="outline" onClick={() => downloadPdf(tokenId || "")}>
             <Download className="w-4 h-4 mr-2" />
-            Tải PDF
+            {t('common.downloadPdf')}
           </Button>
         </div>
       </div>
 
       {loading && (
         <div className="rounded-md border bg-muted/30 p-6 text-sm text-muted-foreground">
-          Đang tải nội dung chứng chỉ...
+          {t('certificates.loadingContent')}
         </div>
       )}
 

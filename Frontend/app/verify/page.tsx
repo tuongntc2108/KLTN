@@ -26,11 +26,13 @@ import {
 } from "lucide-react"
 
 import { VerificationResult } from "@/components/verify/verification-result"
+import { useTranslation } from "@/hooks/use-translation"
 
 export default function VerifyPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [verificationResult, setVerificationResult] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const { t, language } = useTranslation()
 
   // Real verification function
   const handleVerify = async () => {
@@ -58,7 +60,7 @@ export default function VerifyPage() {
       if (!response.ok) {
         setVerificationResult({
           isValid: false,
-          message: data.message || 'Verification failed'
+          message: data.message || t('verify.verificationFailed')
         })
         setIsLoading(false)
         return
@@ -71,7 +73,7 @@ export default function VerifyPage() {
       if (!certificate) {
         setVerificationResult({
           isValid: false,
-          message: data.message || 'Chứng chỉ không hợp lệ'
+          message: data.message || t('verify.invalidCertificate')
         })
         setIsLoading(false)
         return
@@ -92,16 +94,16 @@ export default function VerifyPage() {
 
       // Format the result according to UI requirements
       const formatDate = (dateString: string) => {
-        if (!dateString) return 'Chưa xác định'
+        if (!dateString) return t('common.notAvailable')
         const date = new Date(dateString)
-        return date.toLocaleDateString('vi-VN')
+        return date.toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US')
       }
 
       // Extract information from the new API response structure
-      const courseName = certificate.certificate_detail?.course_name || 'Chưa xác định'
-      const issuerName = certificate.issuer?.name || 'Chưa xác định'
-      const certificateName = certificate.certificate_detail?.certificate_name || 'Chưa xác định'
-      const recipientName = certificate.recipient?.full_name || 'Chưa xác định'
+      const courseName = certificate.certificate_detail?.course_name || t('common.notAvailable')
+      const issuerName = certificate.issuer?.name || t('common.notAvailable')
+      const certificateName = certificate.certificate_detail?.certificate_name || t('common.notAvailable')
+      const recipientName = certificate.recipient?.full_name || t('common.notAvailable')
 
       setVerificationResult({
         isValid: isValid,
@@ -120,7 +122,7 @@ export default function VerifyPage() {
           events: Array.isArray(certificate.events) ? certificate.events : [],
           course: {
             name: courseName,
-            description: metadata?.description || 'Mô tả khóa học chưa có sẵn',
+            description: metadata?.description || t('verify.courseDescUnavailable'),
           },
         },
         statusMessage: data.message
@@ -129,7 +131,7 @@ export default function VerifyPage() {
       console.error('Verification error:', error)
       setVerificationResult({
         isValid: false,
-        message: 'Có lỗi xảy ra khi xác minh chứng chỉ'
+        message: t('verify.verifyError')
       })
     }
 
@@ -144,10 +146,8 @@ export default function VerifyPage() {
         <div className="flex items-center justify-center w-16 h-16 bg-secondary/10 rounded-full mx-auto mb-4">
           <Shield className="w-8 h-8 text-secondary" />
         </div>
-        <h1 className="text-4xl font-bold text-balance">Xác minh chứng chỉ số</h1>
-        <p className="text-xl text-muted-foreground text-pretty max-w-2xl mx-auto">
-          Kiểm tra tính hợp lệ và xác thực chứng chỉ của ứng viên một cách nhanh chóng và chính xác
-        </p>
+        <h1 className="text-4xl font-bold text-balance">{t('verify.title')}</h1>
+        <p className="text-xl text-muted-foreground text-pretty max-w-2xl mx-auto">{t('verify.subtitle')}</p>
       </div>
 
       {/* Search Section */}
@@ -155,25 +155,25 @@ export default function VerifyPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Search className="w-5 h-5" />
-            Tra cứu chứng chỉ
+            {t('verify.searchTitle')}
           </CardTitle>
-          <CardDescription>Nhập mã xác thực hoặc Token ID để xác minh</CardDescription>
+          <CardDescription>{t('verify.searchDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="search" className="w-full">
             <TabsContent value="search" className="space-y-4">
               <div className="flex gap-4">
                 <Input
-                  placeholder="Nhập mã xác thực hoặc Token ID..."
+                  placeholder={t('verify.inputPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1"
                 />
                 <Button onClick={handleVerify} disabled={isLoading}>
-                  {isLoading ? "Đang xác minh..." : "Xác minh"}
+                  {isLoading ? t('verify.verifying') : t('verify.verify')}
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground">Ví dụ: mã xác thực hoặc Token ID (số hoặc hash...)</p>
+              <p className="text-sm text-muted-foreground">{t('verify.exampleHint')}</p>
             </TabsContent>
           </Tabs>
         </CardContent>
@@ -189,23 +189,23 @@ export default function VerifyPage() {
         <Card>
           <CardContent className="p-6 text-center">
             <Shield className="w-8 h-8 text-secondary mx-auto mb-3" />
-            <h3 className="font-semibold mb-2">Bảo mật tuyệt đối</h3>
-            <p className="text-sm text-muted-foreground">Xác minh trực tiếp trên blockchain, không thể giả mạo</p>
+            <h3 className="font-semibold mb-2">{t('verify.securityTitle')}</h3>
+            <p className="text-sm text-muted-foreground">{t('verify.securityDesc')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6 text-center">
             <Sparkles className="w-8 h-8 text-secondary mx-auto mb-3" />
-            <h3 className="font-semibold mb-2">Tóm tắt AI thông minh</h3>
-            <p className="text-sm text-muted-foreground">AI phân tích và tóm tắt nội dung đào tạo cho nhà tuyển dụng</p>
+            <h3 className="font-semibold mb-2">{t('verify.aiTitle')}</h3>
+            <p className="text-sm text-muted-foreground">{t('verify.aiDesc')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6 text-center">
             <CheckCircle className="w-8 h-8 text-secondary mx-auto mb-3" />
-            <h3 className="font-semibold mb-2">Xác minh tức thì</h3>
+            <h3 className="font-semibold mb-2">{t('verify.instantTitle')}</h3>
             <p className="text-sm text-muted-foreground">
-              Kết quả xác minh ngay lập tức, tiết kiệm thời gian tuyển dụng
+              {t('verify.instantDesc')}
             </p>
           </CardContent>
         </Card>

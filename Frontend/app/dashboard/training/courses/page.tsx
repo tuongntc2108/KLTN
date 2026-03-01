@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { BookOpen, Plus, Edit, Trash2, Clock, Calendar, Award, Loader2, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/hooks/use-translation"
 import { useCourses } from "@/hooks/use-courses"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -26,6 +27,7 @@ interface CourseFormData {
 export default function CoursesPage() {
   const { courses, loading, error, fetchCourses, createCourse, updateCourse, deleteCourse, clearError } = useCourses()
   const { toast } = useToast()
+  const { t } = useTranslation()
   const router = useRouter()
 
   // Form state
@@ -70,8 +72,8 @@ export default function CoursesPage() {
     // Validate all required fields
     if (!formData.course_name.trim()) {
       toast({
-        title: "Lỗi",
-        description: "Tên khóa học là bắt buộc",
+        title: t('common.error'),
+        description: t('courses.courseNameRequired'),
         variant: "destructive"
       })
       return
@@ -79,8 +81,8 @@ export default function CoursesPage() {
 
     if (!formData.course_description.trim()) {
       toast({
-        title: "Lỗi",
-        description: "Mô tả khóa học là bắt buộc",
+        title: t('common.error'),
+        description: t('courses.courseDescRequired'),
         variant: "destructive"
       })
       return
@@ -88,8 +90,8 @@ export default function CoursesPage() {
 
     if (!formData.duration.trim()) {
       toast({
-        title: "Lỗi",
-        description: "Thời lượng khóa học là bắt buộc",
+        title: t('common.error'),
+        description: t('courses.durationRequired'),
         variant: "destructive"
       })
       return
@@ -97,8 +99,8 @@ export default function CoursesPage() {
 
     if (!formData.training_content.trim()) {
       toast({
-        title: "Lỗi",
-        description: "Nội dung chương trình đào tạo là bắt buộc",
+        title: t('common.error'),
+        description: t('courses.trainingContentRequired'),
         variant: "destructive"
       })
       return
@@ -114,8 +116,8 @@ export default function CoursesPage() {
 
     if (result) {
       toast({
-        title: "Thành công",
-        description: "Khóa học đã được tạo"
+        title: t('common.success'),
+        description: t('courses.createSuccess')
       })
       setIsCreateDialogOpen(false)
       resetForm()
@@ -129,8 +131,8 @@ export default function CoursesPage() {
     // Validate all required fields
     if (!formData.course_name.trim()) {
       toast({
-        title: "Lỗi",
-        description: "Tên khóa học là bắt buộc",
+        title: t('common.error'),
+        description: t('courses.courseNameRequired'),
         variant: "destructive"
       })
       return
@@ -138,8 +140,8 @@ export default function CoursesPage() {
 
     if (!formData.course_description.trim()) {
       toast({
-        title: "Lỗi",
-        description: "Mô tả khóa học là bắt buộc",
+        title: t('common.error'),
+        description: t('courses.courseDescRequired'),
         variant: "destructive"
       })
       return
@@ -147,8 +149,8 @@ export default function CoursesPage() {
 
     if (!formData.duration.trim()) {
       toast({
-        title: "Lỗi",
-        description: "Thời lượng khóa học là bắt buộc",
+        title: t('common.error'),
+        description: t('courses.durationRequired'),
         variant: "destructive"
       })
       return
@@ -156,8 +158,8 @@ export default function CoursesPage() {
 
     if (!formData.training_content.trim()) {
       toast({
-        title: "Lỗi",
-        description: "Nội dung chương trình đào tạo là bắt buộc",
+        title: t('common.error'),
+        description: t('courses.trainingContentRequired'),
         variant: "destructive"
       })
       return
@@ -173,8 +175,8 @@ export default function CoursesPage() {
 
     if (result) {
       toast({
-        title: "Thành công",
-        description: "Khóa học đã được cập nhật"
+        title: t('common.success'),
+        description: t('courses.updateSuccess')
       })
       setIsEditDialogOpen(false)
       setEditingCourse(null)
@@ -187,8 +189,8 @@ export default function CoursesPage() {
     const success = await deleteCourse(course.id)
     if (success) {
       toast({
-        title: "Thành công",
-        description: "Khóa học đã được xóa"
+        title: t('common.success'),
+        description: t('courses.deleteSuccess')
       })
     }
   }
@@ -219,62 +221,62 @@ export default function CoursesPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-balance">Quản lý khóa học</h1>
-          <p className="text-muted-foreground">Tạo và quản lý các khóa học của đơn vị đào tạo</p>
+          <h1 className="text-3xl font-bold text-balance">{t('courses.title')}</h1>
+          <p className="text-muted-foreground">{t('courses.subtitle')}</p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
-              Thêm khóa học mới
+              {t('courses.addNew')}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Thêm khóa học mới</DialogTitle>
+              <DialogTitle>{t('courses.addTitle')}</DialogTitle>
               <DialogDescription>
-                Tạo khóa học mới để quản lý chương trình đào tạo và cấp chứng chỉ
+                {t('courses.addDesc')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="create-course-name">Tên khóa học *</Label>
+                <Label htmlFor="create-course-name">{t('courses.courseNameLabel')} *</Label>
                 <Input
                   id="create-course-name"
                   value={formData.course_name}
                   onChange={(e) => handleInputChange("course_name", e.target.value)}
-                  placeholder="Ví dụ: Tiếng Anh Giao Tiếp Cấp độ B2"
+                  placeholder={t('courses.courseNamePlaceholder')}
                   required
                 />
               </div>
               <div>
-                <Label htmlFor="create-course-description">Mô tả khóa học *</Label>
+                <Label htmlFor="create-course-description">{t('courses.courseDescLabel')} *</Label>
                 <Textarea
                   id="create-course-description"
                   value={formData.course_description}
                   onChange={(e) => handleInputChange("course_description", e.target.value)}
-                  placeholder="Mô tả tổng quan về khóa học..."
+                  placeholder={t('courses.courseDescPlaceholder')}
                   rows={3}
                   required
                 />
               </div>
               <div>
-                <Label htmlFor="create-duration">Thời lượng *</Label>
+                <Label htmlFor="create-duration">{t('courses.durationLabel')} *</Label>
                 <Input
                   id="create-duration"
                   value={formData.duration}
                   onChange={(e) => handleInputChange("duration", e.target.value)}
-                  placeholder="Ví dụ: 40 giờ, 3 tháng, 6 tuần"
+                  placeholder={t('courses.durationPlaceholder')}
                   required
                 />
               </div>
               <div>
-                <Label htmlFor="create-training-content">Nội dung chương trình đào tạo *</Label>
+                <Label htmlFor="create-training-content">{t('courses.trainingContentLabel')} *</Label>
                 <Textarea
                   id="create-training-content"
                   value={formData.training_content}
                   onChange={(e) => handleInputChange("training_content", e.target.value)}
-                  placeholder="Chi tiết nội dung đào tạo, mục tiêu học tập, kỹ năng đạt được..."
+                  placeholder={t('courses.trainingContentPlaceholder')}
                   rows={6}
                   required
                 />
@@ -295,16 +297,16 @@ export default function CoursesPage() {
                 }}
                 disabled={submitting}
               >
-                Hủy
+                {t('courses.cancelButton')}
               </Button>
               <Button onClick={handleCreateCourse} disabled={submitting}>
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Đang tạo...
+                    {t('courses.creating')}
                   </>
                 ) : (
-                  "Tạo khóa học"
+                  t('courses.createButton')
                 )}
               </Button>
             </DialogFooter>
@@ -315,7 +317,7 @@ export default function CoursesPage() {
       {/* Search Input */}
       <div className="mb-4">
         <Input
-          placeholder="Tìm kiếm khóa học theo tên hoặc mô tả..."
+          placeholder={t('courses.searchPlaceholder')}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-md"
@@ -327,14 +329,14 @@ export default function CoursesPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BookOpen className="w-5 h-5" />
-            Danh sách khóa học
+            {t('courses.listTitle')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loading && courses.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin mr-2" />
-              Đang tải danh sách khóa học...
+              {t('courses.loading')}
             </div>
           ) : error && courses.length === 0 ? (
             <Alert variant="destructive">
@@ -344,18 +346,18 @@ export default function CoursesPage() {
           ) : filteredCourses.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">Chưa có khóa học nào</p>
-              <p className="text-sm">Tạo khóa học đầu tiên để bắt đầu quản lý chương trình đào tạo</p>
+              <p className="text-lg font-medium">{t('courses.empty')}</p>
+              <p className="text-sm">{t('courses.emptyDesc')}</p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Tên khóa học</TableHead>
-                  <TableHead>Thời lượng</TableHead>
-                  <TableHead>Chứng chỉ đã cấp</TableHead>
-                  <TableHead>Ngày tạo</TableHead>
-                  <TableHead className="text-right">Thao tác</TableHead>
+                  <TableHead>{t('courses.courseNameHeader')}</TableHead>
+                  <TableHead>{t('courses.durationHeader')}</TableHead>
+                  <TableHead>{t('courses.certificatesHeader')}</TableHead>
+                  <TableHead>{t('courses.createdDateHeader')}</TableHead>
+                  <TableHead className="text-right">{t('courses.actionsHeader')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -378,7 +380,7 @@ export default function CoursesPage() {
                           {course.duration}
                         </div>
                       ) : (
-                        <span className="text-muted-foreground text-sm">Chưa xác định</span>
+                        <span className="text-muted-foreground text-sm">{t('courses.notSpecified')}</span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -401,35 +403,35 @@ export default function CoursesPage() {
                           onClick={() => startEditCourse(course)}
                         >
                           <Edit className="w-3 h-3 mr-1" />
-                          Sửa
+                          {t('courses.edit')}
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="outline" size="sm">
                               <Trash2 className="w-3 h-3 mr-1" />
-                              Xóa
+                              {t('courses.delete')}
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Xác nhận xóa khóa học</AlertDialogTitle>
+                              <AlertDialogTitle>{t('courses.confirmDeleteTitle')}</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Bạn có chắc chắn muốn xóa khóa học "{course.course_name}"?
+                                {t('courses.confirmDeletePrefix')} "{course.course_name}"?
                                 {course.certificate_count > 0 && (
                                   <span className="block mt-2 text-red-600 font-medium">
-                                    ⚠️ Khóa học này có {course.certificate_count} chứng chỉ liên kết và không thể xóa.
+                                    ⚠️ {t('courses.deleteRestriction')} {course.certificate_count} {t('courses.deleteRestrictionSuffix')}
                                   </span>
                                 )}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>Hủy</AlertDialogCancel>
+                              <AlertDialogCancel>{t('courses.cancelButton')}</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => handleDeleteCourse(course)}
                                 disabled={course.certificate_count > 0}
                                 className={course.certificate_count > 0 ? "opacity-50 cursor-not-allowed" : ""}
                               >
-                                Xóa
+                                {t('courses.delete')}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -448,50 +450,50 @@ export default function CoursesPage() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Chỉnh sửa khóa học</DialogTitle>
+            <DialogTitle>{t('courses.editTitle')}</DialogTitle>
             <DialogDescription>
-              Cập nhật thông tin khóa học "{editingCourse?.course_name}"
+              {t('courses.editDescPrefix')} "{editingCourse?.course_name}"
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="edit-course-name">Tên khóa học *</Label>
+              <Label htmlFor="edit-course-name">{t('courses.courseNameLabel')} *</Label>
               <Input
                 id="edit-course-name"
                 value={formData.course_name}
                 onChange={(e) => handleInputChange("course_name", e.target.value)}
-                placeholder="Ví dụ: Tiếng Anh Giao Tiếp Cấp độ B2"
+                placeholder={t('courses.courseNamePlaceholder')}
                 required
               />
             </div>
             <div>
-              <Label htmlFor="edit-course-description">Mô tả khóa học *</Label>
+              <Label htmlFor="edit-course-description">{t('courses.courseDescLabel')} *</Label>
               <Textarea
                 id="edit-course-description"
                 value={formData.course_description}
                 onChange={(e) => handleInputChange("course_description", e.target.value)}
-                placeholder="Mô tả tổng quan về khóa học..."
+                placeholder={t('courses.courseDescPlaceholder')}
                 rows={3}
                 required
               />
             </div>
             <div>
-              <Label htmlFor="edit-duration">Thời lượng *</Label>
+              <Label htmlFor="edit-duration">{t('courses.durationLabel')} *</Label>
               <Input
                 id="edit-duration"
                 value={formData.duration}
                 onChange={(e) => handleInputChange("duration", e.target.value)}
-                placeholder="Ví dụ: 40 giờ, 3 tháng, 6 tuần"
+                placeholder={t('courses.durationPlaceholder')}
                 required
               />
             </div>
             <div>
-              <Label htmlFor="edit-training-content">Nội dung chương trình đào tạo *</Label>
+              <Label htmlFor="edit-training-content">{t('courses.trainingContentLabel')} *</Label>
               <Textarea
                 id="edit-training-content"
                 value={formData.training_content}
                 onChange={(e) => handleInputChange("training_content", e.target.value)}
-                placeholder="Chi tiết nội dung đào tạo, mục tiêu học tập, kỹ năng đạt được..."
+                placeholder={t('courses.trainingContentPlaceholder')}
                 rows={6}
                 required
               />
@@ -513,16 +515,16 @@ export default function CoursesPage() {
               }}
               disabled={submitting}
             >
-              Hủy
+              {t('courses.cancelButton')}
             </Button>
             <Button onClick={handleEditCourse} disabled={submitting}>
               {submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Đang cập nhật...
+                  {t('courses.updating')}
                 </>
               ) : (
-                "Cập nhật"
+                t('courses.updateButton')
               )}
             </Button>
           </DialogFooter>

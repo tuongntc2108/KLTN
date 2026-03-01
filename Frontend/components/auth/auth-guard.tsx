@@ -5,6 +5,7 @@ import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { Loader2 } from 'lucide-react'
+import { useTranslation } from '@/hooks/use-translation'
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -16,6 +17,7 @@ export function AuthGuard({ children, allowedRoles = [], fallbackUrl = '/auth/lo
   const { user, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
+  const { t } = useTranslation()
 
   useEffect(() => {
     if (!loading) {
@@ -49,7 +51,7 @@ export function AuthGuard({ children, allowedRoles = [], fallbackUrl = '/auth/lo
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex items-center gap-2">
           <Loader2 className="h-6 w-6 animate-spin" />
-          <span>Đang xác thực...</span>
+          <span>{t('common.authenticating')}</span>
         </div>
       </div>
     )
@@ -65,7 +67,7 @@ export function AuthGuard({ children, allowedRoles = [], fallbackUrl = '/auth/lo
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="flex items-center gap-2">
         <Loader2 className="h-6 w-6 animate-spin" />
-        <span>Đang chuyển hướng...</span>
+        <span>{t('common.redirecting')}</span>
       </div>
     </div>
   )

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Award, Upload, Loader2, CheckCircle, User, Calendar, FileText, Blocks, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/hooks/use-translation"
 import { useStudentInfo } from "@/hooks/use-student-info"
 import { useCourses } from "@/hooks/use-courses"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -20,6 +21,7 @@ export default function IssueCertificatePage() {
   const [isIssuing, setIsIssuing] = useState(false)
   const [issuedCertificate, setIssuedCertificate] = useState<any>(null)
   const { toast } = useToast()
+  const { t } = useTranslation()
   const router = useRouter()
   const { student, loading: studentLoading, error: studentError, fetchStudentInfo, clearStudent } = useStudentInfo()
   const { courses, loading: coursesLoading, fetchCourses } = useCourses()
@@ -68,8 +70,8 @@ export default function IssueCertificatePage() {
       // Validate required fields
       if (!formData.studentId || !formData.certificateName || !formData.issueDate) {
         toast({
-          title: "Thiếu thông tin",
-          description: "Vui lòng điền đầy đủ các trường bắt buộc (Mã học viên, Tên chứng chỉ, Ngày cấp)",
+          title: t('issue.missingFieldsTitle'),
+          description: t('issue.missingFieldsMessage'),
           variant: "destructive",
         })
         return
@@ -78,8 +80,8 @@ export default function IssueCertificatePage() {
       // Validate student information is loaded
       if (!student) {
         toast({
-          title: "Thông tin học viên chưa được tìm thấy",
-          description: "Vui lòng nhập mã học viên hợp lệ và chờ thông tin tải về",
+          title: t('issue.studentNotFoundTitle'),
+          description: t('issue.studentNotFoundMessage'),
           variant: "destructive",
         })
         return
@@ -128,7 +130,7 @@ export default function IssueCertificatePage() {
         ipfsHash: result.metadata_uri,
         status: result.status,
         studentId: formData.studentId,
-        courseName: selectedCourse?.course_name || 'Không có khóa học',
+        courseName: selectedCourse?.course_name || t('issue.noCourseLinked'),
         certificateName: formData.certificateName,
         issueDate: formData.issueDate,
         expiryDate: formData.expiryDate,
@@ -136,14 +138,14 @@ export default function IssueCertificatePage() {
 
       setIssuedCertificate(certificate)
       toast({
-        title: "Cấp chứng chỉ thành công",
-        description: "Chứng chỉ NFT đã được tạo và ghi lên blockchain",
+        title: t('issue.successToastTitle'),
+        description: t('issue.successToastMessage'),
       })
     } catch (error) {
       console.error('Error minting certificate:', error)
       toast({
-        title: "Lỗi cấp chứng chỉ",
-        description: (error as Error)?.message || "Không thể cấp chứng chỉ. Vui lòng thử lại.",
+        title: t('issue.errorToastTitle'),
+        description: (error as Error)?.message || t('issue.errorToastMessage'),
         variant: "destructive",
       })
     } finally {
@@ -155,8 +157,8 @@ export default function IssueCertificatePage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-balance">Cấp chứng chỉ thành công</h1>
-          <p className="text-muted-foreground">Chứng chỉ NFT đã được tạo và mint trên blockchain</p>
+          <h1 className="text-3xl font-bold text-balance">{t('issue.successTitle')}</h1>
+          <p className="text-muted-foreground">{t('issue.successSubtitle')}</p>
         </div>
 
         <Card className="border-green-200 bg-green-50/50">
@@ -166,59 +168,59 @@ export default function IssueCertificatePage() {
                 <CheckCircle className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-green-800">Chứng chỉ đã được cấp</h3>
-                <p className="text-green-600">NFT đã được mint thành công trên blockchain</p>
+                <h3 className="text-lg font-semibold text-green-800">{t('issue.certificateIssued')}</h3>
+                <p className="text-green-600">{t('issue.nftMintedSuccess')}</p>
               </div>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Mã xác thực</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">{t('issue.verificationCodeLabel')}</Label>
                   <p className="font-mono text-sm">{issuedCertificate.id}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Token ID</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">{t('issue.tokenIdLabel')}</Label>
                   <p className="font-mono text-sm">{issuedCertificate.tokenId}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Transaction Hash</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">{t('issue.transactionHashLabel')}</Label>
                   <p className="font-mono text-xs break-all">{issuedCertificate.transactionHash}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Metadata URI</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">{t('issue.metadataUriLabel')}</Label>
                   <p className="font-mono text-xs break-all">{issuedCertificate.ipfsHash}</p>
                 </div>
               </div>
               <div className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">IPFS Hash</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">{t('issue.ipfsHashLabel')}</Label>
                   <p className="font-mono text-sm">{issuedCertificate.ipfsHash}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Học viên</Label>
-                  <p>Mã SV: {issuedCertificate.studentId}</p>
+                  <Label className="text-sm font-medium text-muted-foreground">{t('issue.studentLabel')}</Label>
+                  <p>{t('issue.studentIdPrefix')} {issuedCertificate.studentId}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Trạng thái</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">{t('issue.statusLabel')}</Label>
                   <Badge className="bg-green-100 text-green-800 border-green-200">
-                    {issuedCertificate.status === 'Issued' ? 'Chờ học viên nhận' : issuedCertificate.status}
+                    {issuedCertificate.status === 'Issued' ? t('issue.statusPending') : issuedCertificate.status}
                   </Badge>
                 </div>
               </div>
             </div>
 
             <div className="flex gap-3 mt-6">
-              <Button>Xem trên Blockchain Explorer</Button>
-              <Button variant="outline">Gửi thông báo cho học viên</Button>
+              <Button>{t('issue.viewOnExplorerButton')}</Button>
+              <Button variant="outline">{t('issue.sendNotificationButton')}</Button>
               <Button 
                 variant="outline" 
                 onClick={() => router.push('/dashboard/training/certificates?refresh=true')}
               >
-                Quay về Dashboard
+                {t('issue.backToDashboardButton')}
               </Button>
               <Button variant="outline" onClick={() => setIssuedCertificate(null)}>
-                Cấp chứng chỉ khác
+                {t('issue.issueAnotherButton')}
               </Button>
             </div>
           </CardContent>
@@ -231,8 +233,8 @@ export default function IssueCertificatePage() {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold text-balance">Cấp chứng chỉ NFT</h1>
-        <p className="text-muted-foreground">Tạo và cấp chứng chỉ số dưới dạng NFT cho học viên</p>
+        <h1 className="text-3xl font-bold text-balance">{t('issue.pageTitle')}</h1>
+        <p className="text-muted-foreground">{t('issue.pageSubtitle')}</p>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -243,27 +245,27 @@ export default function IssueCertificatePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="w-5 h-5" />
-                Thông tin học viên
+                {t('issue.studentInfoTitle')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* First row: Student ID and Name */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="studentId">Mã học viên *</Label>
+                  <Label htmlFor="studentId">{t('issue.studentIdLabel')}</Label>
                   <Input
                     id="studentId"
                     value={formData.studentId}
                     onChange={(e) => handleInputChange("studentId", e.target.value)}
-                    placeholder="STUDENT001"
+                    placeholder={t('issue.studentIdPlaceholder')}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="studentName">Họ và tên</Label>
+                  <Label htmlFor="studentName">{t('issue.studentNameLabel')}</Label>
                   <Input
                     id="studentName"
                     value={student?.name || ""}
-                    placeholder="Sẽ tự động điền khi nhập mã học viên"
+                    placeholder={t('issue.studentNamePlaceholder')}
                     readOnly
                     className="bg-muted cursor-not-allowed"
                   />
@@ -273,21 +275,21 @@ export default function IssueCertificatePage() {
               {/* Second row: Email and Wallet Address */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="studentEmail">Email</Label>
+                  <Label htmlFor="studentEmail">{t('issue.studentEmailLabel')}</Label>
                   <Input
                     id="studentEmail"
                     value={student?.email || ""}
-                    placeholder="Sẽ tự động điền khi nhập mã học viên"
+                    placeholder={t('issue.studentEmailPlaceholder')}
                     readOnly
                     className="bg-muted cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="studentWallet">Địa chỉ ví</Label>
+                  <Label htmlFor="studentWallet">{t('issue.studentWalletLabel')}</Label>
                   <Input
                     id="studentWallet"
                     value={student?.wallet_address || ""}
-                    placeholder="Sẽ tự động điền khi nhập mã học viên"
+                    placeholder={t('issue.studentWalletPlaceholder')}
                     readOnly
                     className="bg-muted cursor-not-allowed"
                   />
@@ -298,7 +300,7 @@ export default function IssueCertificatePage() {
               {studentLoading && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Đang tìm kiếm thông tin học viên...
+                  {t('issue.searchingStudent')}
                 </div>
               )}
               
@@ -314,7 +316,7 @@ export default function IssueCertificatePage() {
               {student && !student.wallet_address && (
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                   <p className="text-sm text-yellow-600">
-                    ⚠️ Học viên chưa kết nối ví. Chứng chỉ sẽ chờ cho đến khi học viên kết nối ví.
+                    {t('issue.noWalletWarning')}
                   </p>
                 </div>
               )}
@@ -324,7 +326,7 @@ export default function IssueCertificatePage() {
                 <div className="p-3 bg-green-50 border border-green-200 rounded-md">
                   <div className="flex items-center gap-2 text-sm text-green-800">
                     <CheckCircle className="w-4 h-4" />
-                    Thông tin học viên đã được xác thực
+                    {t('issue.studentVerified')}
                   </div>
                 </div>
               )}
@@ -336,31 +338,31 @@ export default function IssueCertificatePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Award className="w-5 h-5" />
-                Thông tin chứng chỉ
+                {t('issue.certificateInfoTitle')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="certificateName">Tên chứng chỉ *</Label>
+                <Label htmlFor="certificateName">{t('issue.certificateNameLabel')}</Label>
                 <Input
                   id="certificateName"
                   value={formData.certificateName}
                   onChange={(e) => handleInputChange("certificateName", e.target.value)}
-                  placeholder="Chứng chỉ Tiếng Anh Giao Tiếp - Cấp độ B2"
+                  placeholder={t('issue.certificateNamePlaceholder')}
                 />
               </div>
               <div>
-                <Label htmlFor="courseId">Khóa học</Label>
+                <Label htmlFor="courseId">{t('issue.courseLabel')}</Label>
                 <Select onValueChange={(value) => handleInputChange("courseId", value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Chọn khóa học" />
+                    <SelectValue placeholder={t('issue.coursePlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">-- Không gắn với khóa học nào --</SelectItem>
+                    <SelectItem value="none">{t('issue.courseNone')}</SelectItem>
                     {coursesLoading ? (
-                      <div className="p-2 text-sm text-muted-foreground">Đang tải khóa học...</div>
+                      <div className="p-2 text-sm text-muted-foreground">{t('issue.courseLoading')}</div>
                     ) : courses.length === 0 ? (
-                      <div className="p-2 text-sm text-muted-foreground">Chưa có khóa học nào</div>
+                      <div className="p-2 text-sm text-muted-foreground">{t('issue.courseEmpty')}</div>
                     ) : (
                       courses.map((course) => (
                         <SelectItem key={course.id} value={course.id.toString()}>
@@ -382,13 +384,13 @@ export default function IssueCertificatePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
-                Thời gian hiệu lực
+                {t('issue.validityTitle')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="issueDate">Ngày cấp *</Label>
+                  <Label htmlFor="issueDate">{t('issue.issueDateLabel')}</Label>
                   <Input
                     id="issueDate"
                     type="date"
@@ -398,7 +400,7 @@ export default function IssueCertificatePage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="expiryDate">Ngày hết hạn</Label>
+                  <Label htmlFor="expiryDate">{t('issue.expiryDateLabel')}</Label>
                   <Input
                     id="expiryDate"
                     type="date"
@@ -418,12 +420,12 @@ export default function IssueCertificatePage() {
               {isIssuing ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Đang cấp chứng chỉ...
+                  {t('issue.submittingButton')}
                 </>
               ) : (
                 <>
                   <Award className="w-4 h-4 mr-2" />
-                  Cấp chứng chỉ NFT
+                  {t('issue.submitButton')}
                 </>
               )}
             </Button>

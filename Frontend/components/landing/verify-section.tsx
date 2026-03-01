@@ -4,11 +4,13 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { VerificationResult } from "@/components/verify/verification-result"
+import { useTranslation } from "@/hooks/use-translation"
 
 export function VerifySection() {
     const [searchQuery, setSearchQuery] = useState("")
     const [verificationResult, setVerificationResult] = useState<any>(null)
     const [isLoading, setIsLoading] = useState(false)
+    const { t, language } = useTranslation()
 
     const handleVerify = async () => {
         if (!searchQuery.trim()) return
@@ -33,7 +35,7 @@ export function VerifySection() {
             if (!response.ok) {
                 setVerificationResult({
                     isValid: false,
-                    message: data.message || 'Verification failed'
+                    message: data.message || t('verify.verificationFailed')
                 })
                 setIsLoading(false)
                 return
@@ -46,7 +48,7 @@ export function VerifySection() {
             if (!certificate) {
                 setVerificationResult({
                     isValid: false,
-                    message: data.message || 'Chứng chỉ không hợp lệ'
+                    message: data.message || t('verify.invalidCertificate')
                 })
                 setIsLoading(false)
                 return
@@ -67,16 +69,16 @@ export function VerifySection() {
 
             // Format the result according to UI requirements
             const formatDate = (dateString: string) => {
-                if (!dateString) return 'Chưa xác định'
+                if (!dateString) return t('common.notAvailable')
                 const date = new Date(dateString)
-                return date.toLocaleDateString('vi-VN')
+                return date.toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US')
             }
 
             // Extract information from the new API response structure
-            const courseName = certificate.certificate_detail?.course_name || 'Chưa xác định'
-            const issuerName = certificate.issuer?.name || 'Chưa xác định'
-            const certificateName = certificate.certificate_detail?.certificate_name || 'Chưa xác định'
-            const recipientName = certificate.recipient?.full_name || 'Chưa xác định'
+            const courseName = certificate.certificate_detail?.course_name || t('common.notAvailable')
+            const issuerName = certificate.issuer?.name || t('common.notAvailable')
+            const certificateName = certificate.certificate_detail?.certificate_name || t('common.notAvailable')
+            const recipientName = certificate.recipient?.full_name || t('common.notAvailable')
 
             setVerificationResult({
                 isValid: isValid,
@@ -95,7 +97,7 @@ export function VerifySection() {
                     events: Array.isArray(certificate.events) ? certificate.events : [],
                     course: {
                         name: courseName,
-                        description: metadata?.description || 'Mô tả khóa học chưa có sẵn',
+                        description: metadata?.description || t('verify.courseDescUnavailable'),
                     },
                 },
                 statusMessage: data.message
@@ -104,7 +106,7 @@ export function VerifySection() {
             console.error('Verification error:', error)
             setVerificationResult({
                 isValid: false,
-                message: 'Có lỗi xảy ra khi xác minh chứng chỉ'
+                message: t('verify.verifyError')
             })
         }
 
@@ -114,14 +116,14 @@ export function VerifySection() {
     return (
         <section id="verify" className="py-16 px-4">
             <div className="container mx-auto max-w-2xl text-center">
-                <h2 className="text-3xl font-bold mb-4">Xác minh chứng chỉ ngay</h2>
-                <p className="text-muted-foreground mb-8">Nhập tokenID hoặc mã xác thực để xác minh tính hợp lệ</p>
+                <h2 className="text-3xl font-bold mb-4">{t('verify.landingTitle')}</h2>
+                <p className="text-muted-foreground mb-8">{t('verify.landingSubtitle')}</p>
                 <Card>
                     <CardContent className="p-6">
                         <div className="flex gap-4">
                             <input
                                 type="text"
-                                placeholder="Nhập mã xác thực hoặc Token ID..."
+                                placeholder={t('verify.inputPlaceholder')}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={(e) => {
@@ -130,7 +132,7 @@ export function VerifySection() {
                                 className="flex-1 px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-input"
                             />
                             <Button size="lg" onClick={handleVerify} disabled={isLoading}>
-                                {isLoading ? "Đang xác minh..." : "Xác minh"}
+                                {isLoading ? t('verify.verifying') : t('verify.verify')}
                             </Button>
                         </div>
 

@@ -32,12 +32,13 @@ export function shareCertificate(origin: string, tokenId: string): string {
  */
 export async function copyCertificateShareLink(
   shareUrl: string,
-  toastHandler: ToastHandler
+  toastHandler: ToastHandler,
+  t?: (key: string) => string
 ): Promise<void> {
   if (!shareUrl) {
     toastHandler.toast({
-      title: "Lỗi",
-      description: "Không có liên kết để sao chép.",
+      title: t ? t('certificatesToast.copyErrorTitle') : "Lỗi",
+      description: t ? t('certificatesToast.copyErrorDesc') : "Không có liên kết để sao chép.",
       variant: "destructive",
     })
     return
@@ -46,14 +47,14 @@ export async function copyCertificateShareLink(
   try {
     await navigator.clipboard.writeText(shareUrl)
     toastHandler.toast({
-      title: "Đã sao chép",
-      description: "Liên kết chia sẻ đã được sao chép.",
+      title: t ? t('certificatesToast.copiedTitle') : "Đã sao chép",
+      description: t ? t('certificatesToast.copiedDesc') : "Liên kết chia sẻ đã được sao chép.",
     })
   } catch (error) {
     console.error("Failed to copy:", error)
     toastHandler.toast({
-      title: "Không thể sao chép",
-      description: "Vui lòng thử lại.",
+      title: t ? t('certificatesToast.copyFailedTitle') : "Không thể sao chép",
+      description: t ? t('certificatesToast.copyFailedDesc') : "Vui lòng thử lại.",
       variant: "destructive",
     })
   }

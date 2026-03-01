@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/hooks/use-translation"
 
 interface Issuer {
   id: number
@@ -27,6 +28,7 @@ const initialFormState = {
 }
 
 export default function IssuerManagementPage() {
+  const { t } = useTranslation()
   const [formState, setFormState] = useState(initialFormState)
   const [issuers, setIssuers] = useState<Issuer[]>([])
   const [loading, setLoading] = useState(false)
@@ -55,8 +57,8 @@ export default function IssuerManagementPage() {
     } catch (error) {
       console.error("Fetch issuers error:", error)
       toast({
-        title: "Không thể tải danh sách",
-        description: "Vui lòng thử lại sau.",
+        title: t('adminIssuers.loadingError'),
+        description: t('adminIssuers.loadingErrorDesc'),
         variant: "destructive"
       })
     } finally {
@@ -78,8 +80,8 @@ export default function IssuerManagementPage() {
   const handleSubmit = async () => {
     if (!formState.name || !formState.email || !formState.wallet_address) {
       toast({
-        title: "Thiếu thông tin",
-        description: "Vui lòng điền đầy đủ tên, email và ví blockchain.",
+        title: t('adminIssuers.submitErrorMissing'),
+        description: t('adminIssuers.submitErrorMissingDesc'),
         variant: "destructive"
       })
       return
@@ -108,16 +110,16 @@ export default function IssuerManagementPage() {
       }
 
       toast({
-        title: "Thêm issuer thành công",
-        description: "Quyền issuer đã được cấp trên blockchain."
+        title: t('adminIssuers.submitSuccess'),
+        description: t('adminIssuers.submitSuccessDesc')
       })
       setFormState(initialFormState)
       await fetchIssuers()
     } catch (error) {
       console.error("Add issuer error:", error)
       toast({
-        title: "Không thể thêm issuer",
-        description: error instanceof Error ? error.message : "Vui lòng thử lại.",
+        title: t('adminIssuers.submitError'),
+        description: error instanceof Error ? error.message : t('adminIssuers.submitErrorDesc'),
         variant: "destructive"
       })
     } finally {
@@ -129,84 +131,84 @@ export default function IssuerManagementPage() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Thêm đơn vị đào tạo</CardTitle>
-          <CardDescription>Nhập thông tin đơn vị đào tạo mới và cấp quyền issuer.</CardDescription>
+          <CardTitle>{t('adminIssuers.formTitle')}</CardTitle>
+          <CardDescription>{t('adminIssuers.formDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="issuer-name">Tên đơn vị</Label>
+              <Label htmlFor="issuer-name">{t('adminIssuers.nameLabel')}</Label>
               <Input
                 id="issuer-name"
                 value={formState.name}
                 onChange={(event) => handleInputChange("name", event.target.value)}
-                placeholder="VD: UET"
+                placeholder={t('adminIssuers.namePlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="issuer-email">Email</Label>
+              <Label htmlFor="issuer-email">{t('adminIssuers.emailLabel')}</Label>
               <Input
                 id="issuer-email"
                 value={formState.email}
                 onChange={(event) => handleInputChange("email", event.target.value)}
-                placeholder="issuer@example.com"
+                placeholder={t('adminIssuers.emailPlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="issuer-wallet">Ví blockchain</Label>
+              <Label htmlFor="issuer-wallet">{t('adminIssuers.walletLabel')}</Label>
               <Input
                 id="issuer-wallet"
                 value={formState.wallet_address}
                 onChange={(event) => handleInputChange("wallet_address", event.target.value)}
-                placeholder="0x..."
+                placeholder={t('adminIssuers.walletPlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="issuer-organization">Tổ chức</Label>
+              <Label htmlFor="issuer-organization">{t('adminIssuers.organizationLabel')}</Label>
               <Input
                 id="issuer-organization"
                 value={formState.organization}
                 onChange={(event) => handleInputChange("organization", event.target.value)}
-                placeholder="VD: VNU"
+                placeholder={t('adminIssuers.organizationPlaceholder')}
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="issuer-website">Website</Label>
+              <Label htmlFor="issuer-website">{t('adminIssuers.websiteLabel')}</Label>
               <Input
                 id="issuer-website"
                 value={formState.website}
                 onChange={(event) => handleInputChange("website", event.target.value)}
-                placeholder="https://..."
+                placeholder={t('adminIssuers.websitePlaceholder')}
               />
             </div>
           </div>
           <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting ? "Đang xử lý..." : "Thêm issuer"}
+            {submitting ? t('adminIssuers.submittingButton') : t('adminIssuers.submitButton')}
           </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Danh sách đơn vị đào tạo</CardTitle>
-          <CardDescription>{loading ? "Đang tải dữ liệu..." : "Quản lý các issuer đã được cấp quyền."}</CardDescription>
+          <CardTitle>{t('adminIssuers.listTitle')}</CardTitle>
+          <CardDescription>{loading ? t('adminIssuers.listDescription') : t('adminIssuers.listDescriptionReady')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Tên</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Wallet</TableHead>
-                <TableHead>Tổ chức</TableHead>
-                <TableHead>Website</TableHead>
+                <TableHead>{t('adminIssuers.tableHeaderName')}</TableHead>
+                <TableHead>{t('adminIssuers.tableHeaderEmail')}</TableHead>
+                <TableHead>{t('adminIssuers.tableHeaderWallet')}</TableHead>
+                <TableHead>{t('adminIssuers.tableHeaderOrganization')}</TableHead>
+                <TableHead>{t('adminIssuers.tableHeaderWebsite')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {issuers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    Chưa có issuer nào.
+                    {t('adminIssuers.listEmpty')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -215,8 +217,8 @@ export default function IssuerManagementPage() {
                     <TableCell>{issuer.name}</TableCell>
                     <TableCell>{issuer.email}</TableCell>
                     <TableCell>{issuer.wallet_address}</TableCell>
-                    <TableCell>{issuer.organization || "-"}</TableCell>
-                    <TableCell>{issuer.website || "-"}</TableCell>
+                    <TableCell>{issuer.organization || t('adminIssuers.emptyDash')}</TableCell>
+                    <TableCell>{issuer.website || t('adminIssuers.emptyDash')}</TableCell>
                   </TableRow>
                 ))
               )}

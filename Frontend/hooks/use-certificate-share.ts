@@ -7,6 +7,7 @@ import { useState, useCallback, useEffect, useMemo } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { certificateService } from "@/services/certificateService"
 import { generateQrCodeUrl } from "@/utils/certificateUtils"
+import { useTranslation } from "@/hooks/use-translation"
 
 interface UseCertificateShareReturn {
   // State
@@ -50,6 +51,7 @@ interface UseCertificateShareReturn {
  */
 export function useCertificateShare(): UseCertificateShareReturn {
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   // State management
   const [shareUrl, setShareUrl] = useState<string>("")
@@ -79,21 +81,21 @@ export function useCertificateShare(): UseCertificateShareReturn {
           setShareOpen(true)
         } else {
           toast({
-            title: "Lỗi",
-            description: "Không thể tạo liên kết chia sẻ.",
+            title: t('common.error'),
+            description: t('certificatesToast.shareCreateErrorDesc'),
             variant: "destructive",
           })
         }
       } catch (error) {
         console.error("Error opening share:", error)
         toast({
-          title: "Lỗi hệ thống",
-          description: "Có lỗi xảy ra. Vui lòng thử lại.",
+          title: t('common.error'),
+          description: t('certificatesToast.systemErrorDesc'),
           variant: "destructive",
         })
       }
     },
-    [toast]
+    [toast, t]
   )
 
   // Close share dialog
@@ -103,22 +105,22 @@ export function useCertificateShare(): UseCertificateShareReturn {
 
   // Copy share link to clipboard
   const copyShareLink = useCallback(async () => {
-    await certificateService.copyShareLink(shareUrl, { toast })
-  }, [shareUrl, toast])
+    await certificateService.copyShareLink(shareUrl, { toast }, t)
+  }, [shareUrl, toast, t])
 
   // Download certificate PDF
   const downloadPdf = useCallback((tokenId: string) => {
     if (!tokenId) {
       toast({
-        title: "Lỗi",
-        description: "Token ID không hợp lệ.",
+        title: t('common.error'),
+        description: t('certificatesToast.invalidTokenIdDesc'),
         variant: "destructive",
       })
       return
     }
 
     certificateService.downloadPdf(tokenId)
-  }, [toast])
+  }, [toast, t])
 
   return {
     // State

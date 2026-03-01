@@ -5,35 +5,42 @@ import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { LayoutGrid, Building2, Bot, Menu, User, LogOut, Blocks } from "lucide-react"
+import { LayoutGrid, Building2, Bot, UserCircle, Menu, User, LogOut, Blocks } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Suspense } from "react"
 import { AuthGuard } from "@/components/auth/auth-guard"
 import { useAuth } from "@/hooks/use-auth"
-
-const navigation = [
-  {
-    name: "Tổng quan",
-    href: "/dashboard/admin",
-    icon: LayoutGrid,
-  },
-  {
-    name: "Quản lý đơn vị đào tạo",
-    href: "/dashboard/admin/issuers",
-    icon: Building2,
-  },
-  {
-    name: "Quản lý chatbot",
-    href: "/dashboard/admin/chatbot",
-    icon: Bot,
-  },
-]
+import { useTranslation } from "@/hooks/use-translation"
 
 function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname()
   const { user, logout } = useAuth()
+  const { t } = useTranslation()
+  
+  const navigation = [
+    {
+      name: t('nav.overview'),
+      href: "/dashboard/admin",
+      icon: LayoutGrid,
+    },
+    {
+      name: t('nav.issuers'),
+      href: "/dashboard/admin/issuers",
+      icon: Building2,
+    },
+    {
+      name: t('nav.chatbot'),
+      href: "/dashboard/admin/chatbot",
+      icon: Bot,
+    },
+    {
+      name: t('nav.profile'),
+      href: "/dashboard/admin/profile",
+      icon: UserCircle,
+    },
+  ]
 
   return (
     <div className={cn("flex h-full flex-col bg-sidebar", className)}>
@@ -44,7 +51,7 @@ function Sidebar({ className }: { className?: string }) {
           </div>
           <div>
             <h1 className="text-lg font-bold text-sidebar-foreground">CertChain</h1>
-              <p className="text-xs text-sidebar-foreground/60">Quản trị viên</p>
+              <p className="text-xs text-sidebar-foreground/60">{t('nav.admin')}</p>
           </div>
         </div>
       </div>

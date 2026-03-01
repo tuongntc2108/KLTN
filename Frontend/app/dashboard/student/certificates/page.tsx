@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useCertificates } from "@/hooks/use-certificates"
 import { useMetaMask } from "@/hooks/use-metamask"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/hooks/use-translation"
 import { useCertificateShare } from "@/hooks/use-certificate-share"
 import { CertificateShareDialog } from "@/components/certificate/CertificateShareDialog"
 import { useState, useMemo } from "react"
@@ -34,6 +35,7 @@ export default function StudentCertificates() {
   const { certificates, student, loading, error, refreshCertificates, claimCertificate } = useCertificates()
   const { connect, isConnected, account, isMetaMaskInstalled } = useMetaMask()
   const { toast } = useToast()
+  const { t } = useTranslation()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [claimingTokenId, setClaimingTokenId] = useState<string | null>(null)
@@ -61,42 +63,42 @@ export default function StudentCertificates() {
         return (
           <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
             <CheckCircle className="w-3 h-3 mr-1" />
-            Có hiệu lực
+            {t('studentDashboard.statusActive')}
           </Badge>
         )
       case "Issued":
         return (
           <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">
             <Clock className="w-3 h-3 mr-1" />
-            Chờ nhận
+            {t('studentDashboard.statusPending')}
           </Badge>
         )
       case "Expiring":
         return (
           <Badge variant="destructive" className="bg-orange-100 text-orange-800 border-orange-200">
             <AlertTriangle className="w-3 h-3 mr-1" />
-            Sắp hết hạn
+            {t('certificates.statusExpiring')}
           </Badge>
         )
       case "Expired":
         return (
           <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200">
             <XCircle className="w-3 h-3 mr-1" />
-            Đã hết hạn
+            {t('studentDashboard.statusExpired')}
           </Badge>
         )
       case "Revoked":
         return (
           <Badge variant="destructive">
             <XCircle className="w-3 h-3 mr-1" />
-            Đã thu hồi
+            {t('studentDashboard.statusRevoked')}
           </Badge>
         )
       case "Replaced":
         return (
           <Badge variant="secondary" className="bg-purple-100 text-purple-800 border-purple-200">
             <RefreshCw className="w-3 h-3 mr-1" />
-            Đã thay thế
+            {t('studentDashboard.statusReplaced')}
           </Badge>
         )
       default:
@@ -108,8 +110,8 @@ export default function StudentCertificates() {
     // Check if MetaMask is installed
     if (!isMetaMaskInstalled) {
       toast({
-        title: "MetaMask chưa được cài đặt",
-        description: "Vui lòng cài đặt MetaMask extension để có thể nhận chứng chỉ.",
+        title: t('certificates.metaMaskNotInstalled'),
+        description: t('certificates.installMetaMask'),
         variant: "destructive",
       })
       return
@@ -118,8 +120,8 @@ export default function StudentCertificates() {
     // Check if wallet is connected
     if (!isConnected || !account) {
       toast({
-        title: "Chưa kết nối ví",
-        description: "Vui lòng kết nối ví MetaMask trước khi nhận chứng chỉ.",
+        title: t('certificates.walletNotConnected'),
+        description: t('certificates.connectWalletFirst'),
         variant: "destructive",
       })
 
@@ -137,13 +139,13 @@ export default function StudentCertificates() {
 
       if (result.success) {
         toast({
-          title: "Đã nhận chứng chỉ thành công!",
-          description: "Chứng chỉ đã được kích hoạt và xuất hiện trong ví MetaMask của bạn.",
+          title: t('certificates.claimSuccess'),
+          description: t('certificates.claimSuccessDesc'),
         })
       } else {
         toast({
-          title: "Lỗi nhận chứng chỉ",
-          description: result.error || "Không thể nhận chứng chỉ. Vui lòng thử lại.",
+          title: t('certificates.claimError'),
+          description: result.error || t('certificates.claimErrorDesc'),
           variant: "destructive",
         })
       }
@@ -237,9 +239,9 @@ export default function StudentCertificates() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-balance">Chứng chỉ của tôi</h1>
+          <h1 className="text-3xl font-bold text-balance">{t('certificates.title')}</h1>
           <p className="text-muted-foreground">
-            Quản lý và chia sẻ các chứng chỉ số của bạn
+            {t('certificates.description')}
             {student && ` - ${student.name}`}
           </p>
           {/* MetaMask Connection Status */}
@@ -252,7 +254,7 @@ export default function StudentCertificates() {
             ) : (
               <RefreshCw className="w-4 h-4 mr-2" />
             )}
-            Làm mới
+            {t('common.refresh')}
           </Button>
         </div>
       </div>
@@ -264,7 +266,7 @@ export default function StudentCertificates() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Tìm kiếm chứng chỉ..."
+                placeholder={t('certificates.searchPlaceholder')}
                 className="pl-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -275,13 +277,13 @@ export default function StudentCertificates() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="All">Tất cả trạng thái</option>
-              <option value="Active">Có hiệu lực</option>
-              <option value="Issued">Chờ nhận</option>
-              <option value="Expiring">Sắp hết hạn</option>
-              <option value="Expired">Hết hạn</option>
-              <option value="Revoked">Thu hồi</option>
-              <option value="Replaced">Đã thay thế</option>
+              <option value="All">{t('certificates.allStatuses')}</option>
+              <option value="Active">{t('studentDashboard.statusActive')}</option>
+              <option value="Issued">{t('studentDashboard.statusPending')}</option>
+              <option value="Expiring">{t('certificates.statusExpiring')}</option>
+              <option value="Expired">{t('studentDashboard.statusExpired')}</option>
+              <option value="Revoked">{t('studentDashboard.statusRevoked')}</option>
+              <option value="Replaced">{t('studentDashboard.statusReplaced')}</option>
             </select>
           </div>
         </CardContent>
@@ -298,11 +300,11 @@ export default function StudentCertificates() {
                     <Award className="h-6 w-6 text-secondary" />
                   </div>
                   <div className="space-y-1">
-                    <CardTitle className="text-lg">{cert.name || 'Chứng chỉ không xác định'}</CardTitle>
+                    <CardTitle className="text-lg">{cert.name || t('certificates.unknownCert')}</CardTitle>
                     <CardDescription className="flex items-center gap-4 text-sm">
                       <span className="flex items-center gap-1">
                         <Building className="w-4 h-4" />
-                        {cert.issuer || 'Không xác định'}
+                        {cert.issuer || t('common.notAvailable')}
                       </span>
                       <span className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
@@ -319,19 +321,19 @@ export default function StudentCertificates() {
 
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                 <div>
-                  <p className="font-medium text-muted-foreground">Khóa học</p>
+                  <p className="font-medium text-muted-foreground">{t('certificates.courseLabel')}</p>
                   <p>{cert.course}</p>
                 </div>
                 <div>
-                  <p className="font-medium text-muted-foreground">Kết quả</p>
+                  <p className="font-medium text-muted-foreground">{t('certificates.gradeLabel')}</p>
                   <p>{cert.grade}</p>
                 </div>
                 <div>
-                  <p className="font-medium text-muted-foreground">Ngày hết hạn</p>
+                  <p className="font-medium text-muted-foreground">{t('certificates.expireDateLabel')}</p>
                   <p>{cert.expiryDate}</p>
                 </div>
                 <div>
-                  <p className="font-medium text-muted-foreground">Mã xác thực</p>
+                  <p className="font-medium text-muted-foreground">{t('certificates.verifyCodeLabel')}</p>
                   <p className="font-mono text-xs truncate">{cert.verificationCode}</p>
                 </div>
                 <div>
@@ -351,12 +353,12 @@ export default function StudentCertificates() {
                     {claimingTokenId === cert.tokenId ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Đang nhận...
+                        {t('common.processing')}
                       </>
                     ) : (
                       <>
                         <Award className="w-4 h-4 mr-2" />
-                        Nhận chứng chỉ
+                        {t('certificates.claimButton')}
                       </>
                     )}
                   </Button>
@@ -364,12 +366,12 @@ export default function StudentCertificates() {
                 <Button variant="outline" size="sm" asChild>
                   <Link href={`/certificates/${cert.tokenId}`} target="_blank">
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    Xem chi tiết
+                    {t('certificates.viewDetails')}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => openShare(cert.tokenId)}>
                   <Share className="w-4 h-4 mr-2" />
-                  Chia sẻ
+                  {t('certificates.shareButton')}
                 </Button>
                 <Button
                   variant="outline"
@@ -377,7 +379,7 @@ export default function StudentCertificates() {
                   onClick={() => downloadPdf(cert.tokenId)}
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Tải PDF
+                  {t('certificates.downloadPDF')}
                 </Button>
               </div>
             </CardContent>
@@ -401,23 +403,23 @@ export default function StudentCertificates() {
             <Award className="w-12 h-12 text-muted-foreground mb-4" />
             {certificates.length === 0 ? (
               <>
-                <h3 className="text-lg font-semibold mb-2">Chưa có chứng chỉ nào</h3>
+                <h3 className="text-lg font-semibold mb-2">{t('certificates.noCerts')}</h3>
                 <p className="text-muted-foreground text-center mb-4">
                   {student?.wallet_address
-                    ? "Bạn chưa có chứng chỉ nào. Hãy tham gia các khóa học để nhận chứng chỉ đầu tiên!"
-                    : "Vui lòng kết nối ví để xem chứng chỉ của bạn."
+                    ? t('certificates.noCertsDesc')
+                    : t('certificates.connectWalletPrompt')
                   }
                 </p>
-                <Button>Khám phá khóa học</Button>
+                <Button>{t('certificates.exploreCourses')}</Button>
               </>
             ) : (
               <>
-                <h3 className="text-lg font-semibold mb-2">Không tìm thấy chứng chỉ</h3>
+                <h3 className="text-lg font-semibold mb-2">{t('certificates.noResults')}</h3>
                 <p className="text-muted-foreground text-center mb-4">
-                  Không có chứng chỉ nào phù hợp với tìm kiếm của bạn.
+                  {t('certificates.noResultsDesc')}
                 </p>
                 <Button variant="outline" onClick={() => { setSearchTerm(""); setStatusFilter("All"); }}>
-                  Xóa bộ lọc
+                  {t('certificates.clearFilters')}
                 </Button>
               </>
             )}

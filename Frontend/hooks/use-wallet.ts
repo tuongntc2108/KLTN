@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useToast } from '@/hooks/use-toast'
+import { useTranslation } from '@/hooks/use-translation'
 
 interface WalletInfo {
   address: string
@@ -29,6 +30,7 @@ export function useWallet() {
   const [isMetaMaskInstalled, setIsMetaMaskInstalled] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   const getNetworkName = useCallback((chainId: string): string => {
     const networks: { [key: string]: string } = {
@@ -56,8 +58,8 @@ export function useWallet() {
       
       if (response.ok && data.success) {
         toast({
-          title: "Kết nối ví thành công",
-          description: "Địa chỉ ví đã được lưu vào hệ thống.",
+          title: t('wallet.connectSuccessTitle'),
+          description: t('wallet.connectSuccessDesc'),
         })
         return true
       } else {
@@ -66,13 +68,13 @@ export function useWallet() {
     } catch (error) {
       console.error('Error saving wallet to backend:', error)
       toast({
-        title: "Cảnh báo",
-        description: "Ví đã kết nối nhưng không thể lưu vào hệ thống. Vui lòng liên hệ hỗ trợ.",
+        title: t('wallet.connectWarningTitle'),
+        description: t('wallet.connectWarningDesc'),
         variant: "destructive",
       })
       return false
     }
-  }, [toast])
+  }, [toast, t])
 
   const updateWalletInfo = useCallback(async (address: string): Promise<void> => {
     try {
@@ -108,12 +110,12 @@ export function useWallet() {
     } catch (error) {
       console.error('Error updating wallet info:', error)
       toast({
-        title: "Lỗi cập nhật thông tin ví",
-        description: "Không thể lấy thông tin ví. Vui lòng thử lại.",
+        title: t('wallet.updateErrorTitle'),
+        description: t('wallet.updateErrorDesc'),
         variant: "destructive",
       })
     }
-  }, [getNetworkName, saveWalletToBackend, toast])
+  }, [getNetworkName, saveWalletToBackend, toast, t])
 
   const checkConnection = useCallback(async (): Promise<void> => {
     try {
@@ -131,8 +133,8 @@ export function useWallet() {
   const connectWallet = useCallback(async (): Promise<void> => {
     if (!isMetaMaskInstalled) {
       toast({
-        title: "MetaMask không được cài đặt",
-        description: "Vui lòng cài đặt MetaMask để tiếp tục.",
+        title: t('wallet.metamaskNotInstalled'),
+        description: t('wallet.metamaskInstallPrompt'),
         variant: "destructive",
       })
       return
@@ -195,8 +197,8 @@ export function useWallet() {
 
       console.log('Final selected account:', accounts[0])
       toast({
-        title: "Đang kết nối...",
-        description: `Kết nối với account: ${accounts[0].slice(0, 8)}...${accounts[0].slice(-4)}`,
+        title: t('wallet.connectingTitle'),
+        description: `${t('wallet.connectingDescPrefix')}${accounts[0].slice(0, 8)}...${accounts[0].slice(-4)}`,
       })
       
       await updateWalletInfo(accounts[0])
@@ -208,26 +210,26 @@ export function useWallet() {
       
     } catch (error: any) {
       console.error('Error connecting wallet:', error)
-      let errorMessage = "Không thể kết nối với ví MetaMask."
+      let errorMessage = t('wallet.connectErrorDefault')
       
       if (error.code === 4001) {
-        errorMessage = "Kết nối bị từ chối bởi người dùng."
+        errorMessage = t('wallet.connectRejected')
       } else if (error.code === -32002) {
-        errorMessage = "Yêu cầu kết nối đang chờ xử lý. Vui lòng kiểm tra MetaMask."
+        errorMessage = t('wallet.connectPending')
       } else if (error.code === 4100) {
-        errorMessage = "Account chưa được authorize. Vui lòng mở MetaMask và kết nối account."
+        errorMessage = t('wallet.connectUnauthorized')
       }
       
       setError(errorMessage)
       toast({
-        title: "Lỗi kết nối ví",
+        title: t('wallet.connectErrorTitle'),
         description: errorMessage,
         variant: "destructive",
       })
     } finally {
       setIsConnecting(false)
     }
-  }, [isMetaMaskInstalled, updateWalletInfo, toast])
+  }, [isMetaMaskInstalled, updateWalletInfo, toast, t])
 
 
 
@@ -235,11 +237,11 @@ export function useWallet() {
     if (walletInfo?.address) {
       navigator.clipboard.writeText(walletInfo.address)
       toast({
-        title: "Đã sao chép",
-        description: "Địa chỉ ví đã được sao chép vào clipboard",
+        title: t('wallet.copyTitle'),
+        description: t('wallet.copyDesc'),
       })
     }
-  }, [walletInfo?.address, toast])
+  }, [walletInfo?.address, toast, t])
 
   const openInExplorer = useCallback((): void => {
     if (walletInfo?.address) {
@@ -250,15 +252,15 @@ export function useWallet() {
         explorerUrl = `https://etherscan.io/address/${walletInfo.address}`
       } else {
         toast({
-          title: "Không hỗ trợ",
-          description: "Explorer không hỗ trợ cho mạng này.",
+          title: t('wallet.explorerNotSupportedTitle'),
+          description: t('wallet.explorerNotSupportedDesc'),
           variant: "destructive",
         })
         return
       }
       window.open(explorerUrl, '_blank')
     }
-  }, [walletInfo, toast])
+  }, [walletInfo, toast, t])
 
   const formatAddress = useCallback((address: string): string => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
@@ -283,8 +285,8 @@ export function useWallet() {
         setError(null)
         
         toast({
-          title: "Đã xóa kết nối ví",
-          description: "Địa chỉ ví đã được xóa khỏi hệ thống.",
+          title: t('wallet.clearSuccessTitle'),
+          description: t('wallet.clearSuccessDesc'),
         })
         return true
       } else {
@@ -293,13 +295,13 @@ export function useWallet() {
     } catch (error) {
       console.error('Error clearing wallet from backend:', error)
       toast({
-        title: "Lỗi",
-        description: "Không thể xóa địa chỉ ví khỏi hệ thống.",
+        title: t('common.error'),
+        description: t('wallet.clearErrorDesc'),
         variant: "destructive",
       })
       return false
     }
-  }, [toast])
+  }, [toast, t])
 
   // Load wallet info from backend on component mount
   const loadWalletFromBackend = useCallback(async (): Promise<void> => {

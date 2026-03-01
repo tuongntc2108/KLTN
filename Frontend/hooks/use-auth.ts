@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 interface User {
   email: string
   fullName: string
-  avatar: string
+  avatar: string | null
   role: string
 }
 

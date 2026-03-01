@@ -188,12 +188,21 @@ router.get('/me', authenticate, async (req, res) => {
     if (req.user) {
       const { email, fullName, avatar, role } = req.user;
       
+      // Get fresh user data from database (including avatar_url)
+      const { getUserFullProfile } = require('../utils/userUtils');
+      const profile = await getUserFullProfile(email);
+      
       // Update last login for the user
       await updateUserLastLogin(email);
       
       res.json({
         success: true,
-        user: { email, fullName, avatar, role }
+        user: { 
+          email: profile.email, 
+          fullName: profile.full_name || fullName, 
+          avatar: profile.avatar_url || avatar,
+          role: profile.role || role 
+        }
       });
     } else {
       res.status(401).json({ success: false, message: 'Not authenticated' });

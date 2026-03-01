@@ -232,6 +232,89 @@ async function createAdminWithUser(email) {
   }
 }
 
+/**
+ * Gets full profile of a user including role-specific information
+ * Priority: users.full_name (already populated) → fallback to students.name/issuers.name
+ * @param {string} email - User's email
+ * @returns {Object} - Full profile with role-specific fields
+ */
+async function getUserFullProfile(email) {
+  try {
+    // Get base user info
+    const userQuery = `
+      SELECT user_id, email, role, full_name, avatar_url, language, last_login, created_at
+      FROM users
+      WHERE email = $1
+    `;
+    const userResult = await pool.query(userQuery, [email]);
+    
+    if (userResult.rows.length === 0) {
+      throw new Error('User not found');
+    }
+    
+    const user = userResult.rows[0];
+    const profile = {
+      user_id: user.user_id,
+      email: user.email,
+      role: user.role,
+      full_name: user.full_name, // From users table (already populated)
+      avatar_url: user.avatar_url ? `${user.avatar_url}?t=${Date.now()}` : null, // Add cache busting
+      language: user.language || 'vi',
+      last_login: user.last_login,
+      created_at: user.created_at
+    };
+    
+    // Get role-specific information
+    if (user.role === 'Student') {
+      const studentQuery = `
+        SELECT id as student_id, name, wallet_address
+        FROM students
+        WHERE email = $1
+      `;
+      const studentResult = await pool.query(studentQuery, [email]);
+      
+      if (studentResult.rows.length > 0) {
+        const student = studentResult.rows[0];
+        profile.student_id = student.student_id;
+        profile.wallet_address = student.wallet_address;
+        
+        // Priority: users.full_name → fallback to students.name
+        if (!profile.full_name && student.name) {
+          profile.full_name = student.name;
+        }
+      }
+    } else if (user.role === 'Issuer') {
+      const issuerQuery = `
+        SELECT id as issuer_id, name, wallet_address, organization, website
+        FROM issuers
+        WHERE email = $1
+      `;
+      const issuerResult = await pool.query(issuerQuery, [email]);
+      
+      if (issuerResult.rows.length > 0) {
+        const issuer = issuerResult.rows[0];
+        profile.issuer_id = issuer.issuer_id;
+        profile.wallet_address = issuer.wallet_address;
+        profile.organization = issuer.organization;
+        profile.website = issuer.website;
+        
+        // Priority: users.full_name → fallback to issuers.name
+        if (!profile.full_name && issuer.name) {
+          profile.full_name = issuer.name;
+        }
+      }
+    } else if (user.role === 'Admin') {
+      // Admin doesn't have additional fields, just basic profile
+      // full_name should already be in users table
+    }
+    
+    return profile;
+  } catch (error) {
+    console.error('Error getting user full profile:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   createUserIfNotExists,
   updateUserLastLogin,
@@ -242,5 +325,6 @@ module.exports = {
   isUserIssuer,
   isUserStudent,
   getUserRole,
-  updateUserRole
+  updateUserRole,
+  getUserFullProfile
 };

@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge"
 import { Wallet, CheckCircle, Copy, ExternalLink, Loader2, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useWallet } from "@/hooks/use-wallet"
+import { useTranslation } from "@/hooks/use-translation"
 
 export function WalletConnect() {
+  const { t } = useTranslation()
   const {
     walletInfo,
     isConnecting,
@@ -28,15 +30,15 @@ export function WalletConnect() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wallet className="w-5 h-5" />
-            Kết nối ví Blockchain
+            {t('wallet.title')}
           </CardTitle>
-          <CardDescription>Kết nối ví để nhận và quản lý chứng chỉ NFT của bạn</CardDescription>
+          <CardDescription>{t('wallet.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              MetaMask không được cài đặt. Vui lòng cài đặt MetaMask để tiếp tục.
+              {t('wallet.metaMaskNotFoundError')}
             </AlertDescription>
           </Alert>
           <div className="text-center py-6">
@@ -44,10 +46,10 @@ export function WalletConnect() {
               onClick={() => window.open('https://metamask.io/download/', '_blank')}
               className="mb-4"
             >
-              Tải xuống MetaMask
+              {t('wallet.downloadButtonLabel')}
             </Button>
             <p className="text-sm text-muted-foreground">
-              Sau khi cài đặt, hãy tải lại trang này.
+              {t('wallet.reloadPageDesc')}
             </p>
           </div>
         </CardContent>
@@ -62,9 +64,9 @@ export function WalletConnect() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wallet className="w-5 h-5" />
-            Kết nối ví Blockchain
+            {t('wallet.title')}
           </CardTitle>
-          <CardDescription>Kết nối ví để nhận và quản lý chứng chỉ NFT của bạn</CardDescription>
+          <CardDescription>{t('wallet.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Alert variant="destructive">
@@ -76,12 +78,12 @@ export function WalletConnect() {
               {isConnecting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Đang kết nối...
+                  {t('wallet.connectingLabel')}
                 </>
               ) : (
                 <>
                   <Wallet className="w-4 h-4 mr-2" />
-                  Thử lại
+                  {t('wallet.retryButtonLabel')}
                 </>
               )}
             </Button>
@@ -98,23 +100,23 @@ export function WalletConnect() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wallet className="w-5 h-5" />
-            Kết nối ví Blockchain
+            {t('wallet.title')}
           </CardTitle>
-          <CardDescription>Kết nối ví để nhận và quản lý chứng chỉ NFT của bạn</CardDescription>
+          <CardDescription>{t('wallet.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-center py-6">
             <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Chưa kết nối ví</h3>
-            <p className="text-muted-foreground mb-4">Bạn cần kết nối ví blockchain để nhận chứng chỉ NFT</p>
+            <h3 className="text-lg font-semibold mb-2">{t('wallet.notConnectedTitle')}</h3>
+            <p className="text-muted-foreground mb-4">{t('wallet.notConnectedDesc')}</p>
             
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-left">
-              <h4 className="font-semibold text-blue-800 mb-2">💡 Lưu ý quan trọng:</h4>
+              <h4 className="font-semibold text-blue-800 mb-2">{t('wallet.importantNote')}</h4>
               <ul className="text-blue-700 space-y-1 text-xs">
-                <li>• Khi click "Kết nối ví", MetaMask sẽ hiện popup</li>
-                <li>• Hãy chọn account mà bạn muốn sử dụng</li>
-                <li>• Đảm bảo chọn đúng account để nhận chứng chỉ</li>
-                <li>• Nếu cần đổi account, click "Đổi tài khoản" sau khi kết nối</li>
+                <li>• {t('wallet.notePoint1')}</li>
+                <li>• {t('wallet.notePoint2')}</li>
+                <li>• {t('wallet.notePoint3')}</li>
+                <li>• {t('wallet.notePoint4')}</li>
               </ul>
             </div>
             
@@ -122,12 +124,12 @@ export function WalletConnect() {
               {isConnecting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Đang kết nối...
+                  {t('wallet.connectingLabel')}
                 </>
               ) : (
                 <>
                   <Wallet className="w-4 h-4 mr-2" />
-                  Kết nối ví MetaMask
+                  {t('wallet.connectButtonLabel')}
                 </>
               )}
             </Button>
@@ -139,13 +141,13 @@ export function WalletConnect() {
                 onClick={refreshWalletState}
                 className="text-xs"
               >
-                🔄 Tải lại trạng thái
+                {t('wallet.refreshStateLabel')}
               </Button>
             </div>
           </div>
 
           <div className="border-t pt-4">
-            <h4 className="font-semibold mb-2">Ví được hỗ trợ:</h4>
+            <h4 className="font-semibold mb-2">{t('wallet.supportedWalletsLabel')}</h4>
             <div className="grid grid-cols-2 gap-2">
               <div className="flex items-center gap-2 p-2 border rounded">
                 <div className="w-6 h-6 bg-orange-500 rounded"></div>
@@ -169,11 +171,11 @@ export function WalletConnect() {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Wallet className="w-5 h-5" />
-            Ví Blockchain
+            {t('wallet.title')}
           </CardTitle>
           <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
             <CheckCircle className="w-3 h-3 mr-1" />
-            Đã kết nối
+            {t('wallet.connectedStatus')}
           </Badge>
         </div>
       </CardHeader>
@@ -181,7 +183,7 @@ export function WalletConnect() {
         <div className="space-y-3">
           <div className="flex items-center justify-between p-3 border rounded-lg">
             <div>
-              <p className="text-sm font-medium">Địa chỉ ví</p>
+              <p className="text-sm font-medium">{t('wallet.walletAddressLabel')}</p>
               <p className="text-xs text-muted-foreground font-mono">{formatAddress(walletInfo.address)}</p>
             </div>
             <div className="flex gap-2">
@@ -196,37 +198,37 @@ export function WalletConnect() {
 
           <div className="flex items-center justify-between p-3 border rounded-lg">
             <div>
-              <p className="text-sm font-medium">Mạng</p>
+              <p className="text-sm font-medium">{t('wallet.networkLabel')}</p>
               <p className="text-xs text-muted-foreground">{walletInfo.network}</p>
             </div>
             <Badge variant="default">
               <CheckCircle className="w-3 h-3 mr-1" />
-              Hoạt động
+              {t('wallet.activeStatus')}
             </Badge>
           </div>
 
           <div className="flex items-center justify-between p-3 border rounded-lg">
             <div>
-              <p className="text-sm font-medium">Số dư</p>
+              <p className="text-sm font-medium">{t('wallet.balanceLabel')}</p>
               <p className="text-xs text-muted-foreground">{walletInfo.balance}</p>
             </div>
             <Button variant="outline" size="sm">
-              Nạp tiền
+              {t('wallet.depositLabel')}
             </Button>
           </div>
         </div>
 
         <div className="flex gap-2 pt-2">
           <Button variant="outline" className="flex-1 bg-transparent" onClick={connectWallet}>
-            Đổi tài khoản
+            {t('wallet.changeAccountLabel')}
           </Button>
 
           <Button variant="outline" className="flex-1 bg-transparent" onClick={async () => {
             await clearWalletFromBackend()
           }}>
-            Xóa ví
+            {t('wallet.disconnectLabel')}
           </Button>
-          <Button className="flex-1" onClick={openInExplorer}>Xem trên Explorer</Button>
+          <Button className="flex-1" onClick={openInExplorer}>{t('wallet.viewExplorerLabel')}</Button>
         </div>
       </CardContent>
     </Card>

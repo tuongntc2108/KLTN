@@ -16,6 +16,7 @@ import {
     Sparkles,
     Shield,
 } from "lucide-react"
+import { useTranslation } from "@/hooks/use-translation"
 
 interface VerificationResultProps {
     verificationResult: {
@@ -45,21 +46,22 @@ interface VerificationResultProps {
 
 export function VerificationResult({ verificationResult }: VerificationResultProps) {
     if (!verificationResult) return null
+    const { t, language } = useTranslation()
 
     const getEventTypeLabel = (type: string) => {
         switch (type) {
             case "Issued":
-                return "Cấp chứng chỉ"
+                return t('verify.eventIssued')
             case "Claimed":
-                return "Nhận chứng chỉ"
+                return t('verify.eventClaimed')
             case "Revoked":
-                return "Thu hồi chứng chỉ"
+                return t('verify.eventRevoked')
             case "Expired":
-                return "Hết hạn"
+                return t('verify.eventExpired')
             case "Replaced":
-                return "Thay thế chứng chỉ"
+                return t('verify.eventReplaced')
             default:
-                return "Không xác định"
+                return t('verify.eventUnknown')
         }
     }
 
@@ -74,12 +76,12 @@ export function VerificationResult({ verificationResult }: VerificationResultPro
                                 <CheckCircle className="w-6 h-6 text-green-600" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-semibold text-green-800">Chứng chỉ hợp lệ</h3>
-                                <p className="text-green-900">{verificationResult.statusMessage || 'Chứng chỉ đã được xác minh thành công trên blockchain'}</p>
+                                <h3 className="text-lg font-semibold text-green-800">{t('verify.validTitle')}</h3>
+                                <p className="text-green-900">{verificationResult.statusMessage || t('verify.validDefaultMessage')}</p>
                             </div>
                             <Badge className="ml-auto bg-green-100 text-green-800 border-green-200">
                                 <CheckCircle className="w-3 h-3 mr-1" />
-                                Có hiệu lực
+                                {t('status.active')}
                             </Badge>
                         </div>
                     </CardContent>
@@ -92,22 +94,22 @@ export function VerificationResult({ verificationResult }: VerificationResultPro
                                 <CheckCircle className="w-6 h-6 text-red-600" />
                             </div>
                             <div className="flex-1">
-                                <h3 className="text-lg font-semibold text-red-800">Chứng chỉ không hợp lệ</h3>
+                                <h3 className="text-lg font-semibold text-red-800">{t('verify.invalidTitle')}</h3>
                                 <p className="text-red-900 font-semibold mt-1">
-                                    {verificationResult.certificate?.status === 'Expired' && '⏰ Chứng chỉ đã hết hạn'}
-                                    {verificationResult.certificate?.status === 'Revoked' && '🚫 Chứng chỉ đã bị thu hồi'}
-                                    {verificationResult.certificate?.status === 'Replaced' && '🔄 Chứng chỉ đã được thay thế bằng chứng chỉ khác'}
-                                    {!verificationResult.certificate?.status && '❌ Không thể xác minh chứng chỉ'}
+                                    {verificationResult.certificate?.status === 'Expired' && t('verify.expiredStatus')}
+                                    {verificationResult.certificate?.status === 'Revoked' && t('verify.revokedStatus')}
+                                    {verificationResult.certificate?.status === 'Replaced' && t('verify.replacedStatus')}
+                                    {!verificationResult.certificate?.status && t('verify.cannotVerifyStatus')}
                                 </p>
                                 <p className="text-red-800 text-sm mt-2">
-                                    {verificationResult.certificate?.status === 'Expired' && `Chứng chỉ này đã vượt quá ngày hết hạn vào ${verificationResult.certificate?.expiryDate} và không còn có hiệu lực.`}
-                                    {verificationResult.certificate?.status === 'Revoked' && `Chứng chỉ này đã bị thu hồi bởi đơn vị cấp và không còn giá trị. Lý do: ${verificationResult.certificate?.revocation_reason || 'Không có thông tin'}`}
-                                    {verificationResult.certificate?.status === 'Replaced' && `Chứng chỉ này đã được thay thế bằng một chứng chỉ mới. Vui lòng sử dụng chứng chỉ mới thay vào.`}
+                                    {verificationResult.certificate?.status === 'Expired' && `${t('verify.expiredDetailPrefix')}${verificationResult.certificate?.expiryDate}${t('verify.expiredDetailSuffix')}`}
+                                    {verificationResult.certificate?.status === 'Revoked' && `${t('verify.revokedDetailPrefix')}${verificationResult.certificate?.revocation_reason || t('verify.revokedDetailNoReason')}`}
+                                    {verificationResult.certificate?.status === 'Replaced' && t('verify.replacedDetail')}
                                     {!verificationResult.certificate?.status && verificationResult.message}
                                 </p>
                             </div>
                             <Badge className="bg-red-100 text-red-800 border-red-200 flex-shrink-0">
-                                Không hợp lệ
+                                {t('status.invalid')}
                             </Badge>
                         </div>
                     </CardContent>
@@ -122,7 +124,7 @@ export function VerificationResult({ verificationResult }: VerificationResultPro
                             <div className="flex items-center gap-2">
                                 <Award className="w-5 h-5" />
                                 <div>
-                                    <CardTitle>Thông tin chứng chỉ</CardTitle>
+                                    <CardTitle>{t('verify.certificateInfo')}</CardTitle>
                                     {!verificationResult.isValid && (
                                         <p className="text-sm text-red-700 font-semibold mt-1">
                                             ⚠️ {verificationResult.message}
@@ -136,49 +138,49 @@ export function VerificationResult({ verificationResult }: VerificationResultPro
                         <div className="grid md:grid-cols-2 gap-6">
                             <div className="space-y-4">
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Tên chứng chỉ</p>
+                                    <p className="text-sm font-medium text-muted-foreground">{t('verify.certificateName')}</p>
                                     <p className="text-lg font-semibold">{verificationResult.certificate.name}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Người nhận</p>
+                                    <p className="text-sm font-medium text-muted-foreground">{t('verify.recipient')}</p>
                                     <p className="flex items-center gap-2">
                                         <User className="w-4 h-4" />
                                         {verificationResult.certificate.holder}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Đơn vị cấp</p>
+                                    <p className="text-sm font-medium text-muted-foreground">{t('verify.issuer')}</p>
                                     <p className="flex items-center gap-2">
                                         <Building className="w-4 h-4" />
                                         {verificationResult.certificate.issuer}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Mã xác thực</p>
+                                    <p className="text-sm font-medium text-muted-foreground">{t('verify.verificationCode')}</p>
                                     <p className="font-mono text-sm">{verificationResult.certificate.verificationCode || verificationResult.certificate.id}</p>
                                 </div>
                             </div>
                             <div className="space-y-4">
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Ngày cấp</p>
+                                    <p className="text-sm font-medium text-muted-foreground">{t('verify.issueDate')}</p>
                                     <p className="flex items-center gap-2">
                                         <Calendar className="w-4 h-4" />
                                         {verificationResult.certificate.issueDate}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Ngày hết hạn</p>
+                                    <p className="text-sm font-medium text-muted-foreground">{t('verify.expiryDate')}</p>
                                     <p className="flex items-center gap-2">
                                         <Calendar className="w-4 h-4" />
                                         {verificationResult.certificate.expiryDate}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Token ID</p>
+                                    <p className="text-sm font-medium text-muted-foreground">{t('verify.tokenId')}</p>
                                     <p className="font-mono text-sm break-all">{verificationResult.certificate.tokenId}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Mạng Blockchain</p>
+                                    <p className="text-sm font-medium text-muted-foreground">{t('verify.blockchainNetwork')}</p>
                                     <p>{verificationResult.certificate.blockchainNetwork}</p>
                                 </div>
                             </div>
@@ -186,27 +188,27 @@ export function VerificationResult({ verificationResult }: VerificationResultPro
 
                         {/* Blockchain Info */}
                         <div className="border-t pt-4">
-                            <h4 className="font-semibold mb-3">Thông tin Blockchain</h4>
+                            <h4 className="font-semibold mb-3">{t('verify.blockchainInfo')}</h4>
                             <div className="grid md:grid-cols-2 gap-4 text-sm">
                                 <div>
-                                    <p className="font-medium text-muted-foreground">Token ID</p>
+                                    <p className="font-medium text-muted-foreground">{t('verify.tokenId')}</p>
                                     <p className="font-mono break-all">{verificationResult.certificate.tokenId}</p>
                                 </div>
                                 <div>
-                                    <p className="font-medium text-muted-foreground">Mạng Blockchain</p>
+                                    <p className="font-medium text-muted-foreground">{t('verify.blockchainNetwork')}</p>
                                     <p>{verificationResult.certificate.blockchainNetwork}</p>
                                 </div>
                             </div>
                             <Button variant="outline" size="sm" className="mt-3 bg-transparent">
                                 <ExternalLink className="w-4 h-4 mr-2" />
-                                Xem trên Blockchain Explorer
+                                {t('common.viewOnExplorer')}
                             </Button>
                         </div>
 
                         {/* Revocation Reason Section - Only for revoked certificates */}
                         {!verificationResult.isValid && verificationResult.certificate?.status === 'Revoked' && verificationResult.certificate?.revocation_reason && (
                             <div className="border-t pt-4 mt-4">
-                                <h4 className="font-semibold mb-3 text-red-800">Lý do thu hồi</h4>
+                                <h4 className="font-semibold mb-3 text-red-800">{t('verify.revokeReasonTitle')}</h4>
                                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                                     <p className="text-red-900 font-medium">{verificationResult.certificate.revocation_reason}</p>
                                 </div>
@@ -231,14 +233,16 @@ export function VerificationResult({ verificationResult }: VerificationResultPro
                     <CardHeader>
                         <div className="flex items-center gap-2">
                             <Calendar className="w-5 h-5" />
-                            <CardTitle>Lịch sử chứng chỉ</CardTitle>
+                            <CardTitle>{t('verify.historyTitle')}</CardTitle>
                         </div>
-                        <CardDescription>Nhật ký sự kiện từ blockchain và hệ thống</CardDescription>
+                        <CardDescription>{t('verify.historyDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
                             {verificationResult.certificate.events.map((ev: any) => {
-                                const dateStr = ev.created_at ? new Date(ev.created_at).toLocaleString('vi-VN') : 'Chưa xác định'
+                                const dateStr = ev.created_at
+                                  ? new Date(ev.created_at).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US')
+                                  : t('common.notAvailable')
                                 const type = ev.type || 'Unknown'
                                 const reason = ev.reason
                                 const related = ev.related_token
@@ -260,10 +264,10 @@ export function VerificationResult({ verificationResult }: VerificationResultPro
                                                 <span className="text-sm text-muted-foreground">{dateStr}</span>
                                             </div>
                                             {reason && (
-                                                <p className="text-sm mt-1">Lý do: <span className="font-medium">{reason}</span></p>
+                                                <p className="text-sm mt-1">{t('verify.reasonLabel')}: <span className="font-medium">{reason}</span></p>
                                             )}
                                             {related && (
-                                                <p className="text-sm mt-1">Thay thế bởi Token: <span className="font-mono">{related}</span></p>
+                                                <p className="text-sm mt-1">{t('verify.replacedByToken')}: <span className="font-mono">{related}</span></p>
                                             )}
                                             <div className="text-xs text-muted-foreground mt-1">
                                                 {block && <span>Block: {block}</span>}

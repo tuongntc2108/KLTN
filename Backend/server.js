@@ -50,6 +50,9 @@ app.use(passport.session());
 app.use(express.json());
 app.use(cookieParser());
 
+// Serve static files from public directory (for avatars)
+app.use(express.static('public'));
+
 // Fake auth (commented out - now using real OAuth)
 // app.use((req, res, next) => {
 //   req.user = {
@@ -84,6 +87,9 @@ app.use("/api/documents", documentRoutes);
 
 const issuerRoutes = require("./routes/issuerRoutes");
 app.use("/api/issuers", issuerRoutes);
+
+const userRoutes = require("./routes/userRoutes");
+app.use("/api/users", userRoutes);
 
 // New LangChain RAG chat API mounted at /api/chat
 const chatRoutes = require("./routes/chat");

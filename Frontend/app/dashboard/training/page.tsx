@@ -20,10 +20,12 @@ import {
   XCircle,
   RefreshCw,
 } from "lucide-react"
+import { useTranslation } from "@/hooks/use-translation"
 
 export default function TrainingDashboard() {
   const router = useRouter()
   const { stats, recentCertificates, recentStudents, loading, error, refreshData } = useDashboardStats()
+  const { t } = useTranslation()
 
   if (loading) {
     return (
@@ -40,7 +42,7 @@ export default function TrainingDashboard() {
           <AlertCircle className="h-8 w-8 text-red-500 mb-2 mx-auto" />
           <p className="text-red-500">{error}</p>
           <Button onClick={refreshData} className="mt-2">
-            Thử lại
+            {t('common.retry')}
           </Button>
         </div>
       </div>
@@ -52,13 +54,13 @@ export default function TrainingDashboard() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-balance">Dashboard</h1>
-          <p className="text-muted-foreground">Chào mừng trở lại! Đây là tổng quan hoạt động của trung tâm đào tạo.</p>
+          <h1 className="text-3xl font-bold text-balance">{t('training.title')}</h1>
+          <p className="text-muted-foreground">{t('training.welcome')}</p>
         </div>
         <div className="flex gap-3">
           <Button onClick={() => router.push('/dashboard/training/certificates/issue')}>
             <Plus className="w-4 h-4 mr-2" />
-            Cấp chứng chỉ mới
+            {t('training.issueNew')}
           </Button>
         </div>
       </div>
@@ -67,7 +69,7 @@ export default function TrainingDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tổng học viên</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('training.totalStudents')}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -75,14 +77,14 @@ export default function TrainingDashboard() {
             <p className="text-xs text-muted-foreground">
               <span className={stats.studentsGrowth >= 0 ? "text-green-600" : "text-red-600"}>
                 {stats.studentsGrowth >= 0 ? '+' : ''}{stats.studentsGrowth}%
-              </span> so với tháng trước
+              </span> {t('training.comparedToLastMonth')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Chứng chỉ đã cấp</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('training.certificatesIssued')}</CardTitle>
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -90,14 +92,14 @@ export default function TrainingDashboard() {
             <p className="text-xs text-muted-foreground">
               <span className={stats.certificatesGrowth >= 0 ? "text-green-600" : "text-red-600"}>
                 {stats.certificatesGrowth >= 0 ? '+' : ''}{stats.certificatesGrowth}%
-              </span> so với tháng trước
+              </span> {t('training.comparedToLastMonth')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tổng số khóa học</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('training.totalCourses')}</CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -105,14 +107,14 @@ export default function TrainingDashboard() {
             <p className="text-xs text-muted-foreground">
               <span className={stats.coursesGrowth >= 0 ? "text-blue-600" : "text-red-600"}>
                 {stats.coursesGrowth >= 0 ? '+' : ''}{stats.coursesGrowth}
-              </span> khóa mới tuần này
+              </span> {t('training.newCoursesThisWeek')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Chứng chỉ đang hoạt động</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('training.activeCertificates')}</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -120,7 +122,7 @@ export default function TrainingDashboard() {
             <p className="text-xs text-muted-foreground">
               <span className={stats.activeCertificatesGrowth >= 0 ? "text-green-600" : "text-red-600"}>
                 {stats.activeCertificatesGrowth >= 0 ? '+' : ''}{stats.activeCertificatesGrowth}%
-              </span> so với tháng trước
+              </span> {t('training.comparedToLastMonth')}
             </p>
           </CardContent>
         </Card>
@@ -132,8 +134,8 @@ export default function TrainingDashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Chứng chỉ gần đây</CardTitle>
-                <CardDescription>Các chứng chỉ được cấp trong 7 ngày qua</CardDescription>
+                <CardTitle>{t('training.recentCertificates')}</CardTitle>
+                <CardDescription>{t('training.recentCertificatesDesc')}</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -149,11 +151,11 @@ export default function TrainingDashboard() {
                   
                   let timeAgo = ''
                   if (diffDays > 0) {
-                    timeAgo = `${diffDays} ngày trước`
+                    timeAgo = `${diffDays} ${t('time.daysAgo')}`
                   } else if (diffHours > 0) {
-                    timeAgo = `${diffHours} giờ trước`
+                    timeAgo = `${diffHours} ${t('time.hoursAgo')}`
                   } else {
-                    timeAgo = 'Vừa mới'
+                    timeAgo = t('time.justNow')
                   }
 
                   return (
@@ -174,35 +176,35 @@ export default function TrainingDashboard() {
                               return (
                                 <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
                                   <CheckCircle className="w-3 h-3 mr-1" />
-                                  Đã cấp
+                                  {t('status.issued')}
                                 </Badge>
                               )
                             case "Issued":
                               return (
                                 <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">
                                   <Clock className="w-3 h-3 mr-1" />
-                                  Chờ nhận
+                                  {t('status.pending')}
                                 </Badge>
                               )
                             case "Expired":
                               return (
                                 <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200">
                                   <XCircle className="w-3 h-3 mr-1" />
-                                  Đã hết hạn
+                                  {t('status.expired')}
                                 </Badge>
                               )
                             case "Revoked":
                               return (
                                 <Badge variant="destructive">
                                   <XCircle className="w-3 h-3 mr-1" />
-                                  Đã thu hồi
+                                  {t('status.revoked')}
                                 </Badge>
                               )
                             case "Replaced":
                               return (
                                 <Badge variant="secondary" className="bg-purple-100 text-purple-800 border-purple-200">
                                   <RefreshCw className="w-3 h-3 mr-1" />
-                                  Đã thay thế
+                                  {t('status.replaced')}
                                 </Badge>
                               )
                             default:
@@ -222,7 +224,7 @@ export default function TrainingDashboard() {
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Award className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p>Chưa có chứng chỉ nào được cấp gần đây</p>
+                  <p>{t('training.noRecentCertificates')}</p>
                 </div>
               )}
             </div>
@@ -234,8 +236,8 @@ export default function TrainingDashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Học viên mới tạo</CardTitle>
-                <CardDescription>Các học viên đăng ký trong 7 ngày qua</CardDescription>
+                <CardTitle>{t('training.recentStudents')}</CardTitle>
+                <CardDescription>{t('training.recentStudentsDesc')}</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -251,11 +253,11 @@ export default function TrainingDashboard() {
                   
                   let timeAgo = ''
                   if (diffDays > 0) {
-                    timeAgo = `${diffDays} ngày trước`
+                    timeAgo = `${diffDays} ${t('time.daysAgo')}`
                   } else if (diffHours > 0) {
-                    timeAgo = `${diffHours} giờ trước`
+                    timeAgo = `${diffHours} ${t('time.hoursAgo')}`
                   } else {
-                    timeAgo = 'Vừa mới'
+                    timeAgo = t('time.justNow')
                   }
 
                   return (
@@ -276,7 +278,7 @@ export default function TrainingDashboard() {
                           ) : (
                             <Clock className="w-3 h-3 mr-1" />
                           )}
-                          {student.has_wallet ? "Có ví" : "Chưa có ví"}
+                          {student.has_wallet ? t('training.hasWallet') : t('training.noWallet')}
                         </Badge>
                         <span className="text-xs text-muted-foreground">{timeAgo}</span>
                       </div>
@@ -286,7 +288,7 @@ export default function TrainingDashboard() {
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p>Chưa có học viên mới nào đăng ký gần đây</p>
+                  <p>{t('training.noRecentStudents')}</p>
                 </div>
               )}
             </div>

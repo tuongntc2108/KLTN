@@ -47,6 +47,7 @@ import {
   Pencil,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/hooks/use-translation"
 
 interface Student {
   student_id: number;
@@ -96,6 +97,7 @@ export default function StudentsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   // Form state for adding new student
   const [newStudent, setNewStudent] = useState({
@@ -205,25 +207,25 @@ export default function StudentsPage() {
     console.log('Validating form with data:', newStudent)
 
     if (!newStudent.id || !newStudent.id.trim()) {
-      errors.push('Mã sinh viên là bắt buộc')
+      errors.push(t('validation.studentIdRequired'))
     } else if (!/^\d+$/.test(newStudent.id.trim())) {
-      errors.push('Mã sinh viên phải là số')
+      errors.push(t('validation.studentIdNumber'))
     }
 
     if (!newStudent.name || !newStudent.name.trim()) {
-      errors.push('Họ tên là bắt buộc')
+      errors.push(t('validation.fullNameRequired'))
     }
 
     if (!newStudent.email || !newStudent.email.trim()) {
-      errors.push('Email là bắt buộc')
+      errors.push(t('validation.emailRequired'))
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newStudent.email.trim())) {
-      errors.push('Email không hợp lệ')
+      errors.push(t('validation.emailInvalid'))
     }
 
     // Only validate wallet address if it's provided
     if (newStudent.wallet_address && newStudent.wallet_address.trim()) {
       if (!/^0x[a-fA-F0-9]{40}$/.test(newStudent.wallet_address.trim())) {
-        errors.push('Địa chỉ ví không hợp lệ (phải có định dạng 0x...)')
+        errors.push(t('validation.walletInvalid'))
       }
     }
 
@@ -236,7 +238,7 @@ export default function StudentsPage() {
     const validationErrors = validateForm()
     if (validationErrors.length > 0) {
       toast({
-        title: "Lỗi validation",
+        title: t('common.error'),
         description: validationErrors.join(', '),
         variant: "destructive",
       })
@@ -287,8 +289,8 @@ export default function StudentsPage() {
       console.log('Success response:', result) // Debug log
 
       toast({
-        title: "Thành công",
-        description: `Đã thêm học viên ${newStudent.name}`,
+        title: t('common.success'),
+        description: `${t('students.addSuccess')}: ${newStudent.name}`,
       })
 
       // Reset form
@@ -307,11 +309,11 @@ export default function StudentsPage() {
 
     } catch (error) {
       console.error('Error adding student:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Không thể thêm học viên'
+      const errorMessage = error instanceof Error ? error.message : t('students.addFail')
       console.log('Final error message:', errorMessage) // Debug log
 
       toast({
-        title: "Lỗi",
+        title: t('common.error'),
         description: errorMessage,
         variant: "destructive",
       })
@@ -354,13 +356,13 @@ export default function StudentsPage() {
     const errors = []
 
     if (!editStudentData.name || !editStudentData.name.trim()) {
-      errors.push('Họ tên là bắt buộc')
+      errors.push(t('validation.fullNameRequired'))
     }
 
     if (!editStudentData.email || !editStudentData.email.trim()) {
-      errors.push('Email là bắt buộc')
+      errors.push(t('validation.emailRequired'))
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editStudentData.email.trim())) {
-      errors.push('Email không hợp lệ')
+      errors.push(t('validation.emailInvalid'))
     }
 
     return errors
@@ -373,7 +375,7 @@ export default function StudentsPage() {
     const validationErrors = validateEditForm()
     if (validationErrors.length > 0) {
       toast({
-        title: "Lỗi validation",
+        title: t('common.error'),
         description: validationErrors.join(', '),
         variant: "destructive",
       })
@@ -414,8 +416,8 @@ export default function StudentsPage() {
       const result = await response.json()
 
       toast({
-        title: "Thành công",
-        description: `Thông tin học viên ${editStudentData.name} đã được cập nhật`,
+        title: t('common.success'),
+        description: `${t('students.updateSuccess')}: ${editStudentData.name}`,
       })
 
       // Close dialog
@@ -426,10 +428,10 @@ export default function StudentsPage() {
 
     } catch (error) {
       console.error('Error updating student:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Không thể cập nhật học viên'
+      const errorMessage = error instanceof Error ? error.message : t('students.updateFail')
 
       toast({
-        title: "Lỗi",
+        title: t('common.error'),
         description: errorMessage,
         variant: "destructive",
       })
@@ -476,8 +478,8 @@ export default function StudentsPage() {
       const result = await response.json()
 
       toast({
-        title: "Thành công",
-        description: `Học viên ${studentToDelete.name} đã được xóa`,
+        title: t('common.success'),
+        description: `${t('students.deleteSuccess')}: ${studentToDelete.name}`,
       })
 
       // Close dialog
@@ -488,10 +490,10 @@ export default function StudentsPage() {
 
     } catch (error) {
       console.error('Error deleting student:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Không thể xóa học viên'
+      const errorMessage = error instanceof Error ? error.message : t('students.deleteFail')
 
       toast({
-        title: "Lỗi",
+        title: t('common.error'),
         description: errorMessage,
         variant: "destructive",
       })
@@ -519,25 +521,25 @@ export default function StudentsPage() {
         return (
           <Badge className="bg-green-100 text-green-800">
             <CheckCircle className="w-3 h-3 mr-1" />
-            Hoạt động
+            {t('students.statusActive')}
           </Badge>
         )
       case "Issued":
         return (
           <Badge variant="secondary">
             <AlertCircle className="w-3 h-3 mr-1" />
-            Chờ xử lý
+            {t('students.statusIssued')}
           </Badge>
         )
       case "Inactive":
         return (
           <Badge variant="destructive">
             <XCircle className="w-3 h-3 mr-1" />
-            Không hoạt động
+            {t('students.statusInactive')}
           </Badge>
         )
       default:
-        return <Badge variant="outline">Không xác định</Badge>
+        return <Badge variant="outline">{t('students.statusUnknown')}</Badge>
     }
   }
 
@@ -545,31 +547,31 @@ export default function StudentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Quản lý Học viên</h1>
-          <p className="text-muted-foreground">Quản lý thông tin học viên và theo dõi tiến độ học tập</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('students.title')}</h1>
+          <p className="text-muted-foreground">{t('students.subtitle')}</p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => setIsAddDialogOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
-              Thêm học viên
+              {t('students.addStudent')}
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Thêm học viên mới</DialogTitle>
+              <DialogTitle>{t('students.addStudentTitle')}</DialogTitle>
               <DialogDescription>
-                Nhập thông tin của học viên mới.
+                {t('students.addStudentDesc')}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="student-id" className="text-right">
-                  Mã sinh viên *
+                  {t('students.studentIdLabel')} *
                 </Label>
                 <Input
                   id="student-id"
-                  placeholder="VD: 12345"
+                  placeholder={t('students.exampleId')}
                   className="col-span-3"
                   value={newStudent.id}
                   onChange={(e) => handleInputChange('id', e.target.value)}
@@ -577,11 +579,11 @@ export default function StudentsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="student-name" className="text-right">
-                  Họ tên *
+                  {t('students.fullNameLabel')} *
                 </Label>
                 <Input
                   id="student-name"
-                  placeholder="VD: Nguyễn Văn An"
+                  placeholder={t('students.exampleName')}
                   className="col-span-3"
                   value={newStudent.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
@@ -589,18 +591,17 @@ export default function StudentsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="student-email" className="text-right">
-                  Email *
+                  {t('students.emailLabel')} *
                 </Label>
                 <Input
                   id="student-email"
                   type="email"
-                  placeholder="VD: an.nguyen@vnu.edu.vn"
+                  placeholder={t('students.exampleEmail')}
                   className="col-span-3"
                   value={newStudent.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                 />
               </div>
-
             </div>
             <DialogFooter>
               <Button
@@ -608,7 +609,7 @@ export default function StudentsPage() {
                 onClick={handleDialogClose}
                 disabled={isSubmitting}
               >
-                Hủy
+                {t('students.cancel')}
               </Button>
               <Button
                 onClick={handleSubmit}
@@ -617,12 +618,12 @@ export default function StudentsPage() {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Đang lưu...
+                    {t('students.saving')}
                   </>
                 ) : (
                   <>
                     <User className="w-4 h-4 mr-2" />
-                    Thêm học viên
+                    {t('students.addStudent')}
                   </>
                 )}
               </Button>
@@ -634,15 +635,15 @@ export default function StudentsPage() {
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Sửa thông tin học viên</DialogTitle>
+              <DialogTitle>{t('students.editStudentTitle')}</DialogTitle>
               <DialogDescription>
-                Cập nhật thông tin của học viên {editingStudent?.name}.
+                {t('students.editStudentDescPrefix')} {editingStudent?.name}.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-student-id" className="text-right">
-                  Mã sinh viên
+                  {t('students.studentIdLabel')}
                 </Label>
                 <div className="col-span-3">
                   <Input
@@ -655,11 +656,11 @@ export default function StudentsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-student-name" className="text-right">
-                  Họ tên *
+                  {t('students.fullNameLabel')} *
                 </Label>
                 <Input
                   id="edit-student-name"
-                  placeholder="VD: Nguyễn Văn An"
+                  placeholder={t('students.exampleName')}
                   className="col-span-3"
                   value={editStudentData.name}
                   onChange={(e) => handleEditInputChange('name', e.target.value)}
@@ -667,12 +668,12 @@ export default function StudentsPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-student-email" className="text-right">
-                  Email *
+                  {t('students.emailLabel')} *
                 </Label>
                 <Input
                   id="edit-student-email"
                   type="email"
-                  placeholder="VD: an.nguyen@vnu.edu.vn"
+                  placeholder={t('students.exampleEmail')}
                   className="col-span-3"
                   value={editStudentData.email}
                   onChange={(e) => handleEditInputChange('email', e.target.value)}
@@ -685,7 +686,7 @@ export default function StudentsPage() {
                 onClick={() => setIsEditDialogOpen(false)}
                 disabled={isSubmitting}
               >
-                Hủy
+                {t('students.cancel')}
               </Button>
               <Button
                 onClick={handleEditSubmit}
@@ -694,12 +695,12 @@ export default function StudentsPage() {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Đang lưu...
+                    {t('students.saving')}
                   </>
                 ) : (
                   <>
                     <Pencil className="w-4 h-4 mr-2" />
-                    Cập nhật
+                    {t('students.update')}
                   </>
                 )}
               </Button>
@@ -712,47 +713,47 @@ export default function StudentsPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tổng học viên</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('students.totalStudents')}</CardTitle>
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : students.length}</div>
-            <p className="text-xs text-muted-foreground">+{students.length > 0 ? Math.max(0, students.length - 1) : 0} từ tháng trước</p>
+            <p className="text-xs text-muted-foreground">+{students.length > 0 ? Math.max(0, students.length - 1) : 0} {t('students.fromLastMonth')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Đang hoạt động</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('students.activeStudents')}</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : students.filter((s) => s.status === "Active").length}</div>
             <p className="text-xs text-muted-foreground">
-              {students.length > 0 ? Math.round((students.filter((s) => s.status === "Active").length / students.length) * 100) : 0}% tổng số
+              {students.length > 0 ? Math.round((students.filter((s) => s.status === "Active").length / students.length) * 100) : 0}% {t('students.percentageOfTotal')}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Chứng chỉ đã cấp</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('students.certificatesIssued')}</CardTitle>
             <Award className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : students.reduce((sum, s) => sum + (s.totalCertificates || 0), 0)}</div>
             <p className="text-xs text-muted-foreground">
-              Trung bình {students.length > 0 ? (students.reduce((sum, s) => sum + (s.totalCertificates || 0), 0) / students.length).toFixed(1) : 0}{" "}
-              chứng chỉ/học viên
+              {t('common.average')} {students.length > 0 ? (students.reduce((sum, s) => sum + (s.totalCertificates || 0), 0) / students.length).toFixed(1) : 0}{" "}
+              {t('students.averageCertificates')}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Chờ kết nối ví</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('students.waitingWallet')}</CardTitle>
             <Clock className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : students.filter((s) => !s.wallet_address).length}</div>
-            <p className="text-xs text-muted-foreground">Cần hướng dẫn kết nối</p>
+            <p className="text-xs text-muted-foreground">{t('students.needWalletHelp')}</p>
           </CardContent>
         </Card>
       </div>
@@ -760,8 +761,8 @@ export default function StudentsPage() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Danh sách Học viên</CardTitle>
-          <CardDescription>Tìm kiếm và lọc học viên theo các tiêu chí khác nhau</CardDescription>
+          <CardTitle>{t('students.listTitle')}</CardTitle>
+          <CardDescription>{t('students.listDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -769,7 +770,7 @@ export default function StudentsPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
-                  placeholder="Tìm kiếm theo tên, email hoặc mã sinh viên..."
+                  placeholder={t('students.searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -778,13 +779,13 @@ export default function StudentsPage() {
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Trạng thái" />
+                <SelectValue placeholder={t('students.statusPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="All">Tất cả trạng thái</SelectItem>
-                <SelectItem value="Active">Hoạt động</SelectItem>
-                <SelectItem value="Issued">Chờ xử lý</SelectItem>
-                <SelectItem value="Inactive">Không hoạt động</SelectItem>
+                <SelectItem value="All">{t('students.statusAll')}</SelectItem>
+                <SelectItem value="Active">{t('students.statusActive')}</SelectItem>
+                <SelectItem value="Issued">{t('students.statusIssued')}</SelectItem>
+                <SelectItem value="Inactive">{t('students.statusInactive')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -793,7 +794,7 @@ export default function StudentsPage() {
           {loading && (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin" />
-              <span className="ml-2">Đang tải dữ liệu học viên...</span>
+              <span className="ml-2">{t('students.loadingStudents')}</span>
             </div>
           )}
 
@@ -802,16 +803,16 @@ export default function StudentsPage() {
             <div className="text-center py-8">
               <div className="mb-4">
                 <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-2" />
-                <p className="text-red-500 font-medium">Có lỗi xảy ra</p>
+                <p className="text-red-500 font-medium">{t('students.errorTitle')}</p>
                 <p className="text-sm text-muted-foreground mt-1">{error}</p>
               </div>
               <div className="flex gap-2 justify-center">
                 <Button onClick={() => window.location.reload()} variant="outline">
-                  Thử lại
+                  {t('students.retryButton')}
                 </Button>
                 {error.includes('Authentication') && (
                   <Button onClick={() => window.location.href = '/auth/login'}>
-                    Đăng nhập lại
+                    {t('students.relogin')}
                   </Button>
                 )}
               </div>
@@ -821,7 +822,7 @@ export default function StudentsPage() {
           {/* Empty State */}
           {!loading && !error && students.length === 0 && (
             <div className="text-center py-8">
-              <p className="text-muted-foreground">Không có học viên nào được tìm thấy.</p>
+              <p className="text-muted-foreground">{t('students.empty')}</p>
             </div>
           )}
 
@@ -861,39 +862,39 @@ export default function StudentsPage() {
 
                     <div className="flex items-center gap-4">
                       <div className="text-right text-sm">
-                        <div className="font-medium">{student.totalCertificates || 0} chứng chỉ</div>
+                        <div className="font-medium">{student.totalCertificates || 0} {t('students.certificatesLabel')}</div>
                         <div className="text-muted-foreground">
-                          {student.activeCertificates || 0} hoạt động, {student.expiredCertificates || 0} hết hạn
+                          {student.activeCertificates || 0} {t('students.activeLabel')}, {student.expiredCertificates || 0} {t('students.expiredLabel')}
                         </div>
                       </div>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" onClick={() => openEditDialog(student)}>
                           <Pencil className="w-4 h-4 mr-1" />
-                          Sửa
+                          {t('students.edit')}
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="outline" size="sm" onClick={() => openDeleteDialog(student)}>
                               <Trash2 className="w-4 h-4 mr-1" />
-                              Xóa
+                              {t('students.delete')}
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Xác nhận xóa học viên</AlertDialogTitle>
+                              <AlertDialogTitle>{t('students.confirmDeleteTitle')}</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Bạn có chắc chắn muốn xóa học viên <strong>{student.name}</strong>? Hành động này không thể hoàn tác.
+                                {t('students.confirmDeletePrefix')} <strong>{student.name}</strong>? {t('students.confirmDeleteSuffix')}
 
                                 {student.totalCertificates != null && student.totalCertificates > 0 && (
                                   <div className="mt-2 p-2 bg-yellow-50 text-yellow-800 rounded-md text-sm">
                                     <AlertCircle className="w-4 h-4 inline mr-1" />
-                                    Học viên này hiện có {student.totalCertificates} chứng chỉ. Chỉ những học viên không có chứng chỉ mới có thể bị xóa.
+                                    {t('students.deleteRestrictionPrefix')} {student.totalCertificates} {t('students.certificatesLabel')}. {t('students.deleteRestrictionSuffix')}
                                   </div>
                                 )}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>Hủy</AlertDialogCancel>
+                              <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>{t('students.cancel')}</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={handleDeleteStudent}
                                 disabled={isDeleting || (student.totalCertificates != null && student.totalCertificates > 0)}
@@ -902,10 +903,10 @@ export default function StudentsPage() {
                                 {isDeleting ? (
                                   <>
                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Đang xóa...
+                                    {t('students.deleting')}
                                   </>
                                 ) : (
-                                  'Xóa học viên'
+                                  'Delete student'
                                 )}
                               </AlertDialogAction>
                             </AlertDialogFooter>
@@ -918,7 +919,7 @@ export default function StudentsPage() {
                   <div className="mt-4 pt-4 border-t">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium mb-1">Khóa học đã tham gia:</p>
+                        <p className="text-sm font-medium mb-1">{t('students.coursesLabel')}</p>
                         <div className="flex flex-wrap gap-1">
                           {student.courses && student.courses.length > 0 ? (
                             student.courses.map((course, index) => (
@@ -928,13 +929,13 @@ export default function StudentsPage() {
                             ))
                           ) : (
                             <Badge variant="outline" className="text-xs">
-                              Chưa có khóa học
+                              {t('students.noCourses')}
                             </Badge>
                           )}
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-medium mb-1">Địa chỉ ví:</p>
+                        <p className="text-sm font-medium mb-1">{t('students.walletLabel')}</p>
                         {student.wallet_address ? (
                           <code className="text-xs bg-muted px-2 py-1 rounded">
                             {student.wallet_address.slice(0, 6)}...{student.wallet_address.slice(-4)}
@@ -942,7 +943,7 @@ export default function StudentsPage() {
                         ) : (
                           <Badge variant="outline" className="text-xs">
                             <AlertCircle className="w-3 h-3 mr-1" />
-                            Chưa kết nối
+                            {t('students.notConnected')}
                           </Badge>
                         )}
                       </div>

@@ -15,6 +15,10 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE IF NOT EXISTS users (
     user_id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
+    role VARCHAR(50) DEFAULT 'undefined',
+    full_name VARCHAR(255),
+    avatar_url TEXT,
+    language VARCHAR(10) DEFAULT 'vi',
     last_login TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW()
 );

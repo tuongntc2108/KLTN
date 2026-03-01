@@ -6,45 +6,48 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
-import { Award, Users, BookOpen, BarChart3, Settings, Menu, Bell, Search, User, LogOut, Blocks } from "lucide-react"
+import { Award, Users, BookOpen, BarChart3, UserCircle, Menu, Bell, Search, User, LogOut, Blocks } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Suspense } from "react"
 import { AuthGuard } from "@/components/auth/auth-guard"
 import { useAuth } from "@/hooks/use-auth"
-
-const navigation = [
-  {
-    name: "Tổng quan",
-    href: "/dashboard/training",
-    icon: BarChart3,
-  },
-  {
-    name: "Quản lý học viên",
-    href: "/dashboard/training/students",
-    icon: Users,
-  },
-  {
-    name: "Khóa học",
-    href: "/dashboard/training/courses",
-    icon: BookOpen,
-  },
-  {
-    name: "Chứng chỉ",
-    href: "/dashboard/training/certificates",
-    icon: Award,
-  },
-  {
-    name: "Cài đặt",
-    href: "/dashboard/training/settings",
-    icon: Settings,
-  },
-]
+import { useTranslation } from "@/hooks/use-translation"
+import { UserAvatar } from "@/components/ui/user-avatar"
 
 function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname()
   const { user, logout } = useAuth()
+  const { t } = useTranslation()
+  
+  const navigation = [
+    {
+      name: t('nav.overview'),
+      href: "/dashboard/training",
+      icon: BarChart3,
+    },
+    {
+      name: t('nav.students'),
+      href: "/dashboard/training/students",
+      icon: Users,
+    },
+    {
+      name: t('nav.courses'),
+      href: "/dashboard/training/courses",
+      icon: BookOpen,
+    },
+    {
+      name: t('nav.certificates'),
+      href: "/dashboard/training/certificates",
+      icon: Award,
+    },
+    {
+      name: t('nav.profile'),
+      href: "/dashboard/training/profile",
+      icon: UserCircle,
+    },
+  ]
 
   return (
     <div className={cn("flex h-full flex-col bg-sidebar", className)}>
@@ -56,7 +59,7 @@ function Sidebar({ className }: { className?: string }) {
           </div>
           <div>
             <h1 className="text-lg font-bold text-sidebar-foreground">CertChain</h1>
-            <p className="text-xs text-sidebar-foreground/60">Đơn vị đào tạo</p>
+            <p className="text-xs text-sidebar-foreground/60">{t('nav.trainingOrg')}</p>
           </div>
         </div>
       </div>
@@ -86,9 +89,11 @@ function Sidebar({ className }: { className?: string }) {
       {/* User info */}
       <div className="border-t border-sidebar-border p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-primary">
-            <User className="h-4 w-4 text-sidebar-primary-foreground" />
-          </div>
+          <UserAvatar 
+            avatarUrl={user?.avatar} 
+            userName={user?.fullName}
+            size="sm"
+          />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-sidebar-foreground">{user?.fullName || 'Đơn vị đào tạo'}</p>
             <p className="text-xs text-sidebar-foreground/60 truncate">{user?.email || 'Loading...'}</p>
@@ -144,9 +149,11 @@ export default function TrainingLayout({
 
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
-                  <User className="h-4 w-4 text-primary-foreground" />
-                </div>
+                <UserAvatar 
+                  avatarUrl={user?.avatar} 
+                  userName={user?.fullName}
+                  size="sm"
+                />
                 <span className="hidden text-sm font-medium md:inline-block">{user?.fullName || 'Đơn vị đào tạo'}</span>
               </div>
             </div>
