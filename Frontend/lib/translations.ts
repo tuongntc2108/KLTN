@@ -572,7 +572,15 @@ export const translations = {
       issuersDesc: 'Thêm và quản lý các issuer mới trên hệ thống.',
       chatbotTitle: 'Quản lý chatbot',
       chatbotDesc: 'Upload tài liệu và huấn luyện chatbot AI.',
-      openButtonText: 'Mở trang'
+      openButtonText: 'Mở trang',
+      // Statistics
+      statStudents: 'Tổng học viên',
+      statCertificates: 'Tổng chứng chỉ',
+      statCourses: 'Tổng khóa học',
+      statIssuers: 'Đơn vị đào tạo',
+      vsLastMonth: 'so với tháng trước',
+      loading: 'Đang tải thống kê...',
+      error: 'Không thể tải thống kê'
     },
     adminIssuers: {
       pageTitle: 'Thêm đơn vị đào tạo',
@@ -1225,7 +1233,15 @@ export const translations = {
       issuersDesc: 'Add and manage new issuers on the system.',
       chatbotTitle: 'Manage Chatbot',
       chatbotDesc: 'Upload documents and train AI chatbot.',
-      openButtonText: 'Open page'
+      openButtonText: 'Open page',
+      // Statistics
+      statStudents: 'Total Students',
+      statCertificates: 'Total Certificates',
+      statCourses: 'Total Courses',
+      statIssuers: 'Training Units',
+      vsLastMonth: 'vs last month',
+      loading: 'Loading statistics...',
+      error: 'Failed to load statistics'
     },
     adminIssuers: {
       pageTitle: 'Add Training Unit',

@@ -3,12 +3,14 @@ import { useState, useEffect } from 'react'
 
 interface DashboardStats {
   totalStudents: number
-  totalCertificatesIssued: number
+  totalCertificates: number
   totalCourses: number
+  totalIssuers: number
   activeCertificates: number
   studentsGrowth: number
   certificatesGrowth: number
   coursesGrowth: number
+  issuersGrowth: number
   activeCertificatesGrowth: number
 }
 
@@ -17,7 +19,7 @@ interface RecentCertificate {
   student_name: string
   course_name: string
   issue_date: string
-  status: 'Active' | 'Issued'
+  status: 'Active' | 'Issued' | 'Expired' | 'Revoked' | 'Replaced' | 'Pending'
 }
 
 interface RecentStudent {
@@ -41,12 +43,14 @@ export function useDashboardStats() {
   const [state, setState] = useState<DashboardData>({
     stats: {
       totalStudents: 0,
-      totalCertificatesIssued: 0,
+      totalCertificates: 0,
       totalCourses: 0,
+      totalIssuers: 0,
       activeCertificates: 0,
       studentsGrowth: 0,
       certificatesGrowth: 0,
       coursesGrowth: 0,
+      issuersGrowth: 0,
       activeCertificatesGrowth: 0,
     },
     recentCertificates: [],
