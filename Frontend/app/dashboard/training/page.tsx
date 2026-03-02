@@ -21,6 +21,7 @@ import {
   RefreshCw,
 } from "lucide-react"
 import { useTranslation } from "@/hooks/use-translation"
+import { ExportButton } from "@/components/ExportButton"
 
 export default function TrainingDashboard() {
   const router = useRouter()
@@ -58,6 +59,7 @@ export default function TrainingDashboard() {
           <p className="text-muted-foreground">{t('training.welcome')}</p>
         </div>
         <div className="flex gap-3">
+          <ExportButton />
           <Button onClick={() => router.push('/dashboard/training/certificates/issue')}>
             <Plus className="w-4 h-4 mr-2" />
             {t('training.issueNew')}

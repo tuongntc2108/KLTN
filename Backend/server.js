@@ -95,6 +95,10 @@ app.use("/api/users", userRoutes);
 const chatRoutes = require("./routes/chat");
 app.use("/api/chat", chatRoutes);
 
+// Export routes (Admin, Issuer only)
+const exportRoutes = require("./routes/exportRoutes");
+app.use("/api/export", exportRoutes);
+
 // Auto-sync configuration
 const SYNC_INTERVAL = process.env.SYNC_INTERVAL || 5 * 60 * 1000; // 5 phút mặc định
 let syncInterval;

@@ -24,6 +24,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "ethers": "^6.15.0",
+    "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "express-session": "^1.18.2",
     "ipfs-http-client": "^60.0.1",

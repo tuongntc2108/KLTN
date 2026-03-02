@@ -4,6 +4,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useAdminStats } from "@/hooks/use-admin-stats"
 import { StatisticsSection } from "@/components/admin/StatisticsSection"
 import { QuickLinksSection } from "@/components/admin/QuickLinksSection"
+import { ExportButton } from "@/components/ExportButton"
 
 export default function AdminOverviewPage() {
   const { t } = useTranslation()
@@ -11,11 +12,14 @@ export default function AdminOverviewPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">{t('adminOverview.pageTitle')}</h1>
-        <p className="text-muted-foreground mt-2">
-          {t('adminOverview.pageSubtitle')}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">{t('adminOverview.pageTitle')}</h1>
+          <p className="text-muted-foreground mt-2">
+            {t('adminOverview.pageSubtitle')}
+          </p>
+        </div>
+        <ExportButton />
       </div>
 
       {/* Row 1: Statistics */}

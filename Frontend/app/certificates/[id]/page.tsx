@@ -48,7 +48,7 @@ export default function CertificateDetailPage() {
         setError(err.message || t('certificates.loadError'))
         setLoading(false)
       })
-  }, [tokenId, t])
+  }, [tokenId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-4">
