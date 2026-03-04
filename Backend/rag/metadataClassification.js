@@ -405,13 +405,169 @@ function ruleBasedClassifyQueryMetadata(question) {
   return inferredMetadata;
 }
 
+/**
+ * UNIFIED CLASSIFIER - New 2-call architecture
+ * Combine topic classification + course mention extraction in one call
+ * @param {string} question - User question
+ * @returns {Promise<Object>} {topic, user_role, course_name_mentions, confidence}
+ */
+async function classifyUnifiedQuery(question) {
+  try {
+    // Check if API key is available
+    if (!process.env.OPENAI_API_KEY) {
+      console.log('No OPENAI_API_KEY found for unified classification, using rule-based');
+      return ruleBasedUnifiedClassify(question);
+    }
+
+    console.log(`🔍 [UNIFIED CLASSIFIER] Classifying question: "${question.substring(0, 80)}..."`);
+
+    const systemPrompt = `Bạn là chuyên gia phân loại câu hỏi người dùng để định hướng xử lý. 
+Phân tích câu hỏi dưới đây và trả về JSON tuân thủ schema sau:
+
+Schema bắt buộc (chỉ trả JSON, không thêm lời văn):
+{
+  "topic": "overview" | "login" | "course_management" | "student_management" | "certificate_issue" | "certificate_receive" | "certificate_verify" | "wallet" | "faq" | "support" | "course_content_query",
+  "user_role": "training_org" | "student" | "verifier" | "all",
+  "course_name_mentions": ["tên khóa học 1", "tên khóa học 2"] hoặc [],
+  "confidence": số từ 0 đến 1
+}
+
+Hướng dẫn:
+- Topic "course_content_query": câu hỏi về nội dung học, chương trình đào tạo, syllabus, kỹ năng học được, bài giảng, nội dùng module
+- Nếu topic = "course_content_query", bắt buộc phải trích xuất tên khóa học từ câu hỏi vào course_name_mentions
+- Nếu topic ≠ "course_content_query", course_name_mentions bắt buộc = []
+- Confidence cao nếu câu hỏi rõ ràng, thấp nếu mơ hồ hoặc không rõ intent
+
+Ví dụ:
+- "Khóa Blockchain cơ bản dạy những gì?" → topic="course_content_query", mentions=["Blockchain cơ bản"], confidence=0.95
+- "Làm sao để nhận chứng chỉ?" → topic="certificate_receive", mentions=[], confidence=0.9
+- "Giới thiệu về hệ thống" → topic="overview", mentions=[], confidence=0.85`;
+
+    const humanPrompt = `Câu hỏi: ${question}`;
+
+    const messages = [
+      new SystemMessage(systemPrompt),
+      new HumanMessage(humanPrompt)
+    ];
+
+    console.log('📤 [UNIFIED CLASSIFIER] Sending to LLM...');
+    const response = await getLLM().invoke(messages);
+    console.log('📥 [UNIFIED CLASSIFIER] LLM response:', response.content.substring(0, 150));
+
+    // Parse JSON from response
+    let classification;
+    try {
+      const jsonString = response.content.match(/\{[\s\S]*\}/)?.[0];
+      if (!jsonString) {
+        console.warn('⚠️  [UNIFIED CLASSIFIER] No JSON found, falling back to rule-based');
+        return ruleBasedUnifiedClassify(question);
+      }
+      classification = JSON.parse(jsonString);
+      console.log('✅ [UNIFIED CLASSIFIER] Parsed JSON:', classification);
+    } catch (parseError) {
+      console.warn('⚠️  [UNIFIED CLASSIFIER] JSON parse failed:', parseError.message);
+      return ruleBasedUnifiedClassify(question);
+    }
+
+    // Validate schema
+    const validated = validateUnifiedClassification(classification);
+    console.log('✅ [UNIFIED CLASSIFIER] Validated result:', validated);
+    return validated;
+  } catch (error) {
+    console.error('❌ [UNIFIED CLASSIFIER] Error:', error.message);
+    return ruleBasedUnifiedClassify(question);
+  }
+}
+
+/**
+ * Validate and normalize unified classification output
+ */
+function validateUnifiedClassification(classification) {
+  const topics = ["overview", "login", "course_management", "student_management", "certificate_issue",
+    "certificate_receive", "certificate_verify", "wallet", "faq", "support", "course_content_query"];
+  const roles = ["training_org", "student", "verifier", "all"];
+
+  return {
+    topic: (classification.topic && topics.includes(classification.topic)) ? classification.topic : "support",
+    user_role: (classification.user_role && roles.includes(classification.user_role)) ? classification.user_role : "all",
+    course_name_mentions: Array.isArray(classification.course_name_mentions) ? classification.course_name_mentions : [],
+    confidence: typeof classification.confidence === 'number' ? Math.max(0, Math.min(1, classification.confidence)) : 0.5
+  };
+}
+
+/**
+ * Rule-based unified classifier fallback
+ */
+function ruleBasedUnifiedClassify(question) {
+  const questionLower = question.toLowerCase();
+  const courseKeywords = ['nội dung', 'chương trình', 'syllabus', 'kỹ năng', 'bài giảng', 'module', 'học gì', 'dạy gì', 'nội dùng'];
+  const isCourseQuery = courseKeywords.some(kw => questionLower.includes(kw));
+
+  let confidence = 0.5;
+  let mentions = [];
+
+  // Cố gắng trích tên khóa học nếu là course query
+  if (isCourseQuery) {
+    // Tìm pattern khóa học 
+    const coursePattern = /(?:khóa|khóa học|chương trình)\s+([a-zA-ZÀ-ỿ0-9\s]+)(?:\?|$|:|học|dạy)/i;
+    const match = question.match(coursePattern);
+    if (match && match[1]) {
+      mentions = [match[1].trim()];
+      confidence = 0.75;
+    } else {
+      confidence = 0.6;
+    }
+  }
+
+  // Xác định topic từ rule cũ
+  let topic = "support";
+  if (isCourseQuery) {
+    topic = "course_content_query";
+  } else if (questionLower.includes('đăng nhập')) {
+    topic = "login";
+  } else if (questionLower.includes('khóa học') && !isCourseQuery) {
+    topic = "course_management";
+  } else if (questionLower.includes('học viên') || questionLower.includes('sinh viên')) {
+    topic = "student_management";
+  } else if (questionLower.includes('cấp chứng chỉ') || questionLower.includes('tạo')) {
+    topic = "certificate_issue";
+  } else if (questionLower.includes('nhận')) {
+    topic = "certificate_receive";
+  } else if (questionLower.includes('xác minh')) {
+    topic = "certificate_verify";
+  } else if (questionLower.includes('ví') || questionLower.includes('metamask')) {
+    topic = "wallet";
+  } else if (questionLower.includes('faq')) {
+    topic = "faq";
+  }
+
+  // Xác định user_role
+  let user_role = "all";
+  if (questionLower.includes('sinh viên') || questionLower.includes('học viên') || questionLower.includes('người học')) {
+    user_role = "student";
+  } else if (questionLower.includes('đơn vị đào tạo') || questionLower.includes('tổ chức')) {
+    user_role = "training_org";
+  } else if (questionLower.includes('nhà tuyển dụng') || questionLower.includes('xác minh')) {
+    user_role = "verifier";
+  }
+
+  return {
+    topic,
+    user_role,
+    course_name_mentions: mentions,
+    confidence
+  };
+}
+
 module.exports = {
   METADATA_SCHEMA,
   classifyChunkMetadata,
   classifyMultipleChunkMetadata,  // Export the batch function
   classifyQueryMetadata,
+  classifyUnifiedQuery,  // 🆕 New unified classifier for 2-call architecture
   // Export helper functions for debugging
   ruleBasedClassifyChunkMetadata,
   ruleBasedClassifyQueryMetadata,
+  ruleBasedUnifiedClassify,  // 🆕 Rule-based fallback
   getLLM  // Export for debugging
 };
