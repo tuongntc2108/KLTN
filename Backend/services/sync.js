@@ -92,6 +92,7 @@ async function upsertCertificateFromStruct(tokenId, cert, metadata = {}) {
 
   const certificateName = metadata.certificate_name || cert.certificateName || null;
   const recipientName = metadata.recipient_name || cert.recipientName || null;
+  const studentId = metadata.student_id || cert.studentId || null;
 
   const params = [
     tokenId,
@@ -103,7 +104,7 @@ async function upsertCertificateFromStruct(tokenId, cert, metadata = {}) {
     STATUS[Number(cert.status)],
     courseName,
     courseIdInt,
-    cert.studentId || null,
+    studentId,
     cert.verificationCode,
     certificateName,
     recipientName,

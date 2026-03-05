@@ -206,7 +206,8 @@ exports.mintCertificate = async (req, res) => {
       console.log(`🔄 Starting immediate sync for certificate ${tokenId}...`);
       await syncCertificateImmediately(tokenId, {
         certificate_name: certificate_name,
-        recipient_name: recipient_name
+        recipient_name: recipient_name,
+        student_id: student_id
       });
       console.log(`✅ Certificate ${tokenId} synced to database immediately`);
 
