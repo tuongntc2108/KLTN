@@ -10,7 +10,14 @@ import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
@@ -34,6 +41,7 @@ import {
   RefreshCw,
   Replace,
   Share,
+  MoreVertical,
 } from "lucide-react"
 import Link from "next/link"
 import { useCourses } from "@/hooks/use-courses"
@@ -55,6 +63,7 @@ interface Certificate {
       wallet_address: string
       email_hash: string
       student_id: string
+      avatar_url?: string | null
     }
     certificate_detail: {
       course_name: string
@@ -609,12 +618,20 @@ export default function CertificatesPage() {
                 const walletAddress = certificate?.recipient?.wallet_address || ""
                 const blockchainTx = certificate?.verification?.smart_contract || ""
                 const ipfsHash = certificate?.file_hash?.pdf_url || ""
+                const canManageCertificate = status === 'Active' || status === 'Issued'
+                const rawAvatarUrl = certificate?.recipient?.avatar_url
+                const studentAvatarUrl = rawAvatarUrl
+                  ? rawAvatarUrl.startsWith('/')
+                    ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${rawAvatarUrl}`
+                    : rawAvatarUrl
+                  : undefined
 
                 return (
                   <Card key={tokenId} className="p-4">
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                      <div className="flex items-center space-x-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center space-x-4 min-w-0 flex-1">
                         <Avatar className="h-10 w-10 flex-shrink-0">
+                          <AvatarImage src={studentAvatarUrl} alt={studentName} />
                           <AvatarFallback>
                             {studentName && studentName !== "Unknown Student"
                               ? studentName
@@ -640,150 +657,70 @@ export default function CertificatesPage() {
                         </div>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-shrink-0">
                         <div className="text-sm">
                           <div className="font-medium">{t('certificates.issuedLabel')} {issueDate.toLocaleDateString("vi-VN")}</div>
                           <div className="text-muted-foreground">
                             {t('certificates.expiresLabel')} {expiryDate.toLocaleDateString("vi-VN")}
                           </div>
                         </div>
-                        <div className="flex flex-wrap gap-0">
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={`/certificates/${tokenId}`}>
-                              <ExternalLink className="w-4 h-4 sm:mr-1" />
-                              <span className="hidden sm:inline">{t('certificates.detailsButton')}</span>
-                            </Link>
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => openShare(tokenId)}>
-                            <Share className="w-4 h-4 sm:mr-1" />
-                            <span className="hidden sm:inline">{t('certificates.shareButton')}</span>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => downloadPdf(tokenId)}
-                          >
-                            <Download className="w-4 h-4 sm:mr-1" />
-                            <span className="hidden sm:inline">{t('certificates.downloadButton')}</span>
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => blockchainTx && window.open(`https://sepolia.etherscan.io/address/${blockchainTx}`, '_blank')}
-                            disabled={!blockchainTx}
-                          >
-                            <ExternalLink className="w-4 h-4 sm:mr-1" />
-                            <span className="hidden sm:inline">{t('certificates.blockchainButton')}</span>
-                          </Button>
-                        
-                          {/* Replace Button - Only show for active and issued certificates */}
-                          {(status === 'Active' || status === 'Issued') && (
-                            <Dialog open={replaceDialogOpen} onOpenChange={(open) => {
-                              setReplaceDialogOpen(open)
-                              if (!open) {
-                                setCertificateToReplace(null)
-                              }
-                            }}>
-                              <DialogTrigger asChild>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => setCertificateToReplace(cert)}
-                                >
-                                  <Replace className="w-4 h-4 sm:mr-1" />
-                                  <span className="hidden sm:inline">{t('certificates.replaceButton')}</span>
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="sm:max-w-[600px]">
-                                <DialogHeader>
-                                  <DialogTitle>{t('certificates.replaceDialogTitle')}</DialogTitle>
-                                  <DialogDescription>
-                                    {t('certificates.revokeDialogDesc')}
-                                  </DialogDescription>
-                                </DialogHeader>
-                                {certificateToReplace && (
-                                <ReplaceCertificateForm 
-                                  certificate={certificateToReplace}
-                                  onReplace={handleReplaceCertificate}
-                                  isReplacing={isReplacing}
-                                  onCancel={() => {
-                                    setReplaceDialogOpen(false)
-                                    setCertificateToReplace(null)
-                                  }}
-                                />
-                                )}
-                              </DialogContent>
-                            </Dialog>
-                          )}
-                          {/* Revoke Button - Show for active and issued certificates */}
-                          {(status === 'Active' || status === 'Issued') && (
-                            <Dialog open={revokeDialogOpen} onOpenChange={(open) => {
-                              setRevokeDialogOpen(open)
-                              if (!open) {
-                                setCertificateToRevoke(null)
-                                setRevokeReason("")
-                              }
-                            }}>
-                              <DialogTrigger asChild>
-                                <Button 
-                                  variant="destructive" 
-                                  size="sm"
-                                  onClick={() => setCertificateToRevoke(cert)}
-                                >
-                                  <Ban className="w-4 h-4 sm:mr-1" />
-                                  <span className="hidden sm:inline">{t('certificates.revokeButton')}</span>
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="sm:max-w-[425px]">
-                                <DialogHeader>
-                                  <DialogTitle>{t('certificates.revokeDialogTitle')}</DialogTitle>
-                                  <DialogDescription>
-                                    {t('certificates.revokeDialogDesc')}
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Textarea
-                                      id="reason"
-                                      placeholder={t('certificates.revokeReasonPlaceholder')}
-                                      className="col-span-4"
-                                      value={revokeReason}
-                                      onChange={(e) => setRevokeReason(e.target.value)}
-                                      rows={4}
-                                    />
-                                  </div>
-                                </div>
-                                <DialogFooter>
-                                  <Button 
-                                    variant="outline" 
-                                    onClick={() => {
-                                      setRevokeDialogOpen(false)
-                                      setCertificateToRevoke(null)
-                                      setRevokeReason("")
-                                    }}
-                                    disabled={isRevoking}
-                                  >
-                                    {t('certificates.cancelButton')}
-                                  </Button>
-                                  <Button 
-                                    variant="destructive" 
-                                    onClick={handleRevokeCertificate}
-                                    disabled={isRevoking || !revokeReason.trim()}
-                                  >
-                                    {isRevoking ? (
-                                      <>
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        {t('certificates.revokingLabel')}
-                                      </>
-                                    ) : (
-                                      t('certificates.revokeConfirmButton')
-                                    )}
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
-                          )}
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="icon" aria-label="Certificate actions" className="cursor-pointer">
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-52">
+                            <DropdownMenuItem asChild className="cursor-pointer">
+                              <Link href={`/certificates/${tokenId}`}>
+                                <ExternalLink className="w-4 h-4" />
+                                {t('certificates.detailsButton')}
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => openShare(tokenId)} className="cursor-pointer">
+                              <Share className="w-4 h-4" />
+                              {t('certificates.shareButton')}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => downloadPdf(tokenId)} className="cursor-pointer">
+                              <Download className="w-4 h-4" />
+                              {t('certificates.downloadButton')}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={() => blockchainTx && window.open(`https://sepolia.etherscan.io/address/${blockchainTx}`, '_blank')}
+                              disabled={!blockchainTx}
+                              className="cursor-pointer"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                              {t('certificates.blockchainButton')}
+                            </DropdownMenuItem>
+                            {canManageCertificate && <DropdownMenuSeparator />}
+                            {canManageCertificate && (
+                              <DropdownMenuItem
+                              className="cursor-pointer"
+                                onSelect={() => {
+                                  setCertificateToReplace(cert)
+                                  setReplaceDialogOpen(true)
+                                }}
+                              >
+                                <Replace className="w-4 h-4" />
+                                {t('certificates.replaceButton')}
+                              </DropdownMenuItem>
+                            )}
+                            {canManageCertificate && (
+                              <DropdownMenuItem
+                                className="cursor-pointer"
+                                onSelect={() => {
+                                  setCertificateToRevoke(cert)
+                                  setRevokeReason("")
+                                  setRevokeDialogOpen(true)
+                                }}
+                              >
+                                <Ban className="w-4 h-4" />
+                                {t('certificates.revokeButton')}
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
 
@@ -833,6 +770,87 @@ export default function CertificatesPage() {
           </div>
         </CardContent>
       </Card>
+      <Dialog open={replaceDialogOpen} onOpenChange={(open) => {
+        setReplaceDialogOpen(open)
+        if (!open) {
+          setCertificateToReplace(null)
+        }
+      }}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>{t('certificates.replaceDialogTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('certificates.revokeDialogDesc')}
+            </DialogDescription>
+          </DialogHeader>
+          {certificateToReplace && (
+            <ReplaceCertificateForm
+              certificate={certificateToReplace}
+              onReplace={handleReplaceCertificate}
+              isReplacing={isReplacing}
+              onCancel={() => {
+                setReplaceDialogOpen(false)
+                setCertificateToReplace(null)
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={revokeDialogOpen} onOpenChange={(open) => {
+        setRevokeDialogOpen(open)
+        if (!open) {
+          setCertificateToRevoke(null)
+          setRevokeReason("")
+        }
+      }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{t('certificates.revokeDialogTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('certificates.revokeDialogDesc')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Textarea
+                id="reason"
+                placeholder={t('certificates.revokeReasonPlaceholder')}
+                className="col-span-4"
+                value={revokeReason}
+                onChange={(e) => setRevokeReason(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRevokeDialogOpen(false)
+                setCertificateToRevoke(null)
+                setRevokeReason("")
+              }}
+              disabled={isRevoking}
+            >
+              {t('certificates.cancelButton')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRevokeCertificate}
+              disabled={isRevoking || !revokeReason.trim()}
+            >
+              {isRevoking ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {t('certificates.revokingLabel')}
+                </>
+              ) : (
+                t('certificates.revokeConfirmButton')
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <CertificateShareDialog
         open={shareOpen}
         onOpenChange={setShareOpen}

@@ -6,6 +6,25 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/use-translation"
 
@@ -17,6 +36,7 @@ interface Issuer {
   organization?: string
   website?: string
   created_at?: string
+  certificate_count: number
 }
 
 const initialFormState = {
@@ -33,6 +53,17 @@ export default function IssuerManagementPage() {
   const [issuers, setIssuers] = useState<Issuer[]>([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [editingIssuer, setEditingIssuer] = useState<Issuer | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editFormState, setEditFormState] = useState({
+    name: "",
+    organization: "",
+    website: ""
+  })
+  const [issuerToDelete, setIssuerToDelete] = useState<Issuer | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [processingIssuerId, setProcessingIssuerId] = useState<number | null>(null)
   const { toast } = useToast()
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
@@ -127,6 +158,149 @@ export default function IssuerManagementPage() {
     }
   }
 
+  const filteredIssuers = issuers.filter((issuer) => {
+    const keyword = searchTerm.toLowerCase()
+    if (!keyword) return true
+
+    return (
+      issuer.name.toLowerCase().includes(keyword) ||
+      issuer.email.toLowerCase().includes(keyword) ||
+      (issuer.organization || "").toLowerCase().includes(keyword) ||
+      (issuer.website || "").toLowerCase().includes(keyword)
+    )
+  })
+
+  const startEditIssuer = (issuer: Issuer) => {
+    if (issuer.certificate_count > 0) {
+      toast({
+        title: t('adminIssuers.editBlockedTitle'),
+        description: t('adminIssuers.editBlockedDesc'),
+        variant: "destructive"
+      })
+      return
+    }
+
+    setEditingIssuer(issuer)
+    setEditFormState({
+      name: issuer.name,
+      organization: issuer.organization || "",
+      website: issuer.website || ""
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const handleUpdateIssuer = async () => {
+    if (!editingIssuer || !editFormState.name.trim()) {
+      toast({
+        title: t('adminIssuers.updateErrorTitle'),
+        description: t('adminIssuers.updateErrorMissingDesc'),
+        variant: "destructive"
+      })
+      return
+    }
+
+    setProcessingIssuerId(editingIssuer.id)
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/issuers/${editingIssuer.id}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: editFormState.name.trim(),
+          organization: editFormState.organization.trim(),
+          website: editFormState.website.trim()
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || t('adminIssuers.updateErrorDesc'))
+      }
+
+      toast({
+        title: t('adminIssuers.updateSuccessTitle'),
+        description: t('adminIssuers.updateSuccessDesc')
+      })
+
+      setIsEditDialogOpen(false)
+      setEditingIssuer(null)
+      setEditFormState({ name: "", organization: "", website: "" })
+      await fetchIssuers()
+    } catch (error) {
+      console.error("Update issuer error:", error)
+      toast({
+        title: t('adminIssuers.updateErrorTitle'),
+        description: error instanceof Error ? error.message : t('adminIssuers.updateErrorDesc'),
+        variant: "destructive"
+      })
+    } finally {
+      setProcessingIssuerId(null)
+    }
+  }
+
+  const openDeleteDialog = (issuer: Issuer) => {
+    if (issuer.certificate_count > 0) {
+      toast({
+        title: t('adminIssuers.deleteBlockedTitle'),
+        description: t('adminIssuers.deleteBlockedDesc'),
+        variant: "destructive"
+      })
+      return
+    }
+
+    setIssuerToDelete(issuer)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteIssuer = async () => {
+    if (!issuerToDelete) {
+      return
+    }
+
+    setProcessingIssuerId(issuerToDelete.id)
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/issuers/${issuerToDelete.id}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || t('adminIssuers.deleteErrorDesc'))
+      }
+
+      toast({
+        title: t('adminIssuers.deleteSuccessTitle'),
+        description: t('adminIssuers.deleteSuccessDesc')
+      })
+
+      if (editingIssuer?.id === issuerToDelete.id) {
+        setIsEditDialogOpen(false)
+        setEditingIssuer(null)
+        setEditFormState({ name: "", organization: "", website: "" })
+      }
+
+      setIsDeleteDialogOpen(false)
+      setIssuerToDelete(null)
+
+      await fetchIssuers()
+    } catch (error) {
+      console.error("Delete issuer error:", error)
+      toast({
+        title: t('adminIssuers.deleteErrorTitle'),
+        description: error instanceof Error ? error.message : t('adminIssuers.deleteErrorDesc'),
+        variant: "destructive"
+      })
+    } finally {
+      setProcessingIssuerId(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -194,6 +368,14 @@ export default function IssuerManagementPage() {
           <CardDescription>{loading ? t('adminIssuers.listDescription') : t('adminIssuers.listDescriptionReady')}</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <Input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder={t('adminIssuers.searchPlaceholder')}
+            />
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -202,23 +384,48 @@ export default function IssuerManagementPage() {
                 <TableHead>{t('adminIssuers.tableHeaderWallet')}</TableHead>
                 <TableHead>{t('adminIssuers.tableHeaderOrganization')}</TableHead>
                 <TableHead>{t('adminIssuers.tableHeaderWebsite')}</TableHead>
+                <TableHead>{t('adminIssuers.tableHeaderCertificates')}</TableHead>
+                <TableHead>{t('adminIssuers.tableHeaderActions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {issuers.length === 0 ? (
+              {filteredIssuers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     {t('adminIssuers.listEmpty')}
                   </TableCell>
                 </TableRow>
               ) : (
-                issuers.map((issuer) => (
+                filteredIssuers.map((issuer) => (
                   <TableRow key={issuer.id}>
                     <TableCell>{issuer.name}</TableCell>
                     <TableCell>{issuer.email}</TableCell>
                     <TableCell>{issuer.wallet_address}</TableCell>
                     <TableCell>{issuer.organization || t('adminIssuers.emptyDash')}</TableCell>
                     <TableCell>{issuer.website || t('adminIssuers.emptyDash')}</TableCell>
+                    <TableCell>{issuer.certificate_count || 0}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => startEditIssuer(issuer)}
+                          disabled={issuer.certificate_count > 0 || processingIssuerId === issuer.id}
+                          title={issuer.certificate_count > 0 ? t('adminIssuers.actionBlockedHint') : undefined}
+                        >
+                          {t('adminIssuers.editButton')}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => openDeleteDialog(issuer)}
+                          disabled={issuer.certificate_count > 0 || processingIssuerId === issuer.id}
+                          title={issuer.certificate_count > 0 ? t('adminIssuers.actionBlockedHint') : undefined}
+                        >
+                          {t('adminIssuers.deleteButton')}
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -226,6 +433,153 @@ export default function IssuerManagementPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={isEditDialogOpen}
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open)
+          if (!open) {
+            setEditingIssuer(null)
+            setEditFormState({ name: "", organization: "", website: "" })
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{t('adminIssuers.editFormTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('adminIssuers.editFormDescription')}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-issuer-email" className="text-right">
+                {t('adminIssuers.emailLabel')}
+              </Label>
+              <Input
+                id="edit-issuer-email"
+                className="col-span-3 opacity-70 cursor-not-allowed"
+                value={editingIssuer?.email || ""}
+                readOnly
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-issuer-wallet" className="text-right">
+                {t('adminIssuers.walletLabel')}
+              </Label>
+              <Input
+                id="edit-issuer-wallet"
+                className="col-span-3 opacity-70 cursor-not-allowed"
+                value={editingIssuer?.wallet_address || ""}
+                readOnly
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-issuer-name" className="text-right">
+                {t('adminIssuers.nameLabel')}
+              </Label>
+              <Input
+                id="edit-issuer-name"
+                className="col-span-3"
+                value={editFormState.name}
+                onChange={(event) =>
+                  setEditFormState((prev) => ({
+                    ...prev,
+                    name: event.target.value
+                  }))
+                }
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-issuer-organization" className="text-right">
+                {t('adminIssuers.organizationLabel')}
+              </Label>
+              <Input
+                id="edit-issuer-organization"
+                className="col-span-3"
+                value={editFormState.organization}
+                onChange={(event) =>
+                  setEditFormState((prev) => ({
+                    ...prev,
+                    organization: event.target.value
+                  }))
+                }
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-issuer-website" className="text-right">
+                {t('adminIssuers.websiteLabel')}
+              </Label>
+              <Input
+                id="edit-issuer-website"
+                className="col-span-3"
+                value={editFormState.website}
+                onChange={(event) =>
+                  setEditFormState((prev) => ({
+                    ...prev,
+                    website: event.target.value
+                  }))
+                }
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditDialogOpen(false)
+                setEditingIssuer(null)
+                setEditFormState({ name: "", organization: "", website: "" })
+              }}
+            >
+              {t('adminIssuers.cancelButton')}
+            </Button>
+            <Button
+              onClick={handleUpdateIssuer}
+              disabled={processingIssuerId === editingIssuer?.id}
+            >
+              {t('adminIssuers.updateButton')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('adminIssuers.deleteConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('adminIssuers.deleteConfirmPrefix')} <strong>{issuerToDelete?.name}</strong>? {t('adminIssuers.deleteConfirmSuffix')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setIsDeleteDialogOpen(false)
+                setIssuerToDelete(null)
+              }}
+            >
+              {t('adminIssuers.cancelButton')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteIssuer}
+              disabled={processingIssuerId === issuerToDelete?.id}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {processingIssuerId === issuerToDelete?.id ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {t('adminIssuers.deletingButton')}
+                </>
+              ) : (
+                t('adminIssuers.deleteButton')
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

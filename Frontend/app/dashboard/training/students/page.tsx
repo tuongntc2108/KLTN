@@ -54,6 +54,7 @@ interface Student {
   name: string;
   email: string;
   wallet_address: string | null;
+  avatar_url?: string | null;
   created_at?: string;
   totalCertificates?: number;
   activeCertificates?: number;
@@ -543,6 +544,17 @@ export default function StudentsPage() {
     }
   }
 
+  const getStudentAvatarUrl = (avatarUrl?: string | null) => {
+    if (!avatarUrl) return undefined
+
+    if (avatarUrl.startsWith('/')) {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+      return `${baseUrl}${avatarUrl}`
+    }
+
+    return avatarUrl
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -834,7 +846,7 @@ export default function StudentsPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <Avatar className="h-12 w-12">
-                        <AvatarImage src="/placeholder.svg" alt={student.name} />
+                        <AvatarImage src={getStudentAvatarUrl(student.avatar_url)} alt={student.name} />
                         <AvatarFallback>
                           {student.name
                             .split(" ")
@@ -906,7 +918,7 @@ export default function StudentsPage() {
                                     {t('students.deleting')}
                                   </>
                                 ) : (
-                                  'Delete student'
+                                  t('students.delete')
                                 )}
                               </AlertDialogAction>
                             </AlertDialogFooter>

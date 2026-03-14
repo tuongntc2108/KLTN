@@ -35,13 +35,15 @@ exports.getStudentById = async (req, res) => {
 
     const query = `
       SELECT 
-        id,
-        name,
-        email,
-        wallet_address,
-        created_at
-      FROM students 
-      WHERE id = $1 AND issuer_id = $2
+        s.id,
+        s.name,
+        s.email,
+        s.wallet_address,
+        s.created_at,
+        u.avatar_url
+      FROM students s
+      LEFT JOIN users u ON s.user_id = u.user_id
+      WHERE s.id = $1 AND s.issuer_id = $2
     `;
     
     console.log("🔍 Debug getStudentById - Executing query for ID:", idNum, "and issuer ID:", userIssuerId);
@@ -68,6 +70,7 @@ exports.getStudentById = async (req, res) => {
         name: student.name,
         email: student.email,
         wallet_address: student.wallet_address,
+        avatar_url: student.avatar_url,
         created_at: student.created_at,
         has_wallet: !!student.wallet_address
       }
@@ -179,6 +182,7 @@ exports.getStudents = async (req, res) => {
         s.wallet_address, 
         s.created_at,
         s.issuer_id,
+        u.avatar_url,
         COUNT(c.id) as total_certificates,
         COUNT(CASE WHEN c.status = 'Active' THEN 1 END) as active_certificates,
         COUNT(CASE WHEN c.status = 'Expired' OR c.expire_date < NOW() THEN 1 END) as expired_certificates,
@@ -186,9 +190,10 @@ exports.getStudents = async (req, res) => {
         COUNT(CASE WHEN c.status = 'Revoked' THEN 1 END) as revoked_certificates,
         ARRAY_AGG(DISTINCT c.course_name) FILTER (WHERE c.course_name IS NOT NULL) as courses
       FROM students s
+      LEFT JOIN users u ON s.user_id = u.user_id
       LEFT JOIN certificates c ON s.id = c.student_id
       WHERE s.issuer_id = $1
-      GROUP BY s.id, s.name, s.email, s.wallet_address, s.created_at, s.issuer_id
+      GROUP BY s.id, s.name, s.email, s.wallet_address, s.created_at, s.issuer_id, u.avatar_url
       ORDER BY s.id ASC
     `;
     
@@ -199,6 +204,7 @@ exports.getStudents = async (req, res) => {
       name: row.name,
       email: row.email,
       wallet_address: row.wallet_address,
+      avatar_url: row.avatar_url,
       created_at: row.created_at,
       totalCertificates: parseInt(row.total_certificates) || 0,
       activeCertificates: parseInt(row.active_certificates) || 0,

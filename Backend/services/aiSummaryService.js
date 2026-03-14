@@ -25,11 +25,16 @@ Yêu cầu: Trả về nội dung tóm tắt 2–3 câu, không cần JSON, ch�
       const response = await openai.chat.completions.create({
         model: this.modelName,
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 150,
-        temperature: 0.5,
+        max_tokens: 500,  // Tăng lên 500 để đủ nội dung (≈ 350 từ tiếng Việt)
+        temperature: 0.7,  // Tăng lên 0.7 cho tự nhiên hơn
       });
       
       const summary = response.choices[0].message.content.trim();
+      
+      // Kiểm tra nếu response bị cắt ngắn
+      if (response.choices[0].finish_reason === 'length') {
+        console.warn('⚠️ AI summary was truncated due to token limit');
+      }
       
       return summary;
     } catch (error) {

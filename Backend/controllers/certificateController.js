@@ -1018,11 +1018,14 @@ exports.getCertificatesByIssuer = async (req, res) => {
     let query = `
       SELECT 
         c.*,
+        u.avatar_url,
         CASE 
           WHEN c.expire_date < NOW() THEN 'Expired'
           ELSE c.status
         END as computed_status
       FROM certificates c 
+      LEFT JOIN students s ON c.student_id = s.id
+      LEFT JOIN users u ON s.user_id = u.user_id
       WHERE c.issuer = $1
     `;
     const params = [issuerWalletAddress];
@@ -1083,7 +1086,8 @@ exports.getCertificatesByIssuer = async (req, res) => {
           full_name: cert.recipient_name || "Unknown",
           wallet_address: cert.holder || "",
           email_hash: "hash-email-tam-thoi",
-          student_id: cert.student_id || ""
+          student_id: cert.student_id || "",
+          avatar_url: cert.avatar_url || null
         },
         certificate: {
           course_name: cert.course_name || "N/A",
@@ -1351,9 +1355,17 @@ exports.replaceCertificate = async (req, res) => {
     const recipient_email = student.email;
     const recipient_wallet = student.wallet_address;
 
+    const dataHash = `0x${generateCertificateDataHash({
+      student_id,
+      recipient_name,
+      certificate_name,
+      course_id: finalCourseId || 0,
+      issued_date: finalIssuedDate
+    })}`;
+
     // Get old certificate information for email notification
     const oldCertQuery = await db.pool.query(
-      'SELECT certificate_name, course_name FROM certificates WHERE token_id = $1',
+      'SELECT certificate_name, course_name, course_id FROM certificates WHERE token_id = $1',
       [oldTokenId]
     );
 
@@ -1365,6 +1377,14 @@ exports.replaceCertificate = async (req, res) => {
     }
 
     const oldCertificate = oldCertQuery.rows[0];
+
+    // Preserve old course binding when replace request does not provide course_id.
+    if (!finalCourseId && oldCertificate.course_id) {
+      finalCourseId = Number(oldCertificate.course_id);
+      if (!finalCourseName || finalCourseName === "Chứng chỉ độc lập") {
+        finalCourseName = oldCertificate.course_name || finalCourseName;
+      }
+    }
 
     // Generate tokenId giả lập từ counter để phục vụ external_url và metadata trước khi mint
     certificateCounter++;
@@ -1415,7 +1435,9 @@ exports.replaceCertificate = async (req, res) => {
     const metadataURI = await uploadMetadataToPinata(metadata);
 
     // Gọi smart contract để thay thế
-    const expireUnix = Math.floor(new Date(finalExpireDate).getTime() / 1000);
+    const expireUnix = finalExpireDate
+      ? Math.floor(new Date(finalExpireDate).getTime() / 1000)
+      : Math.floor(new Date('9999-12-31').getTime() / 1000);
     const verificationCode = sha256_hash.slice(0, 16) + Date.now();
 
     // Sử dụng gas options để tránh lỗi replacement transaction underpriced
@@ -1474,7 +1496,13 @@ exports.replaceCertificate = async (req, res) => {
     }
 
     try {
-      await syncCertificateImmediately(newTokenId);
+      await syncCertificateImmediately(newTokenId, {
+        certificate_name: certificate_name,
+        recipient_name: recipient_name,
+        student_id: student_id,
+        course_id: finalCourseId || null,
+        course_name: finalCourseName || null
+      });
       console.log(`✅ [REPLACE] New certificate ${newTokenId} synced to database immediately`);
 
       // Log the event for the new certificate (Issued)
