@@ -2,7 +2,18 @@ require("dotenv").config();
 const { ethers } = require("ethers");
 const db = require("../config/pg");
 const path = require("path");
-const MySBT = require(path.join(__dirname, "..", "..", "SmartContract", "artifacts", "contracts", "MySBT.sol", "MySBT.json")); // ABI snartcontract
+const getMySBTArtifact = () => {
+  const artifactPath = path.join(__dirname, "..", "..", "SmartContract", "artifacts", "contracts", "MySBT.sol", "MySBT.json");
+  const backendAbiPath = path.join(__dirname, "..", "abi", "MySBT.json");
+
+  try {
+    return require(artifactPath);
+  } catch (error) {
+    return require(backendAbiPath);
+  }
+};
+
+const MySBT = getMySBTArtifact(); // ABI smart contract
 const emailNotificationService = require("../services/emailNotificationService");
 
 const STATUS = ["Issued", "Active", "Expired", "Revoked", "Replaced"];
@@ -424,7 +435,7 @@ exports.syncCertificateImmediately = async (tokenId, metadata = {}) => {
   try {
     console.log(`🔄 Starting immediate sync for certificate ${tokenId}`);
     const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
-    const MySBTAbi = require(path.join(__dirname, "..", "..", "SmartContract", "artifacts", "contracts", "MySBT.sol", "MySBT.json")).abi;
+    const MySBTAbi = getMySBTArtifact().abi;
     const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, MySBTAbi, provider);
 
     // Use retry logic for getting certificate data
