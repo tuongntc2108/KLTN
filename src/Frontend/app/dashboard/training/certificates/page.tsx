@@ -305,6 +305,13 @@ export default function CertificatesPage() {
     }
   }, [searchParams])
 
+  useEffect(() => {
+    if (!replaceDialogOpen && !revokeDialogOpen) {
+      document.body.style.pointerEvents = ""
+      document.body.style.overflow = ""
+    }
+  }, [replaceDialogOpen, revokeDialogOpen])
+
   const filteredCertificates = certificates.filter((cert) => {
     // Defensive checks for undefined objects
     const recipientName = cert?.certificate?.recipient?.full_name || "";
@@ -566,21 +573,7 @@ export default function CertificatesPage() {
                 <SelectItem value="Revoked">{t('certificates.statusRevoked')}</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder={t('certificates.typeFilterLabel')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('certificates.typeFilterAll')}</SelectItem>
-                <SelectItem value="professional">{t('certificates.typeFilterProfessional')}</SelectItem>
-                <SelectItem value="advanced">{t('certificates.typeFilterAdvanced')}</SelectItem>
-                <SelectItem value="foundation">{t('certificates.typeFilterFoundation')}</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              {t('certificates.exportButton')}
-            </Button>
+
           </div>
 
           {/* Certificates List */}
@@ -664,7 +657,7 @@ export default function CertificatesPage() {
                             {t('certificates.expiresLabel')} {expiryDate.toLocaleDateString("vi-VN")}
                           </div>
                         </div>
-                        <DropdownMenu>
+                        <DropdownMenu modal={false}>
                           <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="icon" aria-label="Certificate actions" className="cursor-pointer">
                               <MoreVertical className="w-4 h-4" />
@@ -697,9 +690,12 @@ export default function CertificatesPage() {
                             {canManageCertificate && (
                               <DropdownMenuItem
                               className="cursor-pointer"
-                                onSelect={() => {
-                                  setCertificateToReplace(cert)
-                                  setReplaceDialogOpen(true)
+                                onSelect={(e) => {
+                                  e.preventDefault()
+                                  setTimeout(() => {
+                                    setCertificateToReplace(cert)
+                                    setReplaceDialogOpen(true)
+                                  }, 0)
                                 }}
                               >
                                 <Replace className="w-4 h-4" />
@@ -709,10 +705,13 @@ export default function CertificatesPage() {
                             {canManageCertificate && (
                               <DropdownMenuItem
                                 className="cursor-pointer"
-                                onSelect={() => {
-                                  setCertificateToRevoke(cert)
-                                  setRevokeReason("")
-                                  setRevokeDialogOpen(true)
+                                onSelect={(e) => {
+                                  e.preventDefault()
+                                  setTimeout(() => {
+                                    setCertificateToRevoke(cert)
+                                    setRevokeReason("")
+                                    setRevokeDialogOpen(true)
+                                  }, 0)
                                 }}
                               >
                                 <Ban className="w-4 h-4" />

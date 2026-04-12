@@ -11,8 +11,6 @@ const { generateCertificateDataHash } = require("../utils/privacyUtils");
 const { buildCertificateViewByTokenId } = require("../services/certificateViewService");
 const { renderCertificateHtml } = require("../services/certificateTemplateService");
 
-let certificateCounter = 1000;
-
 exports.mintCertificate = async (req, res) => {
   try {
     const userEmail = req.user?.email;
@@ -117,16 +115,11 @@ exports.mintCertificate = async (req, res) => {
       issued_date: finalIssuedDate
     })}`;
 
-    // Generate tokenId giả lập từ counter để phục vụ external_url và metadata trước khi mint
-    certificateCounter++;
-    const tokenIdStr = certificateCounter.toString();
-
     // Build metadata JSON
     const metadata = {
       name: certificate_name,
       description: `Chứng chỉ ${certificate_name} được cấp phát bởi CertChain.`,
       image: "ipfs://QmHashOfImageFile", // TODO
-      external_url: `https://certify.example.org/certificate/${tokenIdStr}`,
       attributes: [
         { trait_type: "Issuer", value: issuer_name },
         { trait_type: "Course ID", value: (finalCourseId || 0).toString() },
@@ -134,7 +127,6 @@ exports.mintCertificate = async (req, res) => {
         { trait_type: "Issued Date", value: finalIssuedDate },
         { trait_type: "Expire Date", value: finalExpireDate || "Never Expires" },
         { trait_type: "Status", value: "active" },
-        { trait_type: "Token ID", value: tokenIdStr },
         { trait_type: "Blockchain", value: "Sepolia" },
         { trait_type: "Smart Contract", value: process.env.CONTRACT_ADDRESS },
       ],
@@ -155,7 +147,6 @@ exports.mintCertificate = async (req, res) => {
         pdf_url: `ipfs://${pdf_ipfs_hash}`,
       },
       verification: {
-        token_id: tokenIdStr,
         smart_contract: process.env.CONTRACT_ADDRESS,
         blockchain: "Sepolia",
         chain_id: 11155111,
@@ -199,7 +190,7 @@ exports.mintCertificate = async (req, res) => {
       })
       .filter((e) => e && e.name === "CertificateIssued")[0];
 
-    const tokenId = event?.args?.tokenId.toString() || tokenIdStr;
+    const tokenId = event?.args?.tokenId.toString();
 
     // Immediately sync the certificate to database
     try {
@@ -262,7 +253,6 @@ exports.mintCertificate = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      certificate_id: certificateCounter,
       token_id: tokenId,
       metadata_uri: metadataURI,
       status: "issued",
@@ -1386,16 +1376,11 @@ exports.replaceCertificate = async (req, res) => {
       }
     }
 
-    // Generate tokenId giả lập từ counter để phục vụ external_url và metadata trước khi mint
-    certificateCounter++;
-    const tokenIdStr = certificateCounter.toString();
-
     // Build metadata JSON for new certificate
     const metadata = {
       name: certificate_name,
       description: `Chứng chỉ ${certificate_name} được cấp phát bởi CertChain.`,
       image: "ipfs://QmHashOfImageFile", // TODO
-      external_url: `https://certify.example.org/certificate/${tokenIdStr}`,
       attributes: [
         { trait_type: "Issuer", value: issuer_name },
         { trait_type: "Course ID", value: (finalCourseId || 0).toString() },
@@ -1403,7 +1388,6 @@ exports.replaceCertificate = async (req, res) => {
         { trait_type: "Issued Date", value: finalIssuedDate },
         { trait_type: "Expire Date", value: finalExpireDate || "Never Expires" },
         { trait_type: "Status", value: "active" },
-        { trait_type: "Token ID", value: tokenIdStr },
         { trait_type: "Blockchain", value: "Sepolia" },
         { trait_type: "Smart Contract", value: process.env.CONTRACT_ADDRESS },
       ],
@@ -1424,7 +1408,6 @@ exports.replaceCertificate = async (req, res) => {
         pdf_url: `ipfs://${pdf_ipfs_hash}`,
       },
       verification: {
-        token_id: tokenIdStr,
         smart_contract: process.env.CONTRACT_ADDRESS,
         blockchain: "Sepolia",
         chain_id: 11155111,

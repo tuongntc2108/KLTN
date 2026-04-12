@@ -30,7 +30,7 @@ const aiResponses: Record<string, string> = {
   "kết nối ví":
     "Để kết nối ví blockchain:\n1. Đảm bảo bạn đã cài đặt MetaMask\n2. Vào trang Ví Blockchain trong dashboard\n3. Click 'Kết nối ví MetaMask'\n4. Xác nhận kết nối trong MetaMask\n\nNếu gặp lỗi, hãy kiểm tra mạng Polygon đã được thêm vào ví chưa.",
   "xác minh chứng chỉ":
-    "Để xác minh chứng chỉ:\n1. Truy cập trang Xác minh chứng chỉ\n2. Nhập mã xác thực hoặc Token ID\n3. Hoặc tải lên file PDF chứng chỉ\n4. Hệ thống sẽ kiểm tra trên blockchain và hiển thị kết quả\n\nBạn cũng có thể quét mã QR từ chứng chỉ để xác minh nhanh.",
+    "Để xác minh chứng chỉ:\n1. Truy cập trang Xác minh chứng chỉ\n2. Nhập mã xác minh hoặc Token ID\n3. Hoặc tải lên file PDF chứng chỉ\n4. Hệ thống sẽ kiểm tra trên blockchain và hiển thị kết quả\n\nBạn cũng có thể quét mã QR từ chứng chỉ để xác minh nhanh.",
   "không nhận được nft":
     "Nếu bạn không nhận được chứng chỉ NFT:\n1. Kiểm tra địa chỉ ví đã đúng chưa\n2. Đảm bảo ví đã kết nối mạng Polygon\n3. Kiểm tra trạng thái chứng chỉ trong dashboard\n4. Nếu trạng thái 'Chờ nhận', click 'Nhận NFT'\n\nNếu vẫn gặp vấn đề, liên hệ đơn vị đào tạo hoặc hỗ trợ kỹ thuật.",
   "cấp chứng chỉ":

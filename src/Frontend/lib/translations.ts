@@ -112,13 +112,13 @@ export const translations = {
       title: 'Xác minh chứng chỉ số',
       subtitle: 'Kiểm tra tính hợp lệ và xác thực chứng chỉ của ứng viên một cách nhanh chóng và chính xác',
       searchTitle: 'Tra cứu chứng chỉ',
-      searchDescription: 'Nhập mã xác thực hoặc Token ID để xác minh',
-      inputPlaceholder: 'Nhập mã xác thực hoặc Token ID...',
+      searchDescription: 'Nhập mã xác minh hoặc Token ID để xác minh',
+      inputPlaceholder: 'Nhập mã xác minh hoặc Token ID...',
       verify: 'Xác minh',
       verifying: 'Đang xác minh...',
-      exampleHint: 'Ví dụ: mã xác thực hoặc Token ID (số hoặc hash...)',
+      exampleHint: 'Ví dụ: mã xác minh hoặc Token ID (số hoặc hash...)',
       landingTitle: 'Xác minh chứng chỉ ngay',
-      landingSubtitle: 'Nhập tokenID hoặc mã xác thực để xác minh tính hợp lệ',
+      landingSubtitle: 'Nhập tokenID hoặc mã xác minh để xác minh tính hợp lệ',
       verificationFailed: 'Xác minh thất bại',
       invalidCertificate: 'Chứng chỉ không hợp lệ',
       unknownDate: 'Chưa xác định',
@@ -146,7 +146,7 @@ export const translations = {
       certificateName: 'Tên chứng chỉ',
       recipient: 'Người nhận',
       issuer: 'Đơn vị cấp',
-      verificationCode: 'Mã xác thực',
+      verificationCode: 'Mã xác minh',
       issueDate: 'Ngày cấp',
       expiryDate: 'Ngày hết hạn',
       tokenId: 'Token ID',
@@ -185,6 +185,9 @@ export const translations = {
       statusExpired: 'Đã hết hạn',
       statusRevoked: 'Đã thu hồi',
       statusReplaced: 'Đã thay thế'
+    },
+    student: {
+      notEnrolled: 'Bạn không phải là Học viên, vui lòng liên hệ với đơn vị đào tạo'
     },
     wallet: {
       title: 'Ví Blockchain',
@@ -373,7 +376,7 @@ export const translations = {
       courseLabel: 'Khóa học',
       gradeLabel: 'Kết quả',
       expireDateLabel: 'Ngày hết hạn',
-      verifyCodeLabel: 'Mã xác thực',
+      verifyCodeLabel: 'Mã xác minh',
       unknownCert: 'Chứng chỉ không xác định',
       claimButton: 'Nhận chứng chỉ',
       downloadPDF: 'Tải PDF',
@@ -465,7 +468,7 @@ export const translations = {
       issuedLabel: 'Cấp:',
       expiresLabel: 'Hết hạn:',
       certificateTypeLabel: 'Loại chứng chỉ:',
-      verificationCodeLabel: 'Mã xác thực:',
+      verificationCodeLabel: 'Mã xác minh:',
       ipfsHashLabel: 'IPFS Hash:',
       walletAddressLabel: 'Địa chỉ ví:',
       notConnectedLabel: 'Chưa kết nối',
@@ -492,7 +495,7 @@ export const translations = {
       successSubtitle: 'Chứng chỉ NFT đã được tạo và mint trên blockchain',
       certificateIssued: 'Chứng chỉ đã được cấp',
       nftMintedSuccess: 'NFT đã được mint thành công trên blockchain',
-      verificationCodeLabel: 'Mã xác thực',
+      verificationCodeLabel: 'Mã xác minh',
       tokenIdLabel: 'Token ID',
       transactionHashLabel: 'Transaction Hash',
       metadataUriLabel: 'Metadata URI',
@@ -872,6 +875,9 @@ export const translations = {
       statusExpired: 'Expired',
       statusRevoked: 'Revoked',
       statusReplaced: 'Replaced'
+    },
+    student: {
+      notEnrolled: 'You are not a student. Please contact your training organization'
     },
     wallet: {
       title: 'Blockchain Wallet',

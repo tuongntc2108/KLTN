@@ -470,7 +470,7 @@ Ví dụ:
     }
 
     // Validate schema
-    const validated = validateUnifiedClassification(classification);
+    const validated = validateUnifiedClassification(classification); // chốt chặn giá trị trả về từ LLM
     console.log('✅ [UNIFIED CLASSIFIER] Validated result:', validated);
     return validated;
   } catch (error) {
@@ -500,7 +500,7 @@ function validateUnifiedClassification(classification) {
  */
 function ruleBasedUnifiedClassify(question) {
   const questionLower = question.toLowerCase();
-  const courseKeywords = ['nội dung', 'chương trình', 'syllabus', 'kỹ năng', 'bài giảng', 'module', 'học gì', 'dạy gì', 'nội dùng'];
+  const courseKeywords = ['nội dung', 'chương trình', 'syllabus', 'kỹ năng', 'bài giảng', 'module', 'học gì', 'dạy gì'];
   const isCourseQuery = courseKeywords.some(kw => questionLower.includes(kw));
 
   let confidence = 0.5;

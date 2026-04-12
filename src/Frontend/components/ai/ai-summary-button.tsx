@@ -126,7 +126,7 @@ export function AISummaryButton({ certificateId, certificateName }: AISummaryPro
                   </Badge>
                 </div>
                 <CardDescription>
-                  Tóm tắt được tạo bởi Google Gemini AI
+                  Tóm tắt được tạo bởi OpenAI ChatGPT
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -152,7 +152,7 @@ export function AISummaryButton({ certificateId, certificateName }: AISummaryPro
         </div>
 
         <div className="flex justify-end gap-2 pt-4">
-          {summary && (
+          {/* {summary && (
             <Button
               variant="outline"
               onClick={() => {
@@ -164,7 +164,7 @@ export function AISummaryButton({ certificateId, certificateName }: AISummaryPro
             >
               Tạo lại tóm tắt
             </Button>
-          )}
+          )} */}
           <Button variant="outline" onClick={() => setIsOpen(false)}>
             Đóng
           </Button>

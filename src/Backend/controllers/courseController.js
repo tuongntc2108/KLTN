@@ -6,13 +6,13 @@ const { createIssuerWithUser } = require('../utils/userUtils');
 async function getIssuerIdFromEmail(email) {
   try {
     // First check if issuers table exists
-    const tableCheck = await db.pool.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'issuers'
-      )
-    `);
+    // const tableCheck = await db.pool.query(`
+    //   SELECT EXISTS (
+    //     SELECT FROM information_schema.tables 
+    //     WHERE table_schema = 'public' 
+    //     AND table_name = 'issuers'
+    //   )
+    // `);
     
     // Now check if issuer exists
     const query = `SELECT id FROM issuers WHERE email = $1`;

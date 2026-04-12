@@ -400,74 +400,29 @@ exports.updateWalletAddress = async (req, res) => {
 exports.getMyWalletInfo = async (req, res) => {
   try {
     const userEmail = req.user?.email;
-    const userName = req.user?.fullName;
+    const userRole = req.user?.role;
     
     if (!userEmail) {
       return res.status(401).json({ error: "Unauthorized", details: "User not authenticated" });
     }
 
+    // Check if user has a valid role (not 'undefined')
+    if (!userRole || userRole === 'undefined') {
+      return res.status(403).json({ 
+        error: "Forbidden", 
+        details: "Bạn không phải là Học viên, vui lòng liên hệ với đơn vị đào tạo" 
+      });
+    }
+
     let query = `SELECT id, name, email, wallet_address, created_at, issuer_id FROM students WHERE email = $1`;
     let result = await db.pool.query(query, [userEmail.toLowerCase()]);
     
-    // If student doesn't exist, create one automatically
+    // If student doesn't exist, return 404
     if (result.rows.length === 0) {
-      try {
-        // Generate a unique ID (timestamp-based for now)
-        const studentId = Date.now();
-        
-        // Get the authenticated user's issuer information to assign to new student
-        // For students signing up directly, we'll assign them to a default issuer (e.g., issuer_id = 1)
-        const userIssuerQuery = `SELECT i.id as issuer_id FROM users u JOIN issuers i ON u.user_id = i.user_id WHERE u.email = $1`;
-        const userIssuerResult = await db.pool.query(userIssuerQuery, [userEmail]);
-        
-        let issuerId = 1; // Default issuer ID if the user is not an issuer
-        if (userIssuerResult.rows.length > 0) {
-          issuerId = userIssuerResult.rows[0].issuer_id;
-        }
-        
-        // Create student with user (using new user management system)
-        const studentData = {
-          id: studentId,
-          name: userName || 'Unknown User',
-          email: userEmail.toLowerCase(),
-          wallet_address: null,
-          issuer_id: issuerId
-        };
-        
-        const newStudent = await createStudentWithUser(studentData);
-        
-        return res.status(200).json({
-          success: true,
-          student: {
-            student_id: newStudent.id,
-            name: newStudent.name,
-            email: newStudent.email,
-            wallet_address: newStudent.wallet_address,
-            created_at: newStudent.created_at,
-            has_wallet: !!newStudent.wallet_address
-          }
-        });
-      } catch (insertError) {
-        if (insertError.code === '23505') {
-          // If there's a unique constraint violation, try to get the existing record
-          result = await db.pool.query(query, [userEmail.toLowerCase()]);
-          if (result.rows.length > 0) {
-            const student = result.rows[0];
-            return res.status(200).json({
-              success: true,
-              student: {
-                student_id: student.id,
-                name: student.name,
-                email: student.email,
-                wallet_address: student.wallet_address,
-                created_at: student.created_at,
-                has_wallet: !!student.wallet_address
-              }
-            });
-          }
-        }
-        throw insertError;
-      }
+      return res.status(404).json({ 
+        error: "Not Found", 
+        details: "Student record not found in system" 
+      });
     }
 
     const student = result.rows[0];

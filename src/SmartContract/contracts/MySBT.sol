@@ -36,7 +36,7 @@ contract MySBT is ERC721, AccessControl, Pausable {
         uint256 expireDate;      // Thời gian hết hạn
         CertificateStatus status; // Trạng thái chứng chỉ
         string courseId;         // Mã khóa học từ metadata
-        string verificationCode; // Mã xác thực từ metadata
+        string verificationCode; // Mã xác minh từ metadata
         bytes32 dataHash;        // Hash dữ liệu off-chain (privacy-preserving)
     }
     
