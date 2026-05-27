@@ -45,6 +45,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useCourses } from "@/hooks/use-courses"
+import { computeCertificateHash } from "@/lib/certHash"
 
 interface Certificate {
   verified: boolean
@@ -68,7 +69,7 @@ interface Certificate {
     certificate_detail: {
       course_name: string
       certificate_name: string
-      issue_date: string
+      issued_date: string
       expire_date: string
       status: string
     }
@@ -605,7 +606,7 @@ export default function CertificatesPage() {
                 const studentName = certificate?.recipient?.full_name || "Unknown Student"
                 const courseName = certificate?.certificate_detail?.course_name || "Unknown Course"
                 const certificateName = certificate?.certificate_detail?.certificate_name || "Unknown Certificate"
-                const issueDate = certificate?.certificate_detail?.issue_date ? new Date(certificate.certificate_detail.issue_date) : new Date()
+                const issueDate = certificate?.certificate_detail?.issued_date ? new Date(certificate.certificate_detail.issued_date) : new Date()
                 const expiryDate = certificate?.certificate_detail?.expire_date ? new Date(certificate.certificate_detail.expire_date) : new Date()
                 const status = certificate?.status || "unknown"
                 const walletAddress = certificate?.recipient?.wallet_address || ""
@@ -778,9 +779,6 @@ export default function CertificatesPage() {
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>{t('certificates.replaceDialogTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('certificates.revokeDialogDesc')}
-            </DialogDescription>
           </DialogHeader>
           {certificateToReplace && (
             <ReplaceCertificateForm
@@ -912,20 +910,25 @@ function ReplaceCertificateForm({ certificate, onReplace, isReplacing, onCancel 
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.certificateName || !formData.courseName || !formData.issueDate) {
       return
     }
 
-    // Generate SHA256 hash for verification (simplified)
-    const sha256Hash = `hash_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    const pdfIpfsHash = `Qm${Math.random().toString(36).substr(2, 44)}`
-
-    // Extract student ID from the original certificate
     const originalStudentId = certificate?.certificate?.recipient?.student_id || ""
-    
+    const recipientName = certificate?.certificate?.recipient?.full_name || ""
+
+    const sha256Hash = await computeCertificateHash({
+      student_id: originalStudentId,
+      recipient_name: recipientName,
+      certificate_name: formData.certificateName,
+      course_id: null,
+      issued_date: formData.issueDate,
+    })
+    const pdfIpfsHash = `Qm${Math.random().toString(36).substring(2, 46)}`
+
     const replaceData = {
-      student_id: originalStudentId, // Use the original student ID from the certificate
+      student_id: originalStudentId,
       course_name: formData.courseName,
       certificate_name: formData.certificateName,
       issuer_name: formData.issuerName,

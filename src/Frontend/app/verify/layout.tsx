@@ -66,36 +66,16 @@ export default function VerifyLayout({
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Hỗ trợ nhà tuyển dụng</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>
-                  <Link href="/verify/help" className="hover:text-foreground transition-colors">
-                    Hướng dẫn xác minh
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/verify/api" className="hover:text-foreground transition-colors">
-                    API Documentation
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/verify/bulk" className="hover:text-foreground transition-colors">
-                    Xác minh hàng loạt
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
               <h4 className="font-semibold mb-4">Liên hệ</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>Email: verify@certchain.vn</li>
-                <li>Hotline: 1900-xxxx</li>
+                <li>Email: 22021207@vnu.edu.vn</li>
+                <li>Hotline: 0365313355</li>
                 <li>Thời gian hỗ trợ: 8:00 - 17:00</li>
               </ul>
             </div>
           </div>
           <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-            <p>&copy; 2024 CertChain. Tất cả quyền được bảo lưu.</p>
+            <p>&copy; 2026 CertChain. Tất cả quyền được bảo lưu.</p>
           </div>
         </div>
       </footer>

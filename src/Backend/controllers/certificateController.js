@@ -253,6 +253,7 @@ exports.mintCertificate = async (req, res) => {
 
     return res.status(201).json({
       success: true,
+      verification_code: verificationCode,
       token_id: tokenId,
       metadata_uri: metadataURI,
       status: "issued",

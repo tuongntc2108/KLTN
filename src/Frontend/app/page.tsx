@@ -45,7 +45,9 @@ export default function HomePage() {
             Công nghệ Blockchain & NFT
           </Badge>
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-balance mb-6">
-            Hệ thống cấp phát chứng chỉ số
+            Hệ thống cấp phát 
+            <br></br>
+            chứng chỉ số
             <span className="block text-primary">an toàn và minh bạch</span>
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground/90 text-pretty mb-10 max-w-2xl mx-auto">

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"D:\\\\KLTN\\\\src\\\\Backend\" -Depth 0 | Where-Object {$_.Extension -eq '.js' -or $_.Extension -eq '.ts'})"
+    ]
+  }
+}

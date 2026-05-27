@@ -16,6 +16,7 @@ import { useTranslation } from "@/hooks/use-translation"
 import { useStudentInfo } from "@/hooks/use-student-info"
 import { useCourses } from "@/hooks/use-courses"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { computeCertificateHash } from "@/lib/certHash"
 
 export default function IssueCertificatePage() {
   const [isIssuing, setIsIssuing] = useState(false)
@@ -87,8 +88,13 @@ export default function IssueCertificatePage() {
         return
       }
 
-      // Generate SHA256 hash for verification (simplified)
-      const sha256Hash = `hash_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      const sha256Hash = await computeCertificateHash({
+        student_id: formData.studentId,
+        recipient_name: student.name,
+        certificate_name: formData.certificateName,
+        course_id: (formData.courseId && formData.courseId !== "none") ? formData.courseId : null,
+        issued_date: formData.issueDate,
+      })
       const pdfIpfsHash = `Qm${Math.random().toString(36).substr(2, 44)}`
 
       // Prepare API request body - use course_id if selected, otherwise course_name as fallback
@@ -124,9 +130,8 @@ export default function IssueCertificatePage() {
       const result = await response.json()
 
       const certificate = {
-        id: `CERT-${result.certificate_id}`,
+        id: result.verification_code,
         tokenId: result.token_id,
-        transactionHash: result.transaction_hash || `0x${Math.random().toString(16).substr(2, 64)}`,
         ipfsHash: result.metadata_uri,
         status: result.status,
         studentId: formData.studentId,
@@ -169,7 +174,7 @@ export default function IssueCertificatePage() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-green-800">{t('issue.certificateIssued')}</h3>
-                <p className="text-green-600">{t('issue.nftMintedSuccess')}</p>
+                <p className="text-green-900">{t('issue.nftMintedSuccess')}</p>
               </div>
             </div>
 
@@ -182,10 +187,6 @@ export default function IssueCertificatePage() {
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">{t('issue.tokenIdLabel')}</Label>
                   <p className="font-mono text-sm">{issuedCertificate.tokenId}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">{t('issue.transactionHashLabel')}</Label>
-                  <p className="font-mono text-xs break-all">{issuedCertificate.transactionHash}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">{t('issue.metadataUriLabel')}</Label>
@@ -203,26 +204,13 @@ export default function IssueCertificatePage() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">{t('issue.statusLabel')}</Label>
-                  <Badge className="bg-green-100 text-green-800 border-green-200">
+                  <Badge className="bg-green-100 text-green-800 border-green-200 mx-2">
                     {issuedCertificate.status === 'Issued' ? t('issue.statusPending') : issuedCertificate.status}
                   </Badge>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
-              <Button>{t('issue.viewOnExplorerButton')}</Button>
-              <Button variant="outline">{t('issue.sendNotificationButton')}</Button>
-              <Button 
-                variant="outline" 
-                onClick={() => router.push('/dashboard/training/certificates?refresh=true')}
-              >
-                {t('issue.backToDashboardButton')}
-              </Button>
-              <Button variant="outline" onClick={() => setIssuedCertificate(null)}>
-                {t('issue.issueAnotherButton')}
-              </Button>
-            </div>
           </CardContent>
         </Card>
       </div>

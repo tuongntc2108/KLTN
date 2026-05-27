@@ -199,10 +199,6 @@ export function VerificationResult({ verificationResult }: VerificationResultPro
                                     <p>{verificationResult.certificate.blockchainNetwork}</p>
                                 </div>
                             </div>
-                            <Button variant="outline" size="sm" className="mt-3 bg-transparent">
-                                <ExternalLink className="w-4 h-4 mr-2" />
-                                {t('common.viewOnExplorer')}
-                            </Button>
                         </div>
 
                         {/* Revocation Reason Section - Only for revoked certificates */}

@@ -231,16 +231,11 @@ export default function StudentDashboard() {
                 <p className="text-sm font-medium">{t('studentDashboard.walletAddress')}</p>
                 <p className="text-xs text-muted-foreground font-mono">
                   {walletInfo.address ?
-                    `${walletInfo.address.slice(0, 6)}...${walletInfo.address.slice(-4)}` :
+                    `${walletInfo.address}` :
                     t('studentDashboard.notConnected')
                   }
                 </p>
               </div>
-              {walletInfo.address && (
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <Copy className="h-4 w-4" />
-                </Button>
-              )}
             </div>
 
             <div className="flex items-center justify-between p-3 border border-border rounded-lg">
